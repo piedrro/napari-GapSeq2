@@ -34,95 +34,836 @@ from magicgui import magic_factory
 from magicgui.widgets import CheckBox, Container, create_widget
 from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget
 from skimage.util import img_as_float
+from qtpy.QtCore import QObject, QRunnable, QThreadPool
+from qtpy.QtWidgets import (QWidget,QVBoxLayout,QTabWidget,QSizePolicy, QComboBox,QLineEdit)
+from PIL import Image
+from tqdm import tqdm
+import numpy as np
+import tifffile
+from qtpy.QtCore import QObject
+from qtpy.QtCore import QRunnable
+from PyQt5.QtCore import pyqtSignal, pyqtSlot
+import sys
+import traceback
+import time
+import json
+import copy
+from scipy.spatial import procrustes
+from scipy.spatial import distance
+import cv2
+
+
 
 if TYPE_CHECKING:
     import napari
 
+class WorkerSignals(QObject):
+    """
+    Defines the signals available from a running worker thread.
 
-# Uses the `autogenerate: true` flag in the plugin manifest
-# to indicate it should be wrapped as a magicgui to autogenerate
-# a widget.
-def threshold_autogenerate_widget(
-    img: "napari.types.ImageData",
-    threshold: "float",
-) -> "napari.types.LabelsData":
-    return img_as_float(img) > threshold
+    Supported signals are:
 
+    finished
+        No data
 
-# the magic_factory decorator lets us customize aspects of our widget
-# we specify a widget type for the threshold parameter
-# and use auto_call=True so the function is called whenever
-# the value of a parameter changes
-@magic_factory(
-    threshold={"widget_type": "FloatSlider", "max": 1}, auto_call=True
-)
-def threshold_magic_widget(
-    img_layer: "napari.layers.Image", threshold: "float"
-) -> "napari.types.LabelsData":
-    return img_as_float(img_layer.data) > threshold
+    error
+        tuple (exctype, value, traceback.format_exc() )
 
+    result
+        object data returned from processing, anything
 
-# if we want even more control over our widget, we can use
-# magicgui `Container`
-class ImageThreshold(Container):
-    def __init__(self, viewer: "napari.viewer.Viewer"):
+    progress
+        int indicating % progress
+
+    """
+
+    finished = pyqtSignal()
+    error = pyqtSignal(tuple)
+    result = pyqtSignal(object)
+    progress = pyqtSignal(int)
+
+class Worker(QRunnable):
+    """
+    Worker thread
+
+    Inherits from QRunnable to handler worker thread setup, signals and wrap-up.
+
+    :param callback: The function callback to run on this worker thread. Supplied args and
+                     kwargs will be passed through to the runner.
+    :type callback: function
+    :param args: Arguments to pass to the callback function
+    :param kwargs: Keywords to pass to the callback function
+
+    """
+
+    def __init__(self, fn, *args, **kwargs):
         super().__init__()
-        self._viewer = viewer
-        # use create_widget to generate widgets from type annotations
-        self._image_layer_combo = create_widget(
-            label="Image", annotation="napari.layers.Image"
-        )
-        self._threshold_slider = create_widget(
-            label="Threshold", annotation=float, widget_type="FloatSlider"
-        )
-        self._threshold_slider.min = 0
-        self._threshold_slider.max = 1
-        # use magicgui widgets directly
-        self._invert_checkbox = CheckBox(text="Keep pixels below threshold")
 
-        # connect your own callbacks
-        self._threshold_slider.changed.connect(self._threshold_im)
-        self._invert_checkbox.changed.connect(self._threshold_im)
+        # Store constructor arguments (re-used for processing)
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+        self.signals = WorkerSignals()
 
-        # append into/extend the container with your widgets
-        self.extend(
-            [
-                self._image_layer_combo,
-                self._threshold_slider,
-                self._invert_checkbox,
-            ]
-        )
+        # Add the callback to our kwargs
+        self.kwargs["progress_callback"] = self.signals.progress
 
-    def _threshold_im(self):
-        image_layer = self._image_layer_combo.value
-        if image_layer is None:
-            return
+    @pyqtSlot()
+    def run(self):
+        """
+        Initialise the runner function with passed args, kwargs.
+        """
 
-        image = img_as_float(image_layer.data)
-        name = image_layer.name + "_thresholded"
-        threshold = self._threshold_slider.value
-        if self._invert_checkbox.value:
-            thresholded = image < threshold
+        # Retrieve args/kwargs here; and fire processing using them
+        try:
+            result = self.fn(*self.args, **self.kwargs)
+        except:
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            self.signals.error.emit((exctype, value, traceback.format_exc()))
         else:
-            thresholded = image > threshold
-        if name in self._viewer.layers:
-            self._viewer.layers[name].data = thresholded
-        else:
-            self._viewer.add_labels(thresholded, name=name)
+            self.signals.result.emit(result)  # Return the result of the processing
+        finally:
+            self.signals.finished.emit()  # Done
+
+    def result(self):
+        return self.fn(*self.args, **self.kwargs)
 
 
-class ExampleQWidget(QWidget):
+
+
+
+
+
+class GapSeqWidget(QWidget):
+
     # your QWidget.__init__ can optionally request the napari viewer instance
     # use a type annotation of 'napari.viewer.Viewer' for any parameter
     def __init__(self, viewer: "napari.viewer.Viewer"):
         super().__init__()
         self.viewer = viewer
 
-        btn = QPushButton("Click me!")
-        btn.clicked.connect(self._on_click)
+        from napari_gapseq2.widget_ui import Ui_Form
 
-        self.setLayout(QHBoxLayout())
-        self.layout().addWidget(btn)
+        #create UI
+        self.setLayout(QVBoxLayout())
+        self.form = Ui_Form()
+        self.gapseq_ui = QWidget()
+        self.form.setupUi(self.gapseq_ui)
+        self.layout().addWidget(self.gapseq_ui)
 
-    def _on_click(self):
-        print("napari has", len(self.viewer.layers), "layers")
+        self.import_alex_data = self.findChild(QPushButton, 'import_alex_data')
+        self.channel_selector = self.findChild(QComboBox, 'channel_selector')
+
+        self.picasso_channel = self.findChild(QComboBox, 'picasso_channel')
+        self.picasso_min_net_gradient = self.findChild(QLineEdit, 'picasso_min_net_gradient')
+        self.picasso_frame_mode = self.findChild(QComboBox, 'picasso_frame_mode')
+        self.picasso_detect = self.findChild(QPushButton, 'picasso_detect')
+        self.picasso_fit = self.findChild(QPushButton, 'picasso_fit')
+        self.picasso_detect_mode = self.findChild(QComboBox, 'picasso_detect_mode')
+
+        self.picasso_undrift_mode = self.findChild(QComboBox, 'picasso_undrift_mode')
+        self.picasso_undrift_channel = self.findChild(QComboBox, 'picasso_undrift_channel')
+        self.picasso_undrift = self.findChild(QPushButton, 'picasso_undrift')
+
+        self.gapseq_compute_tform = self.findChild(QPushButton, 'gapseq_compute_tform')
+
+        self.import_alex_data.clicked.connect(self.gapseq_import_alex_data)
+        self.channel_selector.currentIndexChanged.connect(self.update_active_image)
+
+        self.picasso_detect.clicked.connect(self.gapseq_picasso_detect)
+        self.picasso_fit.clicked.connect(self.gapseq_picasso_fit)
+
+        self.channel_selector.currentIndexChanged.connect(self.draw_localisations)
+
+        self.picasso_undrift.clicked.connect(self.gapseq_picasso_undrift)
+
+        self.gapseq_compute_tform.clicked.connect(self.compute_transform_matrix)
+
+        self.image_dict = {}
+
+        self.threadpool = QThreadPool()
+
+        self.transform_matrix = None
+
+        # transform_matrix_path = r"C:\Users\turnerp\Desktop\PicassoDEV\gapseq_transform_matrix-230719.txt"
+        #
+        # with open(transform_matrix_path, 'r') as f:
+        #     transform_matrix = json.load(f)
+        #
+        # self.transform_matrix = np.array(transform_matrix)
+
+    def compute_registration_keypoints(self, reference_box_centres, target_box_centres, alignment_distance=20):
+
+        alignment_keypoints = []
+        keypoint_distances = []
+        target_keypoints = []
+
+        distances = distance.cdist(np.array(reference_box_centres), np.array(target_box_centres))
+
+        for j in range(distances.shape[0]):
+
+            dat = distances[j]
+
+            loc_index = np.nanargmin(dat)
+            loc_distance = np.nanmin(dat)
+            loc0_index = j
+
+            loc0_centre = reference_box_centres[loc0_index]
+            loc_centre = target_box_centres[loc_index]
+
+            x_difference = abs(loc0_centre[0] - loc_centre[0])
+            y_difference = abs(loc0_centre[1] - loc_centre[1])
+
+            xy_distance = np.sqrt(x_difference ** 2 + y_difference ** 2)
+
+            if xy_distance < alignment_distance:
+
+                alignment_keypoints.append([loc0_centre[0], loc0_centre[1]])
+                target_keypoints.append([loc_centre[0], loc_centre[1]])
+                keypoint_distances.append(loc_distance)
+
+        alignment_keypoints = np.array(alignment_keypoints).astype(np.float32)
+        target_keypoints = np.array(target_keypoints).astype(np.float32)
+
+        return alignment_keypoints, target_keypoints
+
+
+
+
+    def compute_transform_matrix(self):
+
+        try:
+            if self.image_dict != {}:
+
+                reference_points = None
+                target_points = None
+
+                for channel_name, channel_data in self.image_dict.items():
+                    channel_ex, channel_em = channel_name
+
+                    if "alignment fiducials" in channel_data.keys():
+
+                        localisation_centres = channel_data["alignment fiducials"]["localisation_centres"].copy()
+
+                        if len(localisation_centres) > 0:
+
+                            localisation_centres = [dat[1:] for dat in localisation_centres]
+
+                            if channel_em == "A":
+                                reference_points = localisation_centres
+                            elif channel_em == "D":
+                                target_points = localisation_centres
+
+                if reference_points is not None and target_points is not None:
+
+                    reference_points = [[dat[1], dat[0]] for dat in reference_points]
+                    target_points = [[dat[1], dat[0]] for dat in target_points]
+
+                    reference_points, target_points = self.compute_registration_keypoints(reference_points, target_points)
+
+                    reference_points = np.array(reference_points)
+                    target_points = np.array(target_points)
+
+                    self.transform_matrix, _ = cv2.estimateAffinePartial2D(reference_points, target_points, method=cv2.RANSAC)
+
+                    print(f"Transform matrix: {self.transform_matrix}")
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
+
+    def split_img(self, img, split_direction='vertical'):
+
+        width, height = img.size
+
+        if split_direction.lower() == 'vertical':
+            # Split the image vertically
+            left_half = img.crop((0, 0, width // 2, height))
+            right_half = img.crop((width // 2, 0, width, height))
+            return [left_half, right_half]
+
+        elif split_direction.lower() == 'horizontal':
+            # Split the image horizontally
+            top_half = img.crop((0, 0, width, height // 2))
+            bottom_half = img.crop((0, height // 2, width, height))
+            return [top_half, bottom_half]
+
+
+    def gapseq_import_alex_data(self):
+
+        path = r"C:\Users\turnerp\Desktop\PicassoDEV\image.tif"
+
+        self.image_dict = {"AA": {"data":[]}, "AD": {"data":[]}, "DA": {"data":[]}, "DD": {"data":[]}}
+
+        self.channel_selector.clear()
+        self.channel_selector.addItems(["AA", "AD", "DA", "DD"])
+
+        self.picasso_channel.clear()
+        self.picasso_channel.addItems(["AA", "AD", "DA", "DD"])
+
+        self.picasso_undrift_channel.clear()
+        self.picasso_undrift_channel.addItems(["AA", "AD", "DA", "DD"])
+
+        with Image.open(path) as img:
+            n_frames = img.n_frames
+            # n_frames = n_frames//10
+            for i in tqdm(range(n_frames), desc="importing frames"):
+                if i % 2 == 1:
+                    excitation = "A"
+                else:
+                    excitation = "D"
+
+                img.seek(i)
+                frame = img.copy()
+
+                image_list = self.split_img(frame)
+
+                emission_list = ["A", "D"]
+
+                for img_data, emission in zip(image_list, emission_list):
+                    dict_key = excitation + emission
+
+                    self.image_dict[dict_key]["data"].append(np.array(img_data))
+
+        for channel, channel_dict in self.image_dict.items():
+
+            image = np.stack(channel_dict["data"]).copy()
+
+            self.image_dict[channel]["data"] = image
+
+        self.update_active_image()
+
+
+    def update_active_image(self):
+
+        try:
+
+            if self.image_dict != {}:
+
+                active_channel = self.channel_selector.currentText()
+
+                image = self.image_dict[active_channel]["data"]
+
+                if type(image) == type(np.array([])):
+
+                    if "image" in self.viewer.layers:
+                        self.viewer.layers["image"].data = image
+                    else:
+                        self.viewer.add_image(image,
+                            name="image",
+                            colormap="green",
+                            blending="additive",
+                            visible=True,)
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
+
+
+
+
+
+    def draw_localisations(self):
+
+        if hasattr(self, "image_dict"):
+
+            try:
+
+                layer_names = [layer.name for layer in self.viewer.layers]
+
+                vis_mode = "square"
+                vis_size = 10
+                vis_opacity = 1.0
+                vis_edge_width = 0.1
+
+                if vis_mode.lower() == "square":
+                    symbol = "square"
+                elif vis_mode.lower() == "disk":
+                    symbol = "disc"
+                elif vis_mode.lower() == "x":
+                    symbol = "cross"
+
+                image_channel = self.channel_selector.currentText()
+
+                channel_dict = self.image_dict[image_channel]
+
+                for data_key, data_dict in channel_dict.items():
+                    if data_key in ["alignment fiducials","undrift fiducials","bounding boxes"]:
+
+                        if "localisation_centres" in data_dict.keys():
+
+                            localisation_centres = data_dict["localisation_centres"]
+
+                            if len(localisation_centres) > 0:
+
+                                layer_name = data_key
+
+                                if layer_name.lower() == "alignment fiducials":
+                                    colour = "blue"
+                                elif layer_name.lower() == "undrift fiducials":
+                                    colour = "red"
+                                else:
+                                    colour = "white"
+
+                                if layer_name not in layer_names:
+
+                                    self.viewer.add_points(localisation_centres,
+                                        edge_color=colour,
+                                        face_color=[0, 0, 0,0],
+                                        opacity=vis_opacity,
+                                        name=layer_name,
+                                        symbol=symbol,
+                                        size=vis_size,
+                                        edge_width=vis_edge_width, )
+                                else:
+                                    self.viewer.layers[layer_name].data = []
+
+                                    self.viewer.layers[layer_name].data = localisation_centres
+                                    self.viewer.layers[layer_name].symbol = symbol
+                                    self.viewer.layers[layer_name].size = vis_size
+                                    self.viewer.layers[layer_name].opacity = vis_opacity
+                                    self.viewer.layers[layer_name].edge_width = vis_edge_width
+                                    self.viewer.layers[layer_name].edge_color = colour
+
+                            else:
+                                if data_key.lower() in layer_names:
+                                    self.viewer.layers[data_key.lower()].data = []
+
+                        else:
+                            if data_key.lower() in layer_names:
+                                self.viewer.layers[data_key.lower()].data = []
+            except:
+                print(traceback.format_exc())
+
+
+
+    def get_localisation_centres(self, locs):
+
+        try:
+            loc_centres = []
+            for loc in locs:
+                frame = int(loc.frame)
+                # if frame not in loc_centres.keys():
+                #     loc_centres[frame] = []
+                loc_centres.append([frame, loc.y, loc.x])
+
+        except:
+            print(traceback.format_exc())
+            loc_centres = []
+
+        return loc_centres
+
+
+    def apply_transform(self, locs, inverse = False):
+
+        try:
+
+            image_shape = self.image_dict["AA"]["data"].shape[1:]
+
+            tform = self.transform_matrix.copy().astype(np.float32)
+
+            if inverse:
+                tform = cv2.invertAffineTransform(tform)
+
+            for loc_index, loc in enumerate(locs):
+
+                loc_centre = np.array([[loc.x, loc.y]], dtype=np.float32)
+
+                transformed_point = cv2.transform(np.array([loc_centre]), tform)
+
+                transformed_loc_centre = transformed_point[0][0]
+
+                transformed_loc = copy.deepcopy(loc)
+
+                transformed_loc.x = transformed_loc_centre[0]
+                transformed_loc.y = transformed_loc_centre[1]
+
+                locs[loc_index] = transformed_loc
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
+        return locs
+
+
+
+    def populate_localisation_dict(self, locs, detect_mode, image_channel):
+
+        try:
+            detect_mode = detect_mode.lower()
+            excitation, emission = image_channel
+
+            if self.transform_matrix is None:
+
+                loc_centres = self.get_localisation_centres(locs)
+
+                for channel in self.image_dict.keys():
+                    channel_ex, channel_em = channel
+
+                    if detect_mode not in self.image_dict[channel].keys():
+                        self.image_dict[channel][detect_mode] = {"localisations": [], "localisation_centres": []}
+
+                    if channel_em == emission:
+                        self.image_dict[channel][detect_mode]["localisations"] = locs.copy()
+                        self.image_dict[channel][detect_mode]["localisation_centres"] = loc_centres.copy()
+
+            else:
+
+                if emission == "A":
+                    donor_locs = copy.deepcopy(locs)
+                    acceptor_locs = copy.deepcopy(locs)
+                    acceptor_locs = self.apply_transform(acceptor_locs, inverse = False)
+
+                    donor_loc_centres = self.get_localisation_centres(donor_locs)
+                    acceptor_loc_centres = self.get_localisation_centres(acceptor_locs)
+                else:
+                    acceptor_locs = copy.deepcopy(locs)
+                    donor_locs = copy.deepcopy(locs)
+                    donor_locs = self.apply_transform(donor_locs, inverse = True)
+
+                    acceptor_loc_centres = self.get_localisation_centres(acceptor_locs)
+                    donor_loc_centres = self.get_localisation_centres(donor_locs)
+
+                for channel in self.image_dict.keys():
+                    channel_ex, channel_em = channel
+
+                    if detect_mode not in self.image_dict[channel].keys():
+                        self.image_dict[channel][detect_mode] = {"localisations": [], "localisation_centres": []}
+
+                    if channel_em == "D":
+                        self.image_dict[channel][detect_mode]["localisations"] = acceptor_locs.copy()
+                        self.image_dict[channel][detect_mode]["localisation_centres"] = acceptor_loc_centres.copy()
+                    else:
+                        self.image_dict[channel][detect_mode]["localisations"] = donor_locs.copy()
+                        self.image_dict[channel][detect_mode]["localisation_centres"] = donor_loc_centres.copy()
+
+        except:
+            print(traceback.format_exc())
+
+
+
+
+
+
+    # def populate_localisation_dict(self, locs, detect_mode, image_channel):
+    #
+    #     try:
+    #
+    #         excitation, emission = image_channel
+    #
+    #         detect_mode = detect_mode.lower()
+    #
+    #         print(image_channel)
+    #
+    #         if emission == "D":
+    #             donor_locs = copy.deepcopy(locs)
+    #             acceptor_locs = copy.deepcopy(locs)
+    #             acceptor_locs = self.apply_transform(acceptor_locs, inverse = False)
+    #
+    #             donor_loc_centres = self.get_localisation_centres(donor_locs)
+    #             acceptor_loc_centres = self.get_localisation_centres(acceptor_locs)
+    #         else:
+    #             acceptor_locs = copy.deepcopy(locs)
+    #             donor_locs = copy.deepcopy(locs)
+    #             donor_locs = self.apply_transform(donor_locs, inverse = True)
+    #
+    #             acceptor_loc_centres = self.get_localisation_centres(acceptor_locs)
+    #             donor_loc_centres = self.get_localisation_centres(donor_locs)
+    #
+    #         for channel in self.image_dict.keys():
+    #             channel_ex, channel_em = channel
+    #
+    #             if detect_mode not in self.image_dict[channel].keys():
+    #                 self.image_dict[channel][detect_mode] = {"localisations": [], "localisation_centres": []}
+    #
+    #             if channel_em == "A":
+    #                 self.image_dict[channel][detect_mode]["localisations"] = acceptor_locs.copy()
+    #                 self.image_dict[channel][detect_mode]["localisation_centres"] = acceptor_loc_centres.copy()
+    #             else:
+    #                 self.image_dict[channel][detect_mode]["localisations"] = donor_locs.copy()
+    #                 self.image_dict[channel][detect_mode]["localisation_centres"] = donor_loc_centres.copy()
+    #
+    #     except:
+    #         print(traceback.format_exc())
+    #         pass
+
+
+    def _detect_localisations_cleanup(self):
+
+        try:
+            localisation_centres = self.get_localisation_centres(self.detected_locs)
+
+            detect_mode = self.picasso_detect_mode.currentText()
+            image_channel = self.picasso_channel.currentText()
+
+            self.populate_localisation_dict(self.detected_locs, detect_mode, image_channel)
+
+            print("detected {} localisations".format(len(localisation_centres)))
+
+            self.draw_localisations()
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
+    def _fit_localisations_cleanup(self):
+
+        try:
+            localisation_centres = self.get_localisation_centres(self.fitted_locs)
+
+            detect_mode = self.picasso_detect_mode.currentText()
+            image_channel = self.picasso_channel.currentText()
+
+            self.populate_localisation_dict(self.fitted_locs, detect_mode, image_channel)
+
+            print("fitted {} localisations".format(len(localisation_centres)))
+
+            self.draw_localisations()
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
+    def _fit_localisations(self, progress_callback, detected_locs, min_net_gradient, box_size, camera_info, image_channel, frame_mode, detect_mode):
+
+        try:
+            from picasso import gausslq, lib, localize
+
+            method = "lq"
+            gain = 1
+
+            localisation_centres = self.get_localisation_centres(detected_locs)
+
+            if frame_mode.lower() == "active":
+                image_data = self.image_dict[image_channel]["data"][0]
+                image_data = np.expand_dims(image_data, axis=0)
+            else:
+                image_data = self.image_dict[image_channel]["data"]
+
+            n_detected_frames = len(np.unique([loc[0] for loc in localisation_centres]))
+
+            if n_detected_frames != image_data.shape[0]:
+                print("Picasso can only Detect AND Fit localisations with same image frame mode")
+            else:
+                detected_loc_spots = localize.get_spots(image_data, detected_locs, box_size, camera_info)
+
+                print(f"Picasso fitting {len(detected_locs)} spots...")
+
+                if method == "lq":
+
+                    fs = gausslq.fit_spots_parallel(detected_loc_spots, asynch=True)
+
+                    n_tasks = len(fs)
+                    while lib.n_futures_done(fs) < n_tasks:
+                        progress = (lib.n_futures_done(fs) / n_tasks) * 100
+                        progress_callback.emit(progress)
+                        time.sleep(0.1)
+
+                    theta = gausslq.fits_from_futures(fs)
+                    em = gain > 1
+                    self.fitted_locs = gausslq.locs_from_fits(detected_locs, theta, box_size, em)
+
+                print(f"Picasso fitted {len(self.fitted_locs)} spots")
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+    def _detect_localisations(self, progress_callback, min_net_gradient, box_size, camera_info, image_channel, frame_mode, detect_mode):
+
+        try:
+            from picasso import localize
+
+            min_net_gradient = int(min_net_gradient)
+
+            if frame_mode.lower() == "active":
+                image_data = self.image_dict[image_channel]["data"][0]
+                image_data = np.expand_dims(image_data, axis=0)
+            else:
+                image_data = self.image_dict[image_channel]["data"]
+
+            curr, futures = localize.identify_async(image_data, min_net_gradient, box_size, roi=None)
+            self.detected_locs = localize.identifications_from_futures(futures)
+
+            if frame_mode.lower() == "active":
+                for loc in self.detected_locs:
+                    loc.frame = self.viewer.dims.current_step[0]
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
+    def gapseq_picasso_detect(self):
+
+        try:
+            if self.image_dict != {}:
+
+                min_net_gradient = self.picasso_min_net_gradient.text()
+                image_channel = self.picasso_channel.currentText()
+                frame_mode = self.picasso_frame_mode.currentText()
+                detect_mode = self.picasso_detect_mode.currentText()
+
+                camera_info = {"baseline": 100.0, "gain": 1, "sensitivity": 1.0, "qe": 0.9, }
+
+                if min_net_gradient.isdigit() and image_channel != "":
+                    worker = Worker(self._detect_localisations,
+                        min_net_gradient=min_net_gradient,
+                        box_size=5,
+                        camera_info=camera_info,
+                        image_channel=image_channel,
+                        frame_mode=frame_mode,
+                        detect_mode=detect_mode)
+
+                    worker.signals.finished.connect(self._detect_localisations_cleanup)
+                    self.threadpool.start(worker)
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+    def gapseq_picasso_fit(self):
+
+        try:
+
+            min_net_gradient = self.picasso_min_net_gradient.text()
+            image_channel = self.picasso_channel.currentText()
+            frame_mode = self.picasso_frame_mode.currentText()
+            detect_mode = self.picasso_detect_mode.currentText()
+
+            if "localisations" in self.image_dict[image_channel][detect_mode.lower()].keys():
+                detected_locs = self.image_dict[image_channel][detect_mode.lower()]["localisations"]
+
+                camera_info = {"baseline": 100.0, "gain": 1, "sensitivity": 1.0, "qe": 0.9, }
+
+                if min_net_gradient.isdigit() and image_channel != "":
+                    worker = Worker(self._fit_localisations,
+                        detected_locs=detected_locs,
+                        min_net_gradient=min_net_gradient,
+                        box_size=5,
+                        camera_info=camera_info,
+                        image_channel=image_channel,
+                        frame_mode=frame_mode,
+                        detect_mode=detect_mode)
+
+                    worker.signals.finished.connect(self._fit_localisations_cleanup)
+                    self.threadpool.start(worker)
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
+    def apply_undrift(self, undrift_channel, undrift_mode):
+
+        if undrift_mode == "Fiducials":
+            fiducial_channel = "undrift fiducials"
+        else:
+            fiducial_channel = "bounding boxes"
+
+
+        try:
+
+            if self.drift is not None:
+
+                localisations = self.image_dict[undrift_channel][fiducial_channel.lower()]["localisations"].copy()
+
+                n_frames = len(np.unique([loc.frame for loc in localisations]))
+
+                new_localisations = []
+
+                frame_0_locs = [loc for loc in localisations if loc.frame == 0]
+
+                for frame in range(n_frames):
+
+                    frame_locs = copy.deepcopy(frame_0_locs)
+
+                    for loc in frame_locs:
+
+                        loc.frame = frame
+                        loc.x = loc.x + self.drift[frame][0]
+                        loc.y = loc.y + self.drift[frame][1]
+
+                    new_localisations.extend(frame_locs)
+
+                new_localisations = np.rec.fromrecords(new_localisations, dtype=localisations.dtype)
+
+                new_localisation_centres = self.get_localisation_centres(new_localisations)
+
+                self.image_dict[undrift_channel][fiducial_channel.lower()]["localisations"] = new_localisations
+                self.image_dict[undrift_channel][fiducial_channel.lower()]["localisation_centres"] = new_localisation_centres
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
+    def _picasso_undrift_cleanup(self):
+
+        undrift_channel = self.picasso_undrift_channel.currentText()
+        undrift_mode = self.picasso_undrift_mode.currentText()
+
+        self.apply_undrift(undrift_channel, undrift_mode)
+
+        self.draw_localisations()
+
+    def _picasso_undrift(self, progress_callback, undrift_locs, picasso_info):
+
+        self.drift = None
+
+        try:
+            from picasso.postprocess import undrift as picasso_undrift
+
+            print("Picasso Undrifting...")
+
+            drift, _ = picasso_undrift(
+                undrift_locs,
+                picasso_info,
+                segmentation=20,
+                display=False,)
+
+            self.drift = drift
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+    def gapseq_picasso_undrift(self):
+
+        try:
+
+            undrift_mode = self.picasso_undrift_mode.currentText()
+            undrift_channel = self.picasso_undrift_channel.currentText()
+
+            if undrift_mode == "Fiducials":
+                fiducial_channel = "undrift fiducials"
+            else:
+                fiducial_channel = "bounding boxes"
+
+            if self.image_dict != {}:
+                if undrift_channel in self.image_dict.keys():
+                    if fiducial_channel in self.image_dict[undrift_channel].keys():
+                        if "localisations" in self.image_dict[undrift_channel][fiducial_channel].keys():
+
+                            n_frames, height, width = self.image_dict[undrift_channel]["data"].shape
+
+                            picasso_info = [{'Frames': n_frames, 'Height': height, 'Width': width}, {}]
+
+                            undrift_locs = self.image_dict[undrift_channel][fiducial_channel]["localisations"]
+
+                            worker = Worker(self._picasso_undrift, undrift_locs=undrift_locs, picasso_info=picasso_info)
+                            worker.signals.finished.connect(self._picasso_undrift_cleanup)
+                            self.threadpool.start(worker)
+
+        except:
+            print(traceback.format_exc())
+            pass

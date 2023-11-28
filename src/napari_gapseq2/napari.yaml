@@ -6,22 +6,9 @@ visibility: public
 categories: ["Annotation", "Segmentation", "Acquisition"]
 contributions:
   commands:
-    - id: napari-GapSeq2.make_container_widget
-      python_name: napari_gapseq2:ImageThreshold
-      title: Make threshold Container widget
-    - id: napari-GapSeq2.make_magic_widget
-      python_name: napari_gapseq2:threshold_magic_widget
-      title: Make threshold magic widget
-    - id: napari-GapSeq2.make_function_widget
-      python_name: napari_gapseq2:threshold_autogenerate_widget
-      title: Make threshold function widget
+    - id: napari-GapSeq2.make_qwidget
+      python_name: napari_gapseq2:GapSeqWidget
+      title: Make a QWidget
   widgets:
-    - command: napari-GapSeq2.make_container_widget
-      display_name: Container Threshold
-    - command: napari-GapSeq2.make_magic_widget
-      display_name: Magic Threshold
-    - command: napari-GapSeq2.make_function_widget
-      autogenerate: true
-      display_name: Autogenerate Threshold
     - command: napari-GapSeq2.make_qwidget
-      display_name: Example QWidget
+      display_name: napari-GapSeq
