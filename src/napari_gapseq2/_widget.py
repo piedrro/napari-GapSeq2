@@ -52,90 +52,16 @@ from scipy.spatial import procrustes
 from scipy.spatial import distance
 import cv2
 
-
+from napari_gapseq2._widget_utils_worker import Worker, WorkerSignals
+from napari_gapseq2._widget_undrift_utils import _undrift_utils
+from napari_gapseq2._widget_picasso_detect import _picasso_detect_utils
 
 if TYPE_CHECKING:
     import napari
 
-class WorkerSignals(QObject):
-    """
-    Defines the signals available from a running worker thread.
-
-    Supported signals are:
-
-    finished
-        No data
-
-    error
-        tuple (exctype, value, traceback.format_exc() )
-
-    result
-        object data returned from processing, anything
-
-    progress
-        int indicating % progress
-
-    """
-
-    finished = pyqtSignal()
-    error = pyqtSignal(tuple)
-    result = pyqtSignal(object)
-    progress = pyqtSignal(int)
-
-class Worker(QRunnable):
-    """
-    Worker thread
-
-    Inherits from QRunnable to handler worker thread setup, signals and wrap-up.
-
-    :param callback: The function callback to run on this worker thread. Supplied args and
-                     kwargs will be passed through to the runner.
-    :type callback: function
-    :param args: Arguments to pass to the callback function
-    :param kwargs: Keywords to pass to the callback function
-
-    """
-
-    def __init__(self, fn, *args, **kwargs):
-        super().__init__()
-
-        # Store constructor arguments (re-used for processing)
-        self.fn = fn
-        self.args = args
-        self.kwargs = kwargs
-        self.signals = WorkerSignals()
-
-        # Add the callback to our kwargs
-        self.kwargs["progress_callback"] = self.signals.progress
-
-    @pyqtSlot()
-    def run(self):
-        """
-        Initialise the runner function with passed args, kwargs.
-        """
-
-        # Retrieve args/kwargs here; and fire processing using them
-        try:
-            result = self.fn(*self.args, **self.kwargs)
-        except:
-            traceback.print_exc()
-            exctype, value = sys.exc_info()[:2]
-            self.signals.error.emit((exctype, value, traceback.format_exc()))
-        else:
-            self.signals.result.emit(result)  # Return the result of the processing
-        finally:
-            self.signals.finished.emit()  # Done
-
-    def result(self):
-        return self.fn(*self.args, **self.kwargs)
 
 
-
-
-
-
-
-class GapSeqWidget(QWidget):
+class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils):
 
     # your QWidget.__init__ can optionally request the napari viewer instance
     # use a type annotation of 'napari.viewer.Viewer' for any parameter
@@ -164,9 +90,12 @@ class GapSeqWidget(QWidget):
 
         self.picasso_undrift_mode = self.findChild(QComboBox, 'picasso_undrift_mode')
         self.picasso_undrift_channel = self.findChild(QComboBox, 'picasso_undrift_channel')
-        self.picasso_undrift = self.findChild(QPushButton, 'picasso_undrift')
+        self.detect_undrift = self.findChild(QPushButton, 'detect_undrift')
+        self.apply_undrift = self.findChild(QPushButton, 'apply_undrift')
 
         self.gapseq_compute_tform = self.findChild(QPushButton, 'gapseq_compute_tform')
+
+        self.gapseq_link_localisations = self.findChild(QPushButton, 'gapseq_link_localisations')
 
         self.import_alex_data.clicked.connect(self.gapseq_import_alex_data)
         self.channel_selector.currentIndexChanged.connect(self.update_active_image)
@@ -176,15 +105,21 @@ class GapSeqWidget(QWidget):
 
         self.channel_selector.currentIndexChanged.connect(self.draw_localisations)
 
-        self.picasso_undrift.clicked.connect(self.gapseq_picasso_undrift)
+        self.detect_undrift.clicked.connect(self.gapseq_picasso_undrift)
+        self.apply_undrift.clicked.connect(self.gapseq_undrift_images)
 
         self.gapseq_compute_tform.clicked.connect(self.compute_transform_matrix)
+
+        self.gapseq_link_localisations.clicked.connect(self.link_localisations)
+
+        # self.viewer.dims.events.current_step.connect(self.draw_localisations)
 
         self.image_dict = {}
 
         self.threadpool = QThreadPool()
 
         self.transform_matrix = None
+        self.undrift_channel = None
 
         # transform_matrix_path = r"C:\Users\turnerp\Desktop\PicassoDEV\gapseq_transform_matrix-230719.txt"
         #
@@ -192,6 +127,16 @@ class GapSeqWidget(QWidget):
         #     transform_matrix = json.load(f)
         #
         # self.transform_matrix = np.array(transform_matrix)
+
+
+    def link_localisations(self):
+
+        try:
+            print(f"Linking localisations")
+
+        except:
+            print(traceback.format_exc())
+
 
     def compute_registration_keypoints(self, reference_box_centres, target_box_centres, alignment_distance=20):
 
@@ -304,9 +249,6 @@ class GapSeqWidget(QWidget):
         self.picasso_channel.clear()
         self.picasso_channel.addItems(["AA", "AD", "DA", "DD"])
 
-        self.picasso_undrift_channel.clear()
-        self.picasso_undrift_channel.addItems(["AA", "AD", "DA", "DD"])
-
         with Image.open(path) as img:
             n_frames = img.n_frames
             # n_frames = n_frames//10
@@ -364,10 +306,6 @@ class GapSeqWidget(QWidget):
 
 
 
-
-
-
-
     def draw_localisations(self):
 
         if hasattr(self, "image_dict"):
@@ -392,14 +330,18 @@ class GapSeqWidget(QWidget):
 
                 channel_dict = self.image_dict[image_channel]
 
+                show_localisaiton = False
+
                 for data_key, data_dict in channel_dict.items():
                     if data_key in ["alignment fiducials","undrift fiducials","bounding boxes"]:
 
                         if "localisation_centres" in data_dict.keys():
 
-                            localisation_centres = data_dict["localisation_centres"]
+                            localisation_centres = copy.deepcopy(data_dict["localisation_centres"])
 
                             if len(localisation_centres) > 0:
+
+                                show_localisaiton = True
 
                                 layer_name = data_key
 
@@ -422,21 +364,21 @@ class GapSeqWidget(QWidget):
                                         edge_width=vis_edge_width, )
                                 else:
                                     self.viewer.layers[layer_name].data = []
-
                                     self.viewer.layers[layer_name].data = localisation_centres
-                                    self.viewer.layers[layer_name].symbol = symbol
-                                    self.viewer.layers[layer_name].size = vis_size
-                                    self.viewer.layers[layer_name].opacity = vis_opacity
-                                    self.viewer.layers[layer_name].edge_width = vis_edge_width
-                                    self.viewer.layers[layer_name].edge_color = colour
+                                    # self.viewer.layers[layer_name].symbol = symbol
+                                    # self.viewer.layers[layer_name].size = vis_size
+                                    # self.viewer.layers[layer_name].opacity = vis_opacity
+                                    # self.viewer.layers[layer_name].edge_width = vis_edge_width
+                                    # self.viewer.layers[layer_name].edge_color = colour
 
-                            else:
-                                if data_key.lower() in layer_names:
-                                    self.viewer.layers[data_key.lower()].data = []
+                if show_localisaiton == False:
+                    for data_key in ["alignment fiducials","undrift fiducials","bounding boxes"]:
+                        if data_key in layer_names:
+                            self.viewer.layers[data_key.lower()].data = []
 
-                        else:
-                            if data_key.lower() in layer_names:
-                                self.viewer.layers[data_key.lower()].data = []
+                for layer in layer_names:
+                    self.viewer.layers[layer].refresh()
+
             except:
                 print(traceback.format_exc())
 
@@ -493,377 +435,3 @@ class GapSeqWidget(QWidget):
         return locs
 
 
-
-    def populate_localisation_dict(self, locs, detect_mode, image_channel):
-
-        try:
-            detect_mode = detect_mode.lower()
-            excitation, emission = image_channel
-
-            if self.transform_matrix is None:
-
-                loc_centres = self.get_localisation_centres(locs)
-
-                for channel in self.image_dict.keys():
-                    channel_ex, channel_em = channel
-
-                    if detect_mode not in self.image_dict[channel].keys():
-                        self.image_dict[channel][detect_mode] = {"localisations": [], "localisation_centres": []}
-
-                    if channel_em == emission:
-                        self.image_dict[channel][detect_mode]["localisations"] = locs.copy()
-                        self.image_dict[channel][detect_mode]["localisation_centres"] = loc_centres.copy()
-
-            else:
-
-                if emission == "A":
-                    donor_locs = copy.deepcopy(locs)
-                    acceptor_locs = copy.deepcopy(locs)
-                    acceptor_locs = self.apply_transform(acceptor_locs, inverse = False)
-
-                    donor_loc_centres = self.get_localisation_centres(donor_locs)
-                    acceptor_loc_centres = self.get_localisation_centres(acceptor_locs)
-                else:
-                    acceptor_locs = copy.deepcopy(locs)
-                    donor_locs = copy.deepcopy(locs)
-                    donor_locs = self.apply_transform(donor_locs, inverse = True)
-
-                    acceptor_loc_centres = self.get_localisation_centres(acceptor_locs)
-                    donor_loc_centres = self.get_localisation_centres(donor_locs)
-
-                for channel in self.image_dict.keys():
-                    channel_ex, channel_em = channel
-
-                    if detect_mode not in self.image_dict[channel].keys():
-                        self.image_dict[channel][detect_mode] = {"localisations": [], "localisation_centres": []}
-
-                    if channel_em == "D":
-                        self.image_dict[channel][detect_mode]["localisations"] = acceptor_locs.copy()
-                        self.image_dict[channel][detect_mode]["localisation_centres"] = acceptor_loc_centres.copy()
-                    else:
-                        self.image_dict[channel][detect_mode]["localisations"] = donor_locs.copy()
-                        self.image_dict[channel][detect_mode]["localisation_centres"] = donor_loc_centres.copy()
-
-        except:
-            print(traceback.format_exc())
-
-
-
-
-
-
-    # def populate_localisation_dict(self, locs, detect_mode, image_channel):
-    #
-    #     try:
-    #
-    #         excitation, emission = image_channel
-    #
-    #         detect_mode = detect_mode.lower()
-    #
-    #         print(image_channel)
-    #
-    #         if emission == "D":
-    #             donor_locs = copy.deepcopy(locs)
-    #             acceptor_locs = copy.deepcopy(locs)
-    #             acceptor_locs = self.apply_transform(acceptor_locs, inverse = False)
-    #
-    #             donor_loc_centres = self.get_localisation_centres(donor_locs)
-    #             acceptor_loc_centres = self.get_localisation_centres(acceptor_locs)
-    #         else:
-    #             acceptor_locs = copy.deepcopy(locs)
-    #             donor_locs = copy.deepcopy(locs)
-    #             donor_locs = self.apply_transform(donor_locs, inverse = True)
-    #
-    #             acceptor_loc_centres = self.get_localisation_centres(acceptor_locs)
-    #             donor_loc_centres = self.get_localisation_centres(donor_locs)
-    #
-    #         for channel in self.image_dict.keys():
-    #             channel_ex, channel_em = channel
-    #
-    #             if detect_mode not in self.image_dict[channel].keys():
-    #                 self.image_dict[channel][detect_mode] = {"localisations": [], "localisation_centres": []}
-    #
-    #             if channel_em == "A":
-    #                 self.image_dict[channel][detect_mode]["localisations"] = acceptor_locs.copy()
-    #                 self.image_dict[channel][detect_mode]["localisation_centres"] = acceptor_loc_centres.copy()
-    #             else:
-    #                 self.image_dict[channel][detect_mode]["localisations"] = donor_locs.copy()
-    #                 self.image_dict[channel][detect_mode]["localisation_centres"] = donor_loc_centres.copy()
-    #
-    #     except:
-    #         print(traceback.format_exc())
-    #         pass
-
-
-    def _detect_localisations_cleanup(self):
-
-        try:
-            localisation_centres = self.get_localisation_centres(self.detected_locs)
-
-            detect_mode = self.picasso_detect_mode.currentText()
-            image_channel = self.picasso_channel.currentText()
-
-            self.populate_localisation_dict(self.detected_locs, detect_mode, image_channel)
-
-            print("detected {} localisations".format(len(localisation_centres)))
-
-            self.draw_localisations()
-
-        except:
-            print(traceback.format_exc())
-            pass
-
-
-    def _fit_localisations_cleanup(self):
-
-        try:
-            localisation_centres = self.get_localisation_centres(self.fitted_locs)
-
-            detect_mode = self.picasso_detect_mode.currentText()
-            image_channel = self.picasso_channel.currentText()
-
-            self.populate_localisation_dict(self.fitted_locs, detect_mode, image_channel)
-
-            print("fitted {} localisations".format(len(localisation_centres)))
-
-            self.draw_localisations()
-
-        except:
-            print(traceback.format_exc())
-            pass
-
-
-    def _fit_localisations(self, progress_callback, detected_locs, min_net_gradient, box_size, camera_info, image_channel, frame_mode, detect_mode):
-
-        try:
-            from picasso import gausslq, lib, localize
-
-            method = "lq"
-            gain = 1
-
-            localisation_centres = self.get_localisation_centres(detected_locs)
-
-            if frame_mode.lower() == "active":
-                image_data = self.image_dict[image_channel]["data"][0]
-                image_data = np.expand_dims(image_data, axis=0)
-            else:
-                image_data = self.image_dict[image_channel]["data"]
-
-            n_detected_frames = len(np.unique([loc[0] for loc in localisation_centres]))
-
-            if n_detected_frames != image_data.shape[0]:
-                print("Picasso can only Detect AND Fit localisations with same image frame mode")
-            else:
-                detected_loc_spots = localize.get_spots(image_data, detected_locs, box_size, camera_info)
-
-                print(f"Picasso fitting {len(detected_locs)} spots...")
-
-                if method == "lq":
-
-                    fs = gausslq.fit_spots_parallel(detected_loc_spots, asynch=True)
-
-                    n_tasks = len(fs)
-                    while lib.n_futures_done(fs) < n_tasks:
-                        progress = (lib.n_futures_done(fs) / n_tasks) * 100
-                        progress_callback.emit(progress)
-                        time.sleep(0.1)
-
-                    theta = gausslq.fits_from_futures(fs)
-                    em = gain > 1
-                    self.fitted_locs = gausslq.locs_from_fits(detected_locs, theta, box_size, em)
-
-                print(f"Picasso fitted {len(self.fitted_locs)} spots")
-
-        except:
-            print(traceback.format_exc())
-            pass
-
-    def _detect_localisations(self, progress_callback, min_net_gradient, box_size, camera_info, image_channel, frame_mode, detect_mode):
-
-        try:
-            from picasso import localize
-
-            min_net_gradient = int(min_net_gradient)
-
-            if frame_mode.lower() == "active":
-                image_data = self.image_dict[image_channel]["data"][0]
-                image_data = np.expand_dims(image_data, axis=0)
-            else:
-                image_data = self.image_dict[image_channel]["data"]
-
-            curr, futures = localize.identify_async(image_data, min_net_gradient, box_size, roi=None)
-            self.detected_locs = localize.identifications_from_futures(futures)
-
-            if frame_mode.lower() == "active":
-                for loc in self.detected_locs:
-                    loc.frame = self.viewer.dims.current_step[0]
-
-        except:
-            print(traceback.format_exc())
-            pass
-
-
-    def gapseq_picasso_detect(self):
-
-        try:
-            if self.image_dict != {}:
-
-                min_net_gradient = self.picasso_min_net_gradient.text()
-                image_channel = self.picasso_channel.currentText()
-                frame_mode = self.picasso_frame_mode.currentText()
-                detect_mode = self.picasso_detect_mode.currentText()
-
-                camera_info = {"baseline": 100.0, "gain": 1, "sensitivity": 1.0, "qe": 0.9, }
-
-                if min_net_gradient.isdigit() and image_channel != "":
-                    worker = Worker(self._detect_localisations,
-                        min_net_gradient=min_net_gradient,
-                        box_size=5,
-                        camera_info=camera_info,
-                        image_channel=image_channel,
-                        frame_mode=frame_mode,
-                        detect_mode=detect_mode)
-
-                    worker.signals.finished.connect(self._detect_localisations_cleanup)
-                    self.threadpool.start(worker)
-
-        except:
-            print(traceback.format_exc())
-            pass
-
-    def gapseq_picasso_fit(self):
-
-        try:
-
-            min_net_gradient = self.picasso_min_net_gradient.text()
-            image_channel = self.picasso_channel.currentText()
-            frame_mode = self.picasso_frame_mode.currentText()
-            detect_mode = self.picasso_detect_mode.currentText()
-
-            if "localisations" in self.image_dict[image_channel][detect_mode.lower()].keys():
-                detected_locs = self.image_dict[image_channel][detect_mode.lower()]["localisations"]
-
-                camera_info = {"baseline": 100.0, "gain": 1, "sensitivity": 1.0, "qe": 0.9, }
-
-                if min_net_gradient.isdigit() and image_channel != "":
-                    worker = Worker(self._fit_localisations,
-                        detected_locs=detected_locs,
-                        min_net_gradient=min_net_gradient,
-                        box_size=5,
-                        camera_info=camera_info,
-                        image_channel=image_channel,
-                        frame_mode=frame_mode,
-                        detect_mode=detect_mode)
-
-                    worker.signals.finished.connect(self._fit_localisations_cleanup)
-                    self.threadpool.start(worker)
-
-        except:
-            print(traceback.format_exc())
-            pass
-
-
-    def apply_undrift(self, undrift_channel, undrift_mode):
-
-        if undrift_mode == "Fiducials":
-            fiducial_channel = "undrift fiducials"
-        else:
-            fiducial_channel = "bounding boxes"
-
-
-        try:
-
-            if self.drift is not None:
-
-                localisations = self.image_dict[undrift_channel][fiducial_channel.lower()]["localisations"].copy()
-
-                n_frames = len(np.unique([loc.frame for loc in localisations]))
-
-                new_localisations = []
-
-                frame_0_locs = [loc for loc in localisations if loc.frame == 0]
-
-                for frame in range(n_frames):
-
-                    frame_locs = copy.deepcopy(frame_0_locs)
-
-                    for loc in frame_locs:
-
-                        loc.frame = frame
-                        loc.x = loc.x + self.drift[frame][0]
-                        loc.y = loc.y + self.drift[frame][1]
-
-                    new_localisations.extend(frame_locs)
-
-                new_localisations = np.rec.fromrecords(new_localisations, dtype=localisations.dtype)
-
-                new_localisation_centres = self.get_localisation_centres(new_localisations)
-
-                self.image_dict[undrift_channel][fiducial_channel.lower()]["localisations"] = new_localisations
-                self.image_dict[undrift_channel][fiducial_channel.lower()]["localisation_centres"] = new_localisation_centres
-
-        except:
-            print(traceback.format_exc())
-            pass
-
-
-    def _picasso_undrift_cleanup(self):
-
-        undrift_channel = self.picasso_undrift_channel.currentText()
-        undrift_mode = self.picasso_undrift_mode.currentText()
-
-        self.apply_undrift(undrift_channel, undrift_mode)
-
-        self.draw_localisations()
-
-    def _picasso_undrift(self, progress_callback, undrift_locs, picasso_info):
-
-        self.drift = None
-
-        try:
-            from picasso.postprocess import undrift as picasso_undrift
-
-            print("Picasso Undrifting...")
-
-            drift, _ = picasso_undrift(
-                undrift_locs,
-                picasso_info,
-                segmentation=20,
-                display=False,)
-
-            self.drift = drift
-
-        except:
-            print(traceback.format_exc())
-            pass
-
-    def gapseq_picasso_undrift(self):
-
-        try:
-
-            undrift_mode = self.picasso_undrift_mode.currentText()
-            undrift_channel = self.picasso_undrift_channel.currentText()
-
-            if undrift_mode == "Fiducials":
-                fiducial_channel = "undrift fiducials"
-            else:
-                fiducial_channel = "bounding boxes"
-
-            if self.image_dict != {}:
-                if undrift_channel in self.image_dict.keys():
-                    if fiducial_channel in self.image_dict[undrift_channel].keys():
-                        if "localisations" in self.image_dict[undrift_channel][fiducial_channel].keys():
-
-                            n_frames, height, width = self.image_dict[undrift_channel]["data"].shape
-
-                            picasso_info = [{'Frames': n_frames, 'Height': height, 'Width': width}, {}]
-
-                            undrift_locs = self.image_dict[undrift_channel][fiducial_channel]["localisations"]
-
-                            worker = Worker(self._picasso_undrift, undrift_locs=undrift_locs, picasso_info=picasso_info)
-                            worker.signals.finished.connect(self._picasso_undrift_cleanup)
-                            self.threadpool.start(worker)
-
-        except:
-            print(traceback.format_exc())
-            pass
