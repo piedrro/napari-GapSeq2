@@ -140,6 +140,8 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
 
         self.picasso_detect_mode.currentIndexChanged.connect(self.update_picasso_options)
 
+        self.viewer.dims.events.current_step.connect(self.draw_fiducials)
+
         self.dataset_dict = {}
         self.localisation_dict = {"bounding_boxes": {}, "fiducials": {}}
 
@@ -309,24 +311,32 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
 
             if visible:
 
+                active_frame = self.viewer.dims.current_step[0]
+
                 dataset_name = self.gapseq_dataset_selector.currentText()
                 image_channel = self.active_channel
 
-                localisation_centres = self.localisation_dict["fiducials"][dataset_name][image_channel.lower()]["localisation_centres"]
+                if "localisations" in self.localisation_dict["fiducials"][dataset_name][image_channel.lower()].keys():
 
-                if "fiducials" not in layer_names:
-                    self.viewer.add_points(
-                        localisation_centres,
-                        edge_color="red",
-                        face_color=[0,0,0,0],
-                        opacity=1.0,
-                        name="fiducials",
-                        symbol="disc",
-                        size=5,
-                        edge_width=0.1, )
-                else:
-                    self.viewer.layers["fiducials"].data = []
-                    self.viewer.layers["fiducials"].data = localisation_centres
+                    localisations = self.localisation_dict["fiducials"][dataset_name][image_channel.lower()]["localisations"]
+
+                    active_localisations = [loc for loc in localisations if loc.frame == active_frame]
+                    localisation_centres = self.get_localisation_centres(active_localisations, mode="bounding_boxes")
+
+                    if "fiducials" not in layer_names:
+                        self.viewer.add_points(
+                            localisation_centres,
+                            ndim=2,
+                            edge_color="red",
+                            face_color=[0,0,0,0],
+                            opacity=1.0,
+                            name="fiducials",
+                            symbol="disc",
+                            size=5,
+                            edge_width=0.1, )
+                    else:
+                        self.viewer.layers["fiducials"].data = []
+                        self.viewer.layers["fiducials"].data = localisation_centres
 
             for layer in layer_names:
                 self.viewer.layers[layer].refresh()
@@ -423,7 +433,7 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
                 if mode == "fiducials":
                     loc_centres.append([frame, loc.y, loc.x])
                 else:
-                    loc_centres.append([loc.x, loc.y])
+                    loc_centres.append([loc.y, loc.x])
 
         except:
             print(traceback.format_exc())
