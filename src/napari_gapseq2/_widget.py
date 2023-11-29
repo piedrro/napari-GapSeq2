@@ -55,6 +55,9 @@ import cv2
 from napari_gapseq2._widget_utils_worker import Worker, WorkerSignals
 from napari_gapseq2._widget_undrift_utils import _undrift_utils
 from napari_gapseq2._widget_picasso_detect import _picasso_detect_utils
+from napari_gapseq2._widget_import_utils import _import_utils
+from napari_gapseq2._widget_events import _events_utils
+
 from qtpy.QtWidgets import QFileDialog
 import os
 from multiprocessing import Pool
@@ -66,7 +69,7 @@ if TYPE_CHECKING:
 
 
 
-class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils):
+class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils, _events_utils):
 
     # your QWidget.__init__ can optionally request the napari viewer instance
     # use a type annotation of 'napari.viewer.Viewer' for any parameter
@@ -92,6 +95,13 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils):
         self.gapseq_import = self.findChild(QPushButton, 'gapseq_import')
         self.gapseq_import_progressbar = self.findChild(QProgressBar, 'gapseq_import_progressbar')
 
+        self.gapseq_dataset_selector = self.findChild(QComboBox, 'gapseq_dataset_selector')
+        self.gapseq_show_dd = self.findChild(QPushButton, 'gapseq_show_dd')
+        self.gapseq_show_da = self.findChild(QPushButton, 'gapseq_show_da')
+        self.gapseq_show_aa = self.findChild(QPushButton, 'gapseq_show_aa')
+        self.gapseq_show_ad = self.findChild(QPushButton, 'gapseq_show_ad')
+
+
         self.import_alex_data = self.findChild(QPushButton, 'import_alex_data')
         self.channel_selector = self.findChild(QComboBox, 'channel_selector')
 
@@ -112,18 +122,17 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils):
         self.gapseq_link_localisations = self.findChild(QPushButton, 'gapseq_link_localisations')
 
 
-
-
         self.gapseq_import.clicked.connect(self.gapseq_import_data)
         self.gapseq_import_mode.currentIndexChanged.connect(self.update_import_options)
-
-
 
         # self.import_alex_data.clicked.connect(self.gapseq_import_alex_data)
         # self.channel_selector.currentIndexChanged.connect(self.update_active_image)
 
         self.picasso_detect.clicked.connect(self.gapseq_picasso_detect)
         self.picasso_fit.clicked.connect(self.gapseq_picasso_fit)
+
+        self.gapseq_dataset_selector.currentIndexChanged.connect(self.update_channel_select_buttons)
+        self.gapseq_dataset_selector.currentIndexChanged.connect(self.update_active_image)
 
         # self.channel_selector.currentIndexChanged.connect(self.draw_localisations)
 
@@ -136,7 +145,11 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils):
 
         # self.viewer.dims.events.current_step.connect(self.draw_localisations)
 
-        self.image_dict = {}
+        self.dataset_dict = {}
+        self.localisation_dict = {"bounding_boxes": {}, "fiducials": {}}
+
+        self.active_dataset = None
+        self.active_channel = None
 
         self.threadpool = QThreadPool()
 
@@ -153,145 +166,6 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils):
 
         self.update_import_options()
 
-
-    def update_import_options(self):
-
-        def update_channel_layout(self, show = True):
-            if show:
-                self.gapseq_channel_layout.setEnabled(True)
-                self.gapseq_channel_layout.clear()
-                self.gapseq_channel_layout.addItems(["Donor-Acceptor", "Acceptor-Donor"])
-                self.gapseq_channel_layout.setHidden(False)
-                self.gapseq_channel_layout_label.setHidden(False)
-            else:
-                self.gapseq_channel_layout.setEnabled(False)
-                self.gapseq_channel_layout.clear()
-                self.gapseq_channel_layout.setHidden(True)
-                self.gapseq_channel_layout_label.setHidden(True)
-
-        def update_alex_first_frame(self, show = True):
-            if show:
-                self.gapseq_alex_first_frame.setEnabled(True)
-                self.gapseq_alex_first_frame.clear()
-                self.gapseq_alex_first_frame.addItems(["Donor", "Acceptor"])
-                self.gapseq_alex_first_frame.setHidden(False)
-                self.gapseq_alex_first_frame_label.setHidden(False)
-            else:
-                self.gapseq_alex_first_frame.setEnabled(False)
-                self.gapseq_alex_first_frame.clear()
-                self.gapseq_alex_first_frame.setHidden(True)
-                self.gapseq_alex_first_frame_label.setHidden(True)
-
-        import_mode = self.gapseq_import_mode.currentText()
-
-        if import_mode in ["Donor", "Acceptor"]:
-            update_channel_layout(self, show = False)
-            update_alex_first_frame(self, show = False)
-
-        elif import_mode == "FRET":
-            update_channel_layout(self, show = True)
-            update_alex_first_frame(self, show = False)
-
-        elif import_mode == "ALEX":
-            update_channel_layout(self, show = True)
-            update_alex_first_frame(self, show = True)
-
-        elif import_mode in ["DA", "DD", "AA","AD"]:
-            update_channel_layout(self, show = False)
-            update_alex_first_frame(self, show = False)
-
-    @staticmethod
-    def import_image_frame(import_job):
-
-        frame_index, path = import_job
-
-        try:
-            with Image.open(path) as img:
-                img.seek(frame_index)
-                frame = img.copy()
-        except:
-            print(traceback.format_exc())
-            frame = None
-            frame_index = None
-
-        return [frame_index, frame]
-
-
-    def _gapseq_import_data(self, progress_callback=None, path=None):
-
-        try:
-
-
-            import_mode = self.gapseq_import_mode.currentText()
-            channel_layout = self.gapseq_channel_layout.currentText()
-            alex_first_frame = self.gapseq_alex_first_frame.currentText()
-
-            n_cpu = multiprocessing.cpu_count()//2
-
-            with Image.open(path) as img:
-                num_frames = img.n_frames
-
-            import_jobs = []
-
-            for frame_index in range(num_frames):
-                import_jobs.append([frame_index, path])
-
-            def callback(*args, offset=0):
-                iter.append(1)
-                progress = int((len(iter) / num_frames) * 100)
-                if progress_callback != None:
-                    progress_callback.emit(progress - offset)
-                return
-
-            iter = []
-
-            with Pool(n_cpu) as p:
-
-                images = [p.apply_async(self.import_image_frame, args=(i,), callback=callback) for i in import_jobs]
-
-                images = [r.get() for r in images]
-
-                images = sorted(images, key=lambda x: x[0])
-                frame_index, image = zip(*images)
-
-                image = np.stack(image)
-
-                print(image.shape)
-
-
-        except:
-            print(traceback.format_exc())
-            pass
-
-
-    def gapseq_import_data(self):
-
-        try:
-
-            desktop = os.path.expanduser("~/Desktop")
-            path = QFileDialog.getOpenFileName(self, 'Open file', desktop, "Image files (*.tif *.tiff)")[0]
-
-            if path != "":
-                worker = Worker(self._gapseq_import_data, path=path)
-                worker.signals.progress.connect(partial(self.gapseq_progress,
-                    progress_bar=self.gapseq_import_progressbar))
-                self.threadpool.start(worker)
-
-        except:
-            pass
-
-
-    def gapseq_progress(self, progress, progress_bar):
-
-        progress_bar.setValue(progress)
-
-        if progress == 100:
-            progress_bar.setValue(0)
-            progress_bar.setHidden(True)
-            progress_bar.setEnabled(False)
-        else:
-            progress_bar.setHidden(False)
-            progress_bar.setEnabled(True)
 
 
     def link_localisations(self):
@@ -385,89 +259,7 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils):
 
 
 
-    def split_img(self, img, split_direction='vertical'):
 
-        width, height = img.size
-
-        if split_direction.lower() == 'vertical':
-            # Split the image vertically
-            left_half = img.crop((0, 0, width // 2, height))
-            right_half = img.crop((width // 2, 0, width, height))
-            return [left_half, right_half]
-
-        elif split_direction.lower() == 'horizontal':
-            # Split the image horizontally
-            top_half = img.crop((0, 0, width, height // 2))
-            bottom_half = img.crop((0, height // 2, width, height))
-            return [top_half, bottom_half]
-
-
-    def gapseq_import_alex_data(self):
-
-        path = r"C:\Users\turnerp\Desktop\PicassoDEV\image.tif"
-
-        self.image_dict = {"AA": {"data":[]}, "AD": {"data":[]}, "DA": {"data":[]}, "DD": {"data":[]}}
-
-        self.channel_selector.clear()
-        self.channel_selector.addItems(["AA", "AD", "DA", "DD"])
-
-        self.picasso_channel.clear()
-        self.picasso_channel.addItems(["AA", "AD", "DA", "DD"])
-
-        with Image.open(path) as img:
-            n_frames = img.n_frames
-            # n_frames = n_frames//10
-            for i in tqdm(range(n_frames), desc="importing frames"):
-                if i % 2 == 1:
-                    excitation = "A"
-                else:
-                    excitation = "D"
-
-                img.seek(i)
-                frame = img.copy()
-
-                image_list = self.split_img(frame)
-
-                emission_list = ["A", "D"]
-
-                for img_data, emission in zip(image_list, emission_list):
-                    dict_key = excitation + emission
-
-                    self.image_dict[dict_key]["data"].append(np.array(img_data))
-
-        for channel, channel_dict in self.image_dict.items():
-
-            image = np.stack(channel_dict["data"]).copy()
-
-            self.image_dict[channel]["data"] = image
-
-        self.update_active_image()
-
-
-    def update_active_image(self):
-
-        try:
-
-            if self.image_dict != {}:
-
-                active_channel = self.channel_selector.currentText()
-
-                image = self.image_dict[active_channel]["data"]
-
-                if type(image) == type(np.array([])):
-
-                    if "image" in self.viewer.layers:
-                        self.viewer.layers["image"].data = image
-                    else:
-                        self.viewer.add_image(image,
-                            name="image",
-                            colormap="green",
-                            blending="additive",
-                            visible=True,)
-
-        except:
-            print(traceback.format_exc())
-            pass
 
 
 
