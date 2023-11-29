@@ -35,7 +35,7 @@ from magicgui.widgets import CheckBox, Container, create_widget
 from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget
 from skimage.util import img_as_float
 from qtpy.QtCore import QObject, QRunnable, QThreadPool
-from qtpy.QtWidgets import (QWidget,QVBoxLayout,QTabWidget,QSizePolicy, QComboBox,QLineEdit)
+from qtpy.QtWidgets import (QWidget,QVBoxLayout,QTabWidget,QSizePolicy, QComboBox,QLineEdit, QProgressBar, QLabel)
 from PIL import Image
 from tqdm import tqdm
 import numpy as np
@@ -55,6 +55,11 @@ import cv2
 from napari_gapseq2._widget_utils_worker import Worker, WorkerSignals
 from napari_gapseq2._widget_undrift_utils import _undrift_utils
 from napari_gapseq2._widget_picasso_detect import _picasso_detect_utils
+from qtpy.QtWidgets import QFileDialog
+import os
+from multiprocessing import Pool
+import multiprocessing
+from functools import partial
 
 if TYPE_CHECKING:
     import napari
@@ -69,14 +74,23 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils):
         super().__init__()
         self.viewer = viewer
 
-        from napari_gapseq2.widget_ui import Ui_Form
+        from napari_gapseq2.widget_ui import Ui_TabWidget
 
         #create UI
         self.setLayout(QVBoxLayout())
-        self.form = Ui_Form()
-        self.gapseq_ui = QWidget()
+        self.form = Ui_TabWidget()
+        self.gapseq_ui = QTabWidget()
         self.form.setupUi(self.gapseq_ui)
         self.layout().addWidget(self.gapseq_ui)
+
+        self.gapseq_import_mode = self.findChild(QComboBox, 'gapseq_import_mode')
+        self.gapseq_channel_layout = self.findChild(QComboBox, 'gapseq_channel_layout')
+        self.gapseq_channel_layout_label = self.findChild(QLabel, 'gapseq_channel_layout_label')
+        self.gapseq_alex_first_frame = self.findChild(QComboBox, 'gapseq_alex_first_frame')
+        self.gapseq_alex_first_frame_label = self.findChild(QLabel, 'gapseq_alex_first_frame_label')
+        self.gapseq_dataset_name = self.findChild(QLineEdit, 'gapseq_dataset_name')
+        self.gapseq_import = self.findChild(QPushButton, 'gapseq_import')
+        self.gapseq_import_progressbar = self.findChild(QProgressBar, 'gapseq_import_progressbar')
 
         self.import_alex_data = self.findChild(QPushButton, 'import_alex_data')
         self.channel_selector = self.findChild(QComboBox, 'channel_selector')
@@ -97,20 +111,28 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils):
 
         self.gapseq_link_localisations = self.findChild(QPushButton, 'gapseq_link_localisations')
 
-        self.import_alex_data.clicked.connect(self.gapseq_import_alex_data)
-        self.channel_selector.currentIndexChanged.connect(self.update_active_image)
+
+
+
+        self.gapseq_import.clicked.connect(self.gapseq_import_data)
+        self.gapseq_import_mode.currentIndexChanged.connect(self.update_import_options)
+
+
+
+        # self.import_alex_data.clicked.connect(self.gapseq_import_alex_data)
+        # self.channel_selector.currentIndexChanged.connect(self.update_active_image)
 
         self.picasso_detect.clicked.connect(self.gapseq_picasso_detect)
         self.picasso_fit.clicked.connect(self.gapseq_picasso_fit)
 
-        self.channel_selector.currentIndexChanged.connect(self.draw_localisations)
+        # self.channel_selector.currentIndexChanged.connect(self.draw_localisations)
 
         self.detect_undrift.clicked.connect(self.gapseq_picasso_undrift)
         self.apply_undrift.clicked.connect(self.gapseq_undrift_images)
 
         self.gapseq_compute_tform.clicked.connect(self.compute_transform_matrix)
 
-        self.gapseq_link_localisations.clicked.connect(self.link_localisations)
+        # self.gapseq_link_localisations.clicked.connect(self.link_localisations)
 
         # self.viewer.dims.events.current_step.connect(self.draw_localisations)
 
@@ -127,6 +149,149 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils):
         #     transform_matrix = json.load(f)
         #
         # self.transform_matrix = np.array(transform_matrix)
+
+
+        self.update_import_options()
+
+
+    def update_import_options(self):
+
+        def update_channel_layout(self, show = True):
+            if show:
+                self.gapseq_channel_layout.setEnabled(True)
+                self.gapseq_channel_layout.clear()
+                self.gapseq_channel_layout.addItems(["Donor-Acceptor", "Acceptor-Donor"])
+                self.gapseq_channel_layout.setHidden(False)
+                self.gapseq_channel_layout_label.setHidden(False)
+            else:
+                self.gapseq_channel_layout.setEnabled(False)
+                self.gapseq_channel_layout.clear()
+                self.gapseq_channel_layout.setHidden(True)
+                self.gapseq_channel_layout_label.setHidden(True)
+
+        def update_alex_first_frame(self, show = True):
+            if show:
+                self.gapseq_alex_first_frame.setEnabled(True)
+                self.gapseq_alex_first_frame.clear()
+                self.gapseq_alex_first_frame.addItems(["Donor", "Acceptor"])
+                self.gapseq_alex_first_frame.setHidden(False)
+                self.gapseq_alex_first_frame_label.setHidden(False)
+            else:
+                self.gapseq_alex_first_frame.setEnabled(False)
+                self.gapseq_alex_first_frame.clear()
+                self.gapseq_alex_first_frame.setHidden(True)
+                self.gapseq_alex_first_frame_label.setHidden(True)
+
+        import_mode = self.gapseq_import_mode.currentText()
+
+        if import_mode in ["Donor", "Acceptor"]:
+            update_channel_layout(self, show = False)
+            update_alex_first_frame(self, show = False)
+
+        elif import_mode == "FRET":
+            update_channel_layout(self, show = True)
+            update_alex_first_frame(self, show = False)
+
+        elif import_mode == "ALEX":
+            update_channel_layout(self, show = True)
+            update_alex_first_frame(self, show = True)
+
+        elif import_mode in ["DA", "DD", "AA","AD"]:
+            update_channel_layout(self, show = False)
+            update_alex_first_frame(self, show = False)
+
+    @staticmethod
+    def import_image_frame(import_job):
+
+        frame_index, path = import_job
+
+        try:
+            with Image.open(path) as img:
+                img.seek(frame_index)
+                frame = img.copy()
+        except:
+            print(traceback.format_exc())
+            frame = None
+            frame_index = None
+
+        return [frame_index, frame]
+
+
+    def _gapseq_import_data(self, progress_callback=None, path=None):
+
+        try:
+
+
+            import_mode = self.gapseq_import_mode.currentText()
+            channel_layout = self.gapseq_channel_layout.currentText()
+            alex_first_frame = self.gapseq_alex_first_frame.currentText()
+
+            n_cpu = multiprocessing.cpu_count()//2
+
+            with Image.open(path) as img:
+                num_frames = img.n_frames
+
+            import_jobs = []
+
+            for frame_index in range(num_frames):
+                import_jobs.append([frame_index, path])
+
+            def callback(*args, offset=0):
+                iter.append(1)
+                progress = int((len(iter) / num_frames) * 100)
+                if progress_callback != None:
+                    progress_callback.emit(progress - offset)
+                return
+
+            iter = []
+
+            with Pool(n_cpu) as p:
+
+                images = [p.apply_async(self.import_image_frame, args=(i,), callback=callback) for i in import_jobs]
+
+                images = [r.get() for r in images]
+
+                images = sorted(images, key=lambda x: x[0])
+                frame_index, image = zip(*images)
+
+                image = np.stack(image)
+
+                print(image.shape)
+
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
+    def gapseq_import_data(self):
+
+        try:
+
+            desktop = os.path.expanduser("~/Desktop")
+            path = QFileDialog.getOpenFileName(self, 'Open file', desktop, "Image files (*.tif *.tiff)")[0]
+
+            if path != "":
+                worker = Worker(self._gapseq_import_data, path=path)
+                worker.signals.progress.connect(partial(self.gapseq_progress,
+                    progress_bar=self.gapseq_import_progressbar))
+                self.threadpool.start(worker)
+
+        except:
+            pass
+
+
+    def gapseq_progress(self, progress, progress_bar):
+
+        progress_bar.setValue(progress)
+
+        if progress == 100:
+            progress_bar.setValue(0)
+            progress_bar.setHidden(True)
+            progress_bar.setEnabled(False)
+        else:
+            progress_bar.setHidden(False)
+            progress_bar.setEnabled(True)
 
 
     def link_localisations(self):
