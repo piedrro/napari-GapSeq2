@@ -316,16 +316,13 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
                 dataset_name = self.gapseq_dataset_selector.currentText()
                 image_channel = self.active_channel
 
-                if "localisations" in self.localisation_dict["fiducials"][dataset_name][image_channel.lower()].keys():
+                if "render_locs" in self.localisation_dict["fiducials"][dataset_name][image_channel.lower()].keys():
 
-                    localisations = self.localisation_dict["fiducials"][dataset_name][image_channel.lower()]["localisations"]
-
-                    active_localisations = [loc for loc in localisations if loc.frame == active_frame]
-                    localisation_centres = self.get_localisation_centres(active_localisations, mode="bounding_boxes")
+                    render_locs = self.localisation_dict["fiducials"][dataset_name][image_channel.lower()]["render_locs"][active_frame]
 
                     if "fiducials" not in layer_names:
                         self.viewer.add_points(
-                            localisation_centres,
+                            render_locs,
                             ndim=2,
                             edge_color="red",
                             face_color=[0,0,0,0],
@@ -336,7 +333,7 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
                             edge_width=0.1, )
                     else:
                         self.viewer.layers["fiducials"].data = []
-                        self.viewer.layers["fiducials"].data = localisation_centres
+                        self.viewer.layers["fiducials"].data = render_locs
 
             for layer in layer_names:
                 self.viewer.layers[layer].refresh()

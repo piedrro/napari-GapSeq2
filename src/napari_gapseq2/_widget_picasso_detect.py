@@ -16,10 +16,11 @@ class _picasso_detect_utils:
 
                 loc_centres = self.get_localisation_centres(locs)
 
-                self.localisation_dict["fiducials"][dataset_name][image_channel.lower()] = {"localisations": [], "localisation_centres": []}
+                self.localisation_dict["fiducials"][dataset_name][image_channel.lower()] = {"localisations": [], "localisation_centres": [], "render_locs": {}}
 
                 self.localisation_dict["fiducials"][dataset_name][image_channel.lower()]["localisations"] = locs.copy()
                 self.localisation_dict["fiducials"][dataset_name][image_channel.lower()]["localisation_centres"] = loc_centres.copy()
+                self.localisation_dict["fiducials"][dataset_name][image_channel.lower()]["render_locs"] = self.render_locs.copy()
 
             else:
 
@@ -64,7 +65,6 @@ class _picasso_detect_utils:
     def _detect_localisations_cleanup(self):
 
         try:
-            localisation_centres = self.get_localisation_centres(self.detected_locs)
 
             detect_mode = self.picasso_detect_mode.currentText()
             dataset_name = self.picasso_dataset.currentText()
@@ -73,7 +73,7 @@ class _picasso_detect_utils:
             self.populate_localisation_dict(self.detected_locs, detect_mode, dataset_name, image_channel)
 
             n_frames = len(np.unique([loc[0] for loc in self.detected_locs]))
-            print("detected {} localisations from {} frame(s)".format(len(localisation_centres), n_frames))
+            print("detected {} localisations from {} frame(s)".format(len(self.detected_locs), n_frames))
 
             self.draw_fiducials()
             self.draw_bounding_boxes()
@@ -89,8 +89,6 @@ class _picasso_detect_utils:
     def _fit_localisations_cleanup(self):
 
         try:
-            localisation_centres = self.get_localisation_centres(self.fitted_locs)
-
             detect_mode = self.picasso_detect_mode.currentText()
             dataset_name = self.picasso_dataset.currentText()
             image_channel = self.picasso_channel.currentText()
@@ -98,7 +96,7 @@ class _picasso_detect_utils:
             self.populate_localisation_dict(self.fitted_locs, detect_mode, dataset_name, image_channel)
 
             n_frames = len(np.unique([loc[0] for loc in self.fitted_locs]))
-            print("Fitted {} localisations from {} frame(s)".format(len(localisation_centres), n_frames))
+            print("Fitted {} localisations from {} frame(s)".format(len(self.fitted_locs), n_frames))
 
             self.draw_fiducials()
             self.draw_bounding_boxes()
@@ -172,6 +170,19 @@ class _picasso_detect_utils:
             curr, futures = localize.identify_async(image_data, min_net_gradient, box_size, roi=None)
             self.detected_locs = localize.identifications_from_futures(futures)
             self.detected_locs = self.filter_localisations(self.detected_locs)
+
+            self.render_locs = {}
+
+            for loc in self.detected_locs:
+                frame = loc.frame
+
+                locX = loc.x
+                locY = loc.y
+
+                if frame not in self.render_locs.keys():
+                    self.render_locs[frame] = []
+
+                self.render_locs[frame].append([locY, locX])
 
             if frame_mode.lower() == "active":
                 for loc in self.detected_locs:
