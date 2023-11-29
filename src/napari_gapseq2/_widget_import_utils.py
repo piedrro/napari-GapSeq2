@@ -41,6 +41,8 @@ class _import_utils:
 
             self.gapseq_dataset_selector.clear()
             self.gapseq_dataset_selector.addItems(dataset_names)
+            self.picasso_dataset.clear()
+            self.picasso_dataset.addItems(dataset_names)
 
             self.update_channel_select_buttons()
             self.update_active_image()
@@ -280,7 +282,7 @@ class _import_utils:
 
             for channel in image_dict.keys():
                 if channel not in fiducials_dict.keys():
-                    fiducials_dict[channel] = None
+                    fiducials_dict[channel] = {}
 
             self.dataset_dict[dataset_name] = image_dict
 

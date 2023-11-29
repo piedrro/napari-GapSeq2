@@ -55,6 +55,8 @@ class _events_utils:
                 fret_modes = [self.dataset_dict[datast_name][channel]["FRET"] for channel in self.dataset_dict[datast_name].keys()]
                 channel_refs = [self.dataset_dict[datast_name][channel]["channel_ref"] for channel in self.dataset_dict[datast_name].keys()]
 
+                self.picasso_channel.clear()
+
                 channel_refs = list(set(channel_refs))
                 fret_mode = list(set(fret_modes))[0]
 
@@ -68,6 +70,7 @@ class _events_utils:
                     if "dd" in channel_refs:
                         self.gapseq_show_dd.setEnabled(True)
                         self.gapseq_show_dd.setText("Donor")
+                        self.picasso_channel.addItem("Donor")
                     else:
                         self.gapseq_show_dd.setEnabled(False)
                         self.gapseq_show_dd.setText("")
@@ -75,6 +78,7 @@ class _events_utils:
                     if "da" in channel_refs:
                         self.gapseq_show_da.setEnabled(True)
                         self.gapseq_show_da.setText("Acceptor")
+                        self.picasso_channel.addItem("Acceptor")
                     else:
                         self.gapseq_show_da.setEnabled(False)
                         self.gapseq_show_da.setText("")
@@ -89,6 +93,7 @@ class _events_utils:
                     if "dd" in channel_refs:
                         self.gapseq_show_dd.setText("DD")
                         self.gapseq_show_dd.setEnabled(True)
+                        self.picasso_channel.addItem("DD")
                     else:
                         self.gapseq_show_dd.setText("")
                         self.gapseq_show_dd.setEnabled(False)
@@ -96,6 +101,7 @@ class _events_utils:
                     if "da" in channel_refs:
                         self.gapseq_show_da.setText("DA")
                         self.gapseq_show_da.setEnabled(True)
+                        self.picasso_channel.addItem("DA")
                     else:
                         self.gapseq_show_da.setText("")
                         self.gapseq_show_da.setEnabled(False)
@@ -103,6 +109,7 @@ class _events_utils:
                     if "aa" in channel_refs:
                         self.gapseq_show_aa.setText("AA")
                         self.gapseq_show_aa.setEnabled(True)
+                        self.picasso_channel.addItem("AA")
                     else:
                         self.gapseq_show_aa.setText("")
                         self.gapseq_show_aa.setEnabled(False)
@@ -110,6 +117,7 @@ class _events_utils:
                     if "ad" in channel_refs:
                         self.gapseq_show_ad.setText("AD")
                         self.gapseq_show_ad.setEnabled(True)
+                        self.picasso_channel.addItem("AD")
                     else:
                         self.gapseq_show_ad.setText("")
                         self.gapseq_show_ad.setEnabled(False)

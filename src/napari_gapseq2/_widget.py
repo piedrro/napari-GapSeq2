@@ -105,6 +105,7 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.import_alex_data = self.findChild(QPushButton, 'import_alex_data')
         self.channel_selector = self.findChild(QComboBox, 'channel_selector')
 
+        self.picasso_dataset = self.findChild(QComboBox, 'picasso_dataset')
         self.picasso_channel = self.findChild(QComboBox, 'picasso_channel')
         self.picasso_min_net_gradient = self.findChild(QLineEdit, 'picasso_min_net_gradient')
         self.picasso_frame_mode = self.findChild(QComboBox, 'picasso_frame_mode')
@@ -257,6 +258,38 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
             print(traceback.format_exc())
             pass
 
+
+    def draw_fiducials(self):
+
+        if hasattr(self, "localisation_dict") and hasattr(self, "active_channel"):
+
+            layer_names = [layer.name for layer in self.viewer.layers]
+
+            if "fiducials" in layer_names:
+                visible = self.viewer.layers["fiducials"].visible
+            else:
+                visible = True
+
+            if visible:
+
+                dataset_name = self.gapseq_dataset_selector.currentText()
+                image_channel = self.active_channel
+
+                localisation_centres = self.localisation_dict["fiducials"][dataset_name][image_channel.lower()]["localisation_centres"]
+
+                if "fiducials" not in layer_names:
+                    self.viewer.add_points(
+                        localisation_centres,
+                        edge_color="red",
+                        face_color=[0,0,0,0],
+                        opacity=1.0,
+                        name="fiducials",
+                        symbol="disc",
+                        size=5,
+                        edge_width=0.1, )
+                else:
+                    self.viewer.layers["fiducials"].data = []
+                    self.viewer.layers["fiducials"].data = localisation_centres
 
 
 
