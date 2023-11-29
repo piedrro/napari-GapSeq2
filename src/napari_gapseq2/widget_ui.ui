@@ -351,9 +351,9 @@
      </layout>
     </item>
     <item>
-     <widget class="QCheckBox" name="checkBox">
+     <widget class="QCheckBox" name="picasso_window_cropping">
       <property name="text">
-       <string>Link Localisations in Consecutive Frames</string>
+       <string>Remove Localisations Outside of Active Window</string>
       </property>
      </widget>
     </item>
@@ -368,19 +368,6 @@
      <widget class="QPushButton" name="picasso_fit">
       <property name="text">
        <string>Picasso Fit</string>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="QProgressBar" name="picasso_progress">
-      <property name="maximumSize">
-       <size>
-        <width>16777215</width>
-        <height>10</height>
-       </size>
-      </property>
-      <property name="value">
-       <number>0</number>
       </property>
      </widget>
     </item>

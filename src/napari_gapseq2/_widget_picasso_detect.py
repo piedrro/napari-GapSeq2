@@ -10,10 +10,7 @@ class _picasso_detect_utils:
 
         detect_mode = detect_mode.lower()
 
-
         try:
-            detect_mode = detect_mode.lower()
-            excitation, emission = image_channel
 
             if detect_mode == "fiducials":
 
@@ -24,60 +21,45 @@ class _picasso_detect_utils:
                 self.localisation_dict["fiducials"][dataset_name][image_channel.lower()]["localisations"] = locs.copy()
                 self.localisation_dict["fiducials"][dataset_name][image_channel.lower()]["localisation_centres"] = loc_centres.copy()
 
+            else:
 
-        #     else:
-        #
-        #         print("Detect mode: ", detect_mode)
-        #
-        #         if self.transform_matrix is None:
-        #
-        #             loc_centres = self.get_localisation_centres(locs)
-        #
-        #             for channel in self.image_dict.keys():
-        #
-        #                 if detect_mode not in self.image_dict[channel].keys():
-        #                     self.image_dict[channel][detect_mode] = {"localisations": [], "localisation_centres": []}
-        #
-        #                 self.image_dict[channel][detect_mode]["localisations"] = locs.copy()
-        #                 self.image_dict[channel][detect_mode]["localisation_centres"] = loc_centres.copy()
-        #
-        #         else:
-        #
-        #             if emission.lower() == "a":
-        #                 donor_locs = copy.deepcopy(locs)
-        #                 acceptor_locs = copy.deepcopy(locs)
-        #                 acceptor_locs = self.apply_transform(acceptor_locs, inverse = False)
-        #
-        #                 donor_loc_centres = self.get_localisation_centres(donor_locs)
-        #                 acceptor_loc_centres = self.get_localisation_centres(acceptor_locs)
-        #             else:
-        #                 acceptor_locs = copy.deepcopy(locs)
-        #                 donor_locs = copy.deepcopy(locs)
-        #                 donor_locs = self.apply_transform(donor_locs, inverse = True)
-        #
-        #                 acceptor_loc_centres = self.get_localisation_centres(acceptor_locs)
-        #                 donor_loc_centres = self.get_localisation_centres(donor_locs)
-        #
-        #             for channel in self.image_dict.keys():
-        #
-        #                 channel_ex, channel_em = channel
-        #
-        #                 if detect_mode not in self.image_dict[channel].keys():
-        #                     self.image_dict[channel][detect_mode] = {"localisations": [], "localisation_centres": []}
-        #
-        #                 if channel_em.lower() == "d":
-        #                     self.image_dict[channel][detect_mode]["localisations"] = copy.deepcopy(acceptor_locs)
-        #                     self.image_dict[channel][detect_mode]["localisation_centres"] = copy.deepcopy(acceptor_loc_centres)
-        #
-        #                 else:
-        #                     self.image_dict[channel][detect_mode]["localisations"] = copy.deepcopy(donor_locs)
-        #                     self.image_dict[channel][detect_mode]["localisation_centres"] = copy.deepcopy(donor_loc_centres)
+                loc_centres = self.get_localisation_centres(locs)
+
+                self.localisation_dict["bounding_boxes"]["localisations"] = locs.copy()
+                self.localisation_dict["bounding_boxes"]["localisation_centres"] = loc_centres.copy()
 
         except:
             print(traceback.format_exc())
 
 
+    def filter_localisations(self, locs):
 
+        if self.picasso_window_cropping.isChecked():
+
+            layers_names = [layer.name for layer in self.viewer.layers if layer.name not in ["bounding_boxes", "fiducials"]]
+
+            crop = self.viewer.layers[layers_names[0]].corner_pixels[:, -2:]
+
+            [[y1, x1], [y2, x2]] = crop
+
+            x_range = [x1, x2]
+            y_range = [y1, y2]
+
+            filtered_locs = []
+
+            for loc in locs:
+                locX = loc.x
+                locY = loc.y
+                if locX > x_range[0] and locX < x_range[1] and locY > y_range[0] and locY < y_range[1]:
+                    filtered_locs.append(copy.deepcopy(loc))
+
+            filtered_locs = np.array(filtered_locs)
+            filtered_locs = np.rec.fromrecords(filtered_locs, dtype=locs.dtype)
+
+            return filtered_locs
+
+        else:
+            return locs
 
     def _detect_localisations_cleanup(self):
 
@@ -94,7 +76,7 @@ class _picasso_detect_utils:
             print("detected {} localisations from {} frame(s)".format(len(localisation_centres), n_frames))
 
             self.draw_fiducials()
-            # self.draw_localisations()
+            self.draw_bounding_boxes()
 
             self.gapseq_dataset_selector.setCurrentIndex(self.gapseq_dataset_selector.findText(dataset_name))
 
@@ -119,7 +101,7 @@ class _picasso_detect_utils:
             print("Fitted {} localisations from {} frame(s)".format(len(localisation_centres), n_frames))
 
             self.draw_fiducials()
-            # self.draw_localisations()
+            self.draw_bounding_boxes()
 
             self.gapseq_dataset_selector.setCurrentIndex(self.gapseq_dataset_selector.findText(dataset_name))
         except:
@@ -166,6 +148,8 @@ class _picasso_detect_utils:
                     em = gain > 1
                     self.fitted_locs = gausslq.locs_from_fits(detected_locs, theta, box_size, em)
 
+                    self.fitted_locs = self.filter_localisations(self.fitted_locs)
+
                 print(f"Picasso fitted {len(self.fitted_locs)} spots")
 
         except:
@@ -187,6 +171,7 @@ class _picasso_detect_utils:
 
             curr, futures = localize.identify_async(image_data, min_net_gradient, box_size, roi=None)
             self.detected_locs = localize.identifications_from_futures(futures)
+            self.detected_locs = self.filter_localisations(self.detected_locs)
 
             if frame_mode.lower() == "active":
                 for loc in self.detected_locs:
@@ -242,6 +227,8 @@ class _picasso_detect_utils:
 
             if detect_mode.lower() == "fiducials":
                 localisation_dict = self.localisation_dict["fiducials"][dataset_name][image_channel.lower()]
+            else:
+                localisation_dict = self.localisation_dict["bounding_boxes"]
 
             if "localisations" in localisation_dict.keys():
                 detected_locs = localisation_dict["localisations"]

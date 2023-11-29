@@ -35,7 +35,7 @@ from magicgui.widgets import CheckBox, Container, create_widget
 from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget
 from skimage.util import img_as_float
 from qtpy.QtCore import QObject, QRunnable, QThreadPool
-from qtpy.QtWidgets import (QWidget,QVBoxLayout,QTabWidget,QSizePolicy, QComboBox,QLineEdit, QProgressBar, QLabel)
+from qtpy.QtWidgets import (QWidget,QVBoxLayout,QTabWidget,QSizePolicy, QComboBox,QLineEdit, QProgressBar, QLabel, QCheckBox)
 from PIL import Image
 from tqdm import tqdm
 import numpy as np
@@ -112,6 +112,7 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.picasso_detect = self.findChild(QPushButton, 'picasso_detect')
         self.picasso_fit = self.findChild(QPushButton, 'picasso_fit')
         self.picasso_detect_mode = self.findChild(QComboBox, 'picasso_detect_mode')
+        self.picasso_window_cropping = self.findChild(QCheckBox, 'picasso_window_cropping')
 
         self.picasso_undrift_mode = self.findChild(QComboBox, 'picasso_undrift_mode')
         self.picasso_undrift_channel = self.findChild(QComboBox, 'picasso_undrift_channel')
@@ -126,25 +127,18 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.gapseq_import.clicked.connect(self.gapseq_import_data)
         self.gapseq_import_mode.currentIndexChanged.connect(self.update_import_options)
 
-        # self.import_alex_data.clicked.connect(self.gapseq_import_alex_data)
-        # self.channel_selector.currentIndexChanged.connect(self.update_active_image)
-
         self.picasso_detect.clicked.connect(self.gapseq_picasso_detect)
         self.picasso_fit.clicked.connect(self.gapseq_picasso_fit)
 
         self.gapseq_dataset_selector.currentIndexChanged.connect(self.update_channel_select_buttons)
         self.gapseq_dataset_selector.currentIndexChanged.connect(self.update_active_image)
 
-        # self.channel_selector.currentIndexChanged.connect(self.draw_localisations)
-
         self.detect_undrift.clicked.connect(self.gapseq_picasso_undrift)
         self.apply_undrift.clicked.connect(self.gapseq_undrift_images)
 
         self.gapseq_compute_tform.clicked.connect(self.compute_transform_matrix)
 
-        # self.gapseq_link_localisations.clicked.connect(self.link_localisations)
-
-        # self.viewer.dims.events.current_step.connect(self.draw_localisations)
+        self.picasso_detect_mode.currentIndexChanged.connect(self.update_picasso_options)
 
         self.dataset_dict = {}
         self.localisation_dict = {"bounding_boxes": {}, "fiducials": {}}
@@ -167,7 +161,14 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
 
         self.update_import_options()
 
+    def update_picasso_options(self):
 
+        if self.picasso_detect_mode.currentText() == "Fiducials":
+            self.picasso_frame_mode.clear()
+            self.picasso_frame_mode.addItems(["Active", "All"])
+        else:
+            self.picasso_frame_mode.clear()
+            self.picasso_frame_mode.addItems(["Active", "All (Linked)"])
 
     def link_localisations(self):
 
@@ -259,6 +260,42 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
             pass
 
 
+    def draw_bounding_boxes(self):
+
+        if hasattr(self, "localisation_dict") and hasattr(self, "active_channel"):
+
+            layer_names = [layer.name for layer in self.viewer.layers]
+
+            if "bounding_boxes" in layer_names:
+                visible = self.viewer.layers["bounding_boxes"].visible
+            else:
+                visible = True
+
+            if visible:
+
+                if "localisation_centres" in self.localisation_dict["bounding_boxes"].keys():
+
+                    localisations = self.localisation_dict["bounding_boxes"]["localisations"]
+                    localisation_centres = self.get_localisation_centres(localisations, mode="bounding_boxes")
+
+                    if "bounding_boxes" not in layer_names:
+                        self.viewer.add_points(
+                            localisation_centres,
+                            edge_color="red",
+                            ndim=2,
+                            face_color=[0,0,0,0],
+                            opacity=1.0,
+                            name="bounding_boxes",
+                            symbol="square",
+                            size=10,
+                            visible=True)
+                    else:
+                        self.viewer.layers["bounding_boxes"].data = localisation_centres
+
+            for layer in layer_names:
+                self.viewer.layers[layer].refresh()
+
+
     def draw_fiducials(self):
 
         if hasattr(self, "localisation_dict") and hasattr(self, "active_channel"):
@@ -291,7 +328,8 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
                     self.viewer.layers["fiducials"].data = []
                     self.viewer.layers["fiducials"].data = localisation_centres
 
-
+            for layer in layer_names:
+                self.viewer.layers[layer].refresh()
 
 
 
@@ -374,19 +412,21 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
 
 
 
-    def get_localisation_centres(self, locs):
+    def get_localisation_centres(self, locs, mode = "fiducials"):
+
+        loc_centres = []
 
         try:
-            loc_centres = []
+
             for loc in locs:
                 frame = int(loc.frame)
-                # if frame not in loc_centres.keys():
-                #     loc_centres[frame] = []
-                loc_centres.append([frame, loc.y, loc.x])
+                if mode == "fiducials":
+                    loc_centres.append([frame, loc.y, loc.x])
+                else:
+                    loc_centres.append([loc.x, loc.y])
 
         except:
             print(traceback.format_exc())
-            loc_centres = []
 
         return loc_centres
 
