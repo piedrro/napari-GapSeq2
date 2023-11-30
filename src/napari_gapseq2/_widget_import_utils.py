@@ -69,6 +69,8 @@ def transform_image_frame(dat):
 
 def transform_image(img, transform_matrix, progress_callback=None):
 
+    print("Applying transform matrix...")
+
     h, w = img.shape[:2]
 
     n_frames = img.shape[0]
