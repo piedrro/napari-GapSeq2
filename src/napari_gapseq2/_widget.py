@@ -113,11 +113,14 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.picasso_fit = self.findChild(QPushButton, 'picasso_fit')
         self.picasso_detect_mode = self.findChild(QComboBox, 'picasso_detect_mode')
         self.picasso_window_cropping = self.findChild(QCheckBox, 'picasso_window_cropping')
+        self.picasso_progressbar = self.findChild(QProgressBar, 'picasso_progressbar')
 
         self.picasso_undrift_mode = self.findChild(QComboBox, 'picasso_undrift_mode')
         self.picasso_undrift_channel = self.findChild(QComboBox, 'picasso_undrift_channel')
         self.detect_undrift = self.findChild(QPushButton, 'detect_undrift')
         self.apply_undrift = self.findChild(QPushButton, 'apply_undrift')
+        self.undrift_channel_selector = self.findChild(QComboBox, 'undrift_channel_selector')
+        self.undrift_progressbar = self.findChild(QProgressBar, 'undrift_progressbar')
 
         self.gapseq_compute_tform = self.findChild(QPushButton, 'gapseq_compute_tform')
 
@@ -151,7 +154,6 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.threadpool = QThreadPool()
 
         self.transform_matrix = None
-        self.undrift_channel = None
 
         # transform_matrix_path = r"C:\Users\turnerp\Desktop\PicassoDEV\gapseq_transform_matrix-230719.txt"
         #
@@ -300,6 +302,8 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
 
     def draw_fiducials(self):
 
+        remove_fiducials = True
+
         if hasattr(self, "localisation_dict") and hasattr(self, "active_channel"):
 
             layer_names = [layer.name for layer in self.viewer.layers]
@@ -316,24 +320,36 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
                 dataset_name = self.gapseq_dataset_selector.currentText()
                 image_channel = self.active_channel
 
-                if "render_locs" in self.localisation_dict["fiducials"][dataset_name][image_channel.lower()].keys():
+                if image_channel.lower() in self.localisation_dict["fiducials"][dataset_name].keys():
 
-                    render_locs = self.localisation_dict["fiducials"][dataset_name][image_channel.lower()]["render_locs"][active_frame]
+                    localisation_dict = self.localisation_dict["fiducials"][dataset_name][image_channel.lower()]
 
-                    if "fiducials" not in layer_names:
-                        self.viewer.add_points(
-                            render_locs,
-                            ndim=2,
-                            edge_color="red",
-                            face_color=[0,0,0,0],
-                            opacity=1.0,
-                            name="fiducials",
-                            symbol="disc",
-                            size=5,
-                            edge_width=0.1, )
-                    else:
-                        self.viewer.layers["fiducials"].data = []
-                        self.viewer.layers["fiducials"].data = render_locs
+                    if "render_locs" in localisation_dict.keys():
+
+                        render_locs = localisation_dict["render_locs"]
+
+                        remove_fiducials = False
+
+                        if active_frame in render_locs.keys():
+
+                            if "fiducials" not in layer_names:
+                                self.viewer.add_points(
+                                    render_locs[active_frame],
+                                    ndim=2,
+                                    edge_color="red",
+                                    face_color=[0,0,0,0],
+                                    opacity=1.0,
+                                    name="fiducials",
+                                    symbol="disc",
+                                    size=5,
+                                    edge_width=0.1, )
+                            else:
+                                self.viewer.layers["fiducials"].data = []
+                                self.viewer.layers["fiducials"].data = render_locs[active_frame]
+
+            if remove_fiducials:
+                if "fiducials" in layer_names:
+                    self.viewer.layers["fiducials"].data = []
 
             for layer in layer_names:
                 self.viewer.layers[layer].refresh()

@@ -7,7 +7,8 @@ import multiprocessing
 from multiprocessing import Pool, cpu_count, shared_memory
 from napari_gapseq2._widget_utils_worker import Worker
 from functools import partial
-
+from PyQt5.QtWidgets import QApplication, QPushButton, QWidget, QVBoxLayout, QShortcut
+from PyQt5.QtGui import QKeySequence
 
 def import_image_frame(import_job):
 
@@ -47,8 +48,11 @@ class _import_utils:
             self.update_channel_select_buttons()
             self.update_active_image()
 
+            self.gapseq_import.setEnabled(True)
+
         except:
             print(traceback.format_exc())
+            self.gapseq_import.setEnabled(True)
             pass
 
 
@@ -90,6 +94,26 @@ class _import_utils:
         except:
             print(traceback.format_exc())
             pass
+
+
+    def register_keyboard_shortcuts(self, key, func, func_kwargs=None, overwrite=True):
+
+        if func_kwargs is None:
+            func_kwargs = {}
+
+        # Creating a partial function with the provided keyword arguments
+        wrapped_func = partial(func, **func_kwargs)
+
+        # Setting a name for the wrapped function
+        if isinstance(func, partial):
+            base_name = func.func.__name__
+        else:
+            base_name = func.__name__
+        wrapped_func.__name__ = base_name + "_" + key
+
+        # Binding the key with the wrapped function
+        self.viewer.bind_key(key, wrapped_func, overwrite=overwrite)
+
 
 
     def postprocess_image_list(self, image_list, path):
@@ -176,48 +200,49 @@ class _import_utils:
                     image_dict[import_mode.lower()]["emission"] = "donor"
                     image_dict[import_mode.lower()]["channel_ref"] = "dd"
                     image_dict[import_mode.lower()]["FRET"] = True
-                    self.viewer.bind_key(key="F1", func=partial(self.update_active_image, channel=import_mode.lower()), overwrite=True)
-                    self.gapseq_show_dd.clicked.connect(partial(self.update_active_image, channel=import_mode.lower()))
+                    func = partial(self.update_active_image, channel=import_mode.lower())
+                    self.gapseq_show_dd.clicked.connect(func)
 
                 elif import_mode == "Acceptor":
                     image_dict[import_mode.lower()]["excitation"] = "donor"
                     image_dict[import_mode.lower()]["emission"] = "acceptor"
                     image_dict[import_mode.lower()]["channel_ref"] = "da"
                     image_dict[import_mode.lower()]["FRET"] = True
-                    self.viewer.bind_key(key="F2", func=partial(self.update_active_image, channel=import_mode.lower()), overwrite=True)
-                    self.gapseq_show_dd.clicked.connect(partial(self.update_active_image, channel=import_mode.lower()))
+                    func = partial(self.update_active_image, channel=import_mode.lower())
+                    self.gapseq_show_dd.clicked.connect(func)
 
                 elif import_mode == "DD":
                     image_dict[import_mode.lower()]["excitation"] = "donor"
                     image_dict[import_mode.lower()]["emission"] = "donor"
                     image_dict[import_mode.lower()]["channel_ref"] = "dd"
                     image_dict[import_mode.lower()]["FRET"] = False
-                    self.viewer.bind_key(key="F1", func=partial(self.update_active_image, channel=import_mode.lower()), overwrite=True)
-                    self.gapseq_show_dd.clicked.connect(partial(self.update_active_image, channel=import_mode.lower()))
+                    func = partial(self.update_active_image, channel=import_mode.lower())
+                    self.gapseq_show_dd.clicked.connect(func)
 
                 elif import_mode == "DA":
                     image_dict[import_mode.lower()]["excitation"] = "donor"
                     image_dict[import_mode.lower()]["emission"] = "acceptor"
                     image_dict[import_mode.lower()]["channel_ref"] = "da"
                     image_dict[import_mode.lower()]["FRET"] = False
-                    self.viewer.bind_key(key="F2", func=partial(self.update_active_image, channel=import_mode.lower()), overwrite=True)
-                    self.gapseq_show_dd.clicked.connect(partial(self.update_active_image, channel=import_mode.lower()))
+                    func = partial(self.update_active_image, channel=import_mode.lower())
+
+                    self.gapseq_show_dd.clicked.connect(func)
 
                 elif import_mode == "AD":
                     image_dict[import_mode.lower()]["excitation"] = "acceptor"
                     image_dict[import_mode.lower()]["emission"] = "donor"
                     image_dict[import_mode.lower()]["channel_ref"] = "ad"
                     image_dict[import_mode.lower()]["FRET"] = False
-                    self.viewer.bind_key(key="F3", func=partial(self.update_active_image, channel=import_mode.lower()), overwrite=True)
-                    self.gapseq_show_dd.clicked.connect(partial(self.update_active_image, channel=import_mode.lower()))
+                    func = partial(self.update_active_image, channel=import_mode.lower())
+                    self.gapseq_show_dd.clicked.connect(func)
 
                 elif import_mode == "AA":
                     image_dict[import_mode.lower()]["excitation"] = "acceptor"
                     image_dict[import_mode.lower()]["emission"] = "acceptor"
                     image_dict[import_mode.lower()]["channel_ref"] = "aa"
                     image_dict[import_mode.lower()]["FRET"] = False
-                    self.viewer.bind_key(key="F4", func=partial(self.update_active_image, channel=import_mode.lower()), overwrite=True)
-                    self.gapseq_show_dd.clicked.connect(partial(self.update_active_image, channel=import_mode.lower()))
+                    func = partial(self.update_active_image, channel=import_mode.lower())
+                    self.gapseq_show_dd.clicked.connect(func)
 
             elif import_mode == "FRET":
 
@@ -225,14 +250,15 @@ class _import_utils:
                 image_dict["donor"]["emission"] = "donor"
                 image_dict["donor"]["channel_ref"] = "dd"
                 image_dict["donor"]["FRET"] = True
-                self.viewer.bind_key(key="F1", func=partial(self.update_active_image, channel="donor"), overwrite=True)
+
                 self.gapseq_show_dd.clicked.connect(partial(self.update_active_image, channel="donor"))
+
 
                 image_dict["acceptor"]["excitation"] = "donor"
                 image_dict["acceptor"]["emission"] = "acceptor"
                 image_dict["acceptor"]["channel_ref"] = "da"
                 image_dict["acceptor"]["FRET"] = True
-                self.viewer.bind_key(key="F2", func=partial(self.update_active_image, channel="acceptor"), overwrite=True)
+
                 self.gapseq_show_da.clicked.connect(partial(self.update_active_image, channel="acceptor"))
 
             elif import_mode == "ALEX":
@@ -256,15 +282,15 @@ class _import_utils:
                 image_dict["aa"]["FRET"] = False
                 image_dict["ad"]["FRET"] = False
 
-                self.viewer.bind_key(key="F1", func=partial(self.update_active_image, channel="dd"), overwrite=True)
-                self.viewer.bind_key(key="F2", func=partial(self.update_active_image, channel="da"), overwrite=True)
-                self.viewer.bind_key(key="F3", func=partial(self.update_active_image, channel="aa"), overwrite=True)
-                self.viewer.bind_key(key="F4", func=partial(self.update_active_image, channel="ad"), overwrite=True)
+                funct_aa = partial(self.update_active_image, channel="aa")
+                funct_ad = partial(self.update_active_image, channel="ad")
+                funct_da = partial(self.update_active_image, channel="da")
+                funct_dd = partial(self.update_active_image, channel="dd")
 
-                self.gapseq_show_dd.clicked.connect(partial(self.update_active_image, channel="dd"))
-                self.gapseq_show_da.clicked.connect(partial(self.update_active_image, channel="da"))
-                self.gapseq_show_aa.clicked.connect(partial(self.update_active_image, channel="aa"))
-                self.gapseq_show_ad.clicked.connect(partial(self.update_active_image, channel="ad"))
+                self.gapseq_show_dd.clicked.connect(funct_dd)
+                self.gapseq_show_da.clicked.connect(funct_da)
+                self.gapseq_show_aa.clicked.connect(funct_aa)
+                self.gapseq_show_ad.clicked.connect(funct_ad)
 
             for channel in image_dict.keys():
 
@@ -301,6 +327,9 @@ class _import_utils:
             path = QFileDialog.getOpenFileName(self, 'Open file', desktop, "Image files (*.tif *.tiff)")[0]
 
             if path != "":
+
+                self.gapseq_import.setEnabled(False)
+
                 worker = Worker(self._gapseq_import_data, path=path)
                 worker.signals.progress.connect(partial(self.gapseq_progress,
                     progress_bar=self.gapseq_import_progressbar))
@@ -308,6 +337,7 @@ class _import_utils:
                 self.threadpool.start(worker)
 
         except:
+            self.gapseq_import.setEnabled(True)
             pass
 
     def split_img(self, img):

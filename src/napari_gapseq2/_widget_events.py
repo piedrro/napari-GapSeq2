@@ -1,11 +1,23 @@
 import traceback
-
+import numpy as np
 
 
 class _events_utils:
 
 
-    def update_active_image(self, channel=None):
+    def select_channel_da(self):
+        self.update_active_image(channel="da")
+
+    def select_channel_dd(self):
+        self.update_active_image(channel="dd")
+
+    def select_channel_aa(self):
+        self.update_active_image(channel="aa")
+
+    def select_channel_ad(self):
+        self.update_active_image(channel="ad")
+
+    def update_active_image(self, channel=None, event=None):
 
         try:
 
@@ -28,6 +40,8 @@ class _events_utils:
 
                     image = self.dataset_dict[dataset_name][channel]["data"]
 
+                    contrast_range = [np.min(image), np.max(image)]
+
                     if dataset_name not in image_layers:
 
                         self.viewer.add_image(image,
@@ -39,6 +53,9 @@ class _events_utils:
                     else:
                         self.viewer.layers[dataset_name].data = image
 
+                    self.viewer.layers[dataset_name].contrast_limits = contrast_range
+
+            self.draw_fiducials()
 
         except:
             print(traceback.format_exc())
@@ -56,6 +73,7 @@ class _events_utils:
                 channel_refs = [self.dataset_dict[datast_name][channel]["channel_ref"] for channel in self.dataset_dict[datast_name].keys()]
 
                 self.picasso_channel.clear()
+                self.undrift_channel_selector.clear()
 
                 channel_refs = list(set(channel_refs))
                 fret_mode = list(set(fret_modes))[0]
@@ -71,6 +89,7 @@ class _events_utils:
                         self.gapseq_show_dd.setEnabled(True)
                         self.gapseq_show_dd.setText("Donor")
                         self.picasso_channel.addItem("Donor")
+                        self.undrift_channel_selector.addItem("Donor")
                     else:
                         self.gapseq_show_dd.setEnabled(False)
                         self.gapseq_show_dd.setText("")
@@ -79,6 +98,7 @@ class _events_utils:
                         self.gapseq_show_da.setEnabled(True)
                         self.gapseq_show_da.setText("Acceptor")
                         self.picasso_channel.addItem("Acceptor")
+                        self.undrift_channel_selector.addItem("Acceptor")
                     else:
                         self.gapseq_show_da.setEnabled(False)
                         self.gapseq_show_da.setText("")
@@ -94,6 +114,7 @@ class _events_utils:
                         self.gapseq_show_dd.setText("DD")
                         self.gapseq_show_dd.setEnabled(True)
                         self.picasso_channel.addItem("DD")
+                        self.undrift_channel_selector.addItem("DD")
                     else:
                         self.gapseq_show_dd.setText("")
                         self.gapseq_show_dd.setEnabled(False)
@@ -102,6 +123,7 @@ class _events_utils:
                         self.gapseq_show_da.setText("DA")
                         self.gapseq_show_da.setEnabled(True)
                         self.picasso_channel.addItem("DA")
+                        self.undrift_channel_selector.addItem("DA")
                     else:
                         self.gapseq_show_da.setText("")
                         self.gapseq_show_da.setEnabled(False)
@@ -110,6 +132,7 @@ class _events_utils:
                         self.gapseq_show_aa.setText("AA")
                         self.gapseq_show_aa.setEnabled(True)
                         self.picasso_channel.addItem("AA")
+                        self.undrift_channel_selector.addItem("AA")
                     else:
                         self.gapseq_show_aa.setText("")
                         self.gapseq_show_aa.setEnabled(False)
@@ -118,6 +141,7 @@ class _events_utils:
                         self.gapseq_show_ad.setText("AD")
                         self.gapseq_show_ad.setEnabled(True)
                         self.picasso_channel.addItem("AD")
+                        self.undrift_channel_selector.addItem("AD")
                     else:
                         self.gapseq_show_ad.setText("")
                         self.gapseq_show_ad.setEnabled(False)

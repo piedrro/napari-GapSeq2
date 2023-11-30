@@ -6,7 +6,7 @@ import scipy.ndimage
 import multiprocessing
 from multiprocessing import Process, shared_memory, Pool
 import copy
-
+from functools import partial
 
 def undrift_image(dat):
 
@@ -20,7 +20,10 @@ def undrift_image(dat):
         # Perform preprocessing steps and overwrite original image
         img = np_array[dat["drift_index"]]
 
-        img = scipy.ndimage.shift(img, dat["drift"], mode='constant', cval=0.0)
+        drift = dat["drift"]
+        drift = [-drift[0], -drift[1]]
+
+        img = scipy.ndimage.shift(img, drift, mode='constant', cval=0.0)
 
         # overwrite the shared memory block
         np_array[dat["drift_index"]] = img
@@ -34,19 +37,27 @@ def undrift_image(dat):
         print(traceback.format_exc())
         pass
 
-    return undrifted_data
+    return dat["drift_index"]
 
 
 class _undrift_utils:
 
+    def _gapseq_undrift_images(self, progress_callback=None, drift=None):
 
-    def _gapseq_undrift_images(self, progress_callback=None):
+        dataset_name = self.gapseq_dataset_selector.currentText()
 
-        for channel_name, channel_data in self.image_dict.items():
+        total_frames = [len(self.dataset_dict[dataset_name][channel]["data"]) for channel in self.dataset_dict[dataset_name].keys()]
+        total_frames = np.sum(total_frames)
+
+        iter = []
+
+        for channel_name, channel_data in self.dataset_dict[dataset_name].items():
 
             try:
 
-                image = channel_data.pop("data")
+                drift_list = channel_data["drift"]
+
+                image = channel_data["data"]
                 image = copy.deepcopy(image)
 
                 shared_mem = shared_memory.SharedMemory(create=True, size=image.nbytes)
@@ -56,7 +67,7 @@ class _undrift_utils:
 
                 undrift_jobs = []
 
-                for drift_index, drift in enumerate(self.drift):
+                for drift_index, drift in enumerate(drift_list):
 
                     drift = list(drift)
 
@@ -66,30 +77,68 @@ class _undrift_utils:
                                          "shape": image.shape,
                                          "dtype": image.dtype})
 
-                cpu_count = multiprocessing.cpu_count() // 2
+                cpu_count = int(multiprocessing.cpu_count()*0.75)
+
+                def callback(*args, offset=0):
+                    iter.append(1)
+                    progress = int((len(iter) / total_frames) * 100)
+                    if progress_callback != None:
+                        progress_callback.emit(progress - offset)
+                    return
 
                 with Pool(cpu_count) as p:
-                    _ = p.map(undrift_image, undrift_jobs)
+                    imported_data = [p.apply_async(undrift_image, args=(i,), callback=callback) for i in undrift_jobs]
+                    imported_data = [p.get() for p in imported_data]
+                    p.close()
 
-                self.image_dict[channel_name]["data"] = shared_image.copy()
+                self.dataset_dict[dataset_name][channel_name]["data"] = shared_image.copy()
 
                 shared_mem.close()
                 shared_mem.unlink()
 
             except:
-                self.image_dict[channel_name]["data"] = image
+                print(traceback.format_exc())
+                self.dataset_dict[dataset_name][channel_name]["data"] = image
 
 
     def _gapseq_undrift_images_cleanup(self):
 
-        print("Undrifted images")
+        try:
+
+            layer_names = [layer.name for layer in self.viewer.layers]
+
+            dataset_name = self.gapseq_dataset_selector.currentText()
+            active_channel = self.active_channel
+
+            if dataset_name in layer_names:
+                self.viewer.layers.data = self.dataset_dict[dataset_name][active_channel]["data"]
+
+            for layer in self.viewer.layers:
+                layer.refresh()
+
+            self.undrift_localisations()
+
+            self.draw_fiducials()
+
+        except:
+            print(traceback.format_exc())
+            pass
+
 
     def gapseq_undrift_images(self):
 
         try:
 
-            if self.drift is not None:
-                worker = Worker(self._gapseq_undrift_images)
+            dataset_name = self.gapseq_dataset_selector.currentText()
+            undrift_channel = self.undrift_channel_selector.currentText()
+
+            channel_dict = self.dataset_dict[dataset_name][undrift_channel.lower()]
+
+            if "drift" in channel_dict.keys():
+                drift = channel_dict["drift"]
+
+                worker = Worker(self._gapseq_undrift_images, drift=drift)
+                worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.undrift_progressbar))
                 worker.signals.finished.connect(self._gapseq_undrift_images_cleanup)
                 self.threadpool.start(worker)
 
@@ -97,38 +146,71 @@ class _undrift_utils:
             print(traceback.format_exc())
             pass
 
-    def undrift_localisations(self, undrift_channel, undrift_mode):
+    def undrift_localisations(self):
 
         try:
 
-            if self.drift is not None:
+            dataset_name = self.gapseq_dataset_selector.currentText()
 
-                localisations = self.image_dict[undrift_channel][undrift_mode]["localisations"].copy()
+            for channel_name, channel_data in self.dataset_dict[dataset_name].items():
 
-                n_frames = len(np.unique([loc.frame for loc in localisations]))
+                fiducial_dict = self.localisation_dict["fiducials"][dataset_name][channel_name.lower()]
 
-                new_localisations = []
+                if "drift" in channel_data.keys() and "localisations" in fiducial_dict.keys():
 
-                frame_0_locs = [loc for loc in localisations if loc.frame == 0]
+                    locs = fiducial_dict["localisations"]
+                    n_detected_frames = len(np.unique([loc.frame for loc in locs]))
+                    n_image_frames = len(channel_data["data"])
 
-                for frame in range(n_frames):
+                    drift = channel_data["drift"]
 
-                    frame_locs = copy.deepcopy(frame_0_locs)
+                    render_locs = {}
 
-                    for loc in frame_locs:
+                    for loc in locs:
+                        frame = loc.frame
+                        loc.x = loc.x + drift[loc.frame][0]
+                        loc.y = loc.y + drift[loc.frame][1]
 
-                        loc.frame = frame
-                        loc.x = loc.x + self.drift[frame][0]
-                        loc.y = loc.y + self.drift[frame][1]
+                        if frame not in render_locs.keys():
+                            render_locs[frame] = []
 
-                    new_localisations.extend(frame_locs)
+                        render_locs[frame].append([loc.x, loc.y])
 
-                new_localisations = np.rec.fromrecords(new_localisations, dtype=localisations.dtype)
+                    localisation_centres = self.get_localisation_centres(locs)
 
-                new_localisation_centres = self.get_localisation_centres(new_localisations)
+                    self.localisation_dict["fiducials"][dataset_name][channel_name.lower()]["localisations"] = locs
+                    self.localisation_dict["fiducials"][dataset_name][channel_name.lower()]["localisation_centres"] = localisation_centres
+                    self.localisation_dict["fiducials"][dataset_name][channel_name.lower()]["render_locs"] = render_locs
 
-                self.image_dict[undrift_channel][undrift_mode]["localisations"] = new_localisations
-                self.image_dict[undrift_channel][undrift_mode]["localisation_centres"] = new_localisation_centres
+
+            # if self.drift is not None:
+            #
+            #     localisations = self.image_dict[undrift_channel][undrift_mode]["localisations"].copy()
+            #
+            #     n_frames = len(np.unique([loc.frame for loc in localisations]))
+            #
+            #     new_localisations = []
+            #
+            #     frame_0_locs = [loc for loc in localisations if loc.frame == 0]
+            #
+            #     for frame in range(n_frames):
+            #
+            #         frame_locs = copy.deepcopy(frame_0_locs)
+            #
+            #         for loc in frame_locs:
+            #
+            #             loc.frame = frame
+            #             loc.x = loc.x + self.drift[frame][0]
+            #             loc.y = loc.y + self.drift[frame][1]
+            #
+            #         new_localisations.extend(frame_locs)
+            #
+            #     new_localisations = np.rec.fromrecords(new_localisations, dtype=localisations.dtype)
+            #
+            #     new_localisation_centres = self.get_localisation_centres(new_localisations)
+            #
+            #     self.image_dict[undrift_channel][undrift_mode]["localisations"] = new_localisations
+            #     self.image_dict[undrift_channel][undrift_mode]["localisation_centres"] = new_localisation_centres
 
         except:
             print(traceback.format_exc())
@@ -137,67 +219,99 @@ class _undrift_utils:
 
     def _picasso_undrift_cleanup(self):
 
-        undrift_mode = "undrift fiducials"
-        undrift_channel = self.undrift_channel
+        self.undrift_progressbar.setValue(0)
+        self.detect_undrift.setEnabled(True)
+        self.apply_undrift.setEnabled(True)
+        self.undrift_channel_selector.setEnabled(True)
 
-        self.undrift_localisations(undrift_channel, undrift_mode)
-        self.draw_localisations()
 
-    def _picasso_undrift(self, progress_callback, undrift_locs, picasso_info):
-
-        self.drift = None
+    def _picasso_undrift(self, progress_callback, undrift_locs, picasso_info, segmentation=20):
 
         try:
-            from picasso.postprocess import undrift as picasso_undrift
+            from picasso.postprocess import undrift as picasso_undrift, segment
+            from picasso.imageprocess import rcc
 
-            print("Picasso Undrifting...")
+            n_frames = picasso_info[0]["Frames"]
+            len_segments = n_frames // segmentation
+            n_pairs = int(len_segments * (len_segments - 1) / 2)
+
+            def segmentation_callback(progress, start=0,end=50):
+                progress = start + (progress/len_segments) * end
+                progress_callback.emit(progress)
+
+            def undrift_callback(progress, start=50,end=100):
+                progress = start + (progress/n_pairs) * end
+                progress_callback.emit(progress)
 
             drift, _ = picasso_undrift(
                 undrift_locs,
                 picasso_info,
-                segmentation=20,
-                display=False,)
+                segmentation=segmentation,
+                display=True,
+                segmentation_callback=segmentation_callback,
+                rcc_callback=undrift_callback,
+            )
 
-            self.drift = drift
+            dataset_name = self.gapseq_dataset_selector.currentText()
+
+            for channel_name, channel_data in self.dataset_dict[dataset_name].items():
+                channel_data["drift"] = drift
 
         except:
             print(traceback.format_exc())
+            self.undrift_progressbar.setValue(0)
+            self.detect_undrift.setEnabled(True)
+            self.apply_undrift.setEnabled(True)
+            self.undrift_channel_selector.setEnabled(True)
             pass
 
     def gapseq_picasso_undrift(self):
 
         try:
 
-            if self.image_dict != {}:
+            if self.dataset_dict != {}:
 
-                undrift_mode = "undrift fiducials"
-                undrift_channel = self.undrift_channel
+                dataset_name = self.gapseq_dataset_selector.currentText()
+                undrift_channel = self.undrift_channel_selector.currentText()
 
-                if undrift_channel == None:
-                    print("No Undrift Fiducials detected")
+                fiducial_dict = self.localisation_dict["fiducials"][dataset_name][undrift_channel.lower()]
+
+                if "localisations" not in fiducial_dict.keys():
+
+                    print(f"Fiducials not detected in dataset: '{dataset_name}' channel: '{undrift_channel}'")
+
                 else:
-                    if undrift_mode in self.image_dict[undrift_channel].keys():
-                        if "localisations" in self.image_dict[undrift_channel][undrift_mode].keys():
+                    fitted = fiducial_dict["fitted"]
 
-                            undrift_locs = self.image_dict[undrift_channel][undrift_mode]["localisations"].copy()
-                            localisation_centres = self.image_dict[undrift_channel][undrift_mode]["localisation_centres"].copy()
+                    undrift_locs = fiducial_dict["localisations"].copy()
+                    n_detected_frames = len(np.unique([loc.frame for loc in undrift_locs]))
 
-                            n_detected_frames = len(np.unique([loc[0] for loc in localisation_centres]))
+                    n_frames, height, width = self.dataset_dict[dataset_name][undrift_channel.lower()]["data"].shape
 
-                            n_frames, height, width = self.image_dict[undrift_channel]["data"].shape
+                    if n_detected_frames != n_frames or fitted is False:
 
-                            if n_detected_frames != n_frames:
-                                print("Undrift Fidicuals not detected in all frames")
-                            else:
+                        print("Fitted fiducials in all frames required for undrifting.")
 
-                                picasso_info = [{'Frames': n_frames, 'Height': height, 'Width': width}, {}]
+                    else:
 
-                                worker = Worker(self._picasso_undrift, undrift_locs=undrift_locs, picasso_info=picasso_info)
-                                worker.signals.finished.connect(self._picasso_undrift_cleanup)
-                                self.threadpool.start(worker)
+                        self.undrift_progressbar.setValue(0)
+                        self.detect_undrift.setEnabled(False)
+                        self.apply_undrift.setEnabled(False)
+                        self.undrift_channel_selector.setEnabled(False)
+
+                        picasso_info = [{'Frames': n_frames, 'Height': height, 'Width': width}, {}]
+
+                        worker = Worker(self._picasso_undrift, undrift_locs=undrift_locs, picasso_info=picasso_info)
+                        worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.undrift_progressbar))
+                        worker.signals.finished.connect(self._picasso_undrift_cleanup)
+                        self.threadpool.start(worker)
 
         except:
             print(traceback.format_exc())
+            self.undrift_progressbar.setValue(0)
+            self.detect_undrift.setEnabled(True)
+            self.apply_undrift.setEnabled(True)
+            self.undrift_channel_selector.setEnabled(True)
             pass
 
 
