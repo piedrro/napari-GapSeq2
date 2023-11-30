@@ -87,6 +87,8 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.form.setupUi(self.gapseq_ui)
         self.layout().addWidget(self.gapseq_ui)
 
+
+
         self.gapseq_import_mode = self.findChild(QComboBox, 'gapseq_import_mode')
         self.gapseq_channel_layout = self.findChild(QComboBox, 'gapseq_channel_layout')
         self.gapseq_channel_layout_label = self.findChild(QLabel, 'gapseq_channel_layout_label')
@@ -116,6 +118,11 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.picasso_window_cropping = self.findChild(QCheckBox, 'picasso_window_cropping')
         self.picasso_progressbar = self.findChild(QProgressBar, 'picasso_progressbar')
 
+        self.cluster_localisations = self.findChild(QPushButton, 'cluster_localisations')
+        self.cluster_mode = self.findChild(QComboBox, 'cluster_mode')
+        self.cluster_channel = self.findChild(QComboBox, 'cluster_channel')
+        self.cluster_dataset = self.findChild(QComboBox, 'cluster_dataset')
+
         self.picasso_undrift_mode = self.findChild(QComboBox, 'picasso_undrift_mode')
         self.picasso_undrift_channel = self.findChild(QComboBox, 'picasso_undrift_channel')
         self.detect_undrift = self.findChild(QPushButton, 'detect_undrift')
@@ -124,6 +131,11 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.undrift_progressbar = self.findChild(QProgressBar, 'undrift_progressbar')
 
         self.gapseq_compute_tform = self.findChild(QPushButton, 'gapseq_compute_tform')
+        self.gapseq_import_tform = self.findChild(QPushButton, 'gapseq_import_tform')
+        self.gapseq_apply_tform = self.findChild(QPushButton, 'gapseq_apply_tform')
+        self.tform_progressbar = self.findChild(QProgressBar, 'tform_progressbar')
+
+
         self.gapseq_link_localisations = self.findChild(QPushButton, 'gapseq_link_localisations')
 
         self.export_dataset = self.findChild(QComboBox, 'export_dataset')
@@ -136,6 +148,7 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
 
         self.picasso_detect.clicked.connect(self.gapseq_picasso_detect)
         self.picasso_fit.clicked.connect(self.gapseq_picasso_fit)
+        self.cluster_localisations.clicked.connect(self.gapseq_cluster_localisations)
 
         self.gapseq_dataset_selector.currentIndexChanged.connect(self.update_channel_select_buttons)
         self.gapseq_dataset_selector.currentIndexChanged.connect(self.update_active_image)
@@ -143,7 +156,10 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.detect_undrift.clicked.connect(self.gapseq_picasso_undrift)
         self.apply_undrift.clicked.connect(self.gapseq_undrift_images)
 
+
+        self.gapseq_import_tform.clicked.connect(self.import_transform_matrix)
         self.gapseq_compute_tform.clicked.connect(self.compute_transform_matrix)
+        self.gapseq_apply_tform.clicked.connect(self.apply_transform_matrix)
 
         self.picasso_detect_mode.currentIndexChanged.connect(self.update_picasso_options)
 
@@ -298,7 +314,7 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
                             opacity=1.0,
                             name="bounding_boxes",
                             symbol="square",
-                            size=10,
+                            size=2,
                             visible=True)
                     else:
                         self.viewer.layers["bounding_boxes"].data = localisation_centres
@@ -315,10 +331,12 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
 
             layer_names = [layer.name for layer in self.viewer.layers]
 
-            if "fiducials" in layer_names:
-                visible = self.viewer.layers["fiducials"].visible
-            else:
-                visible = True
+            # if "fiducials" in layer_names:
+            #     visible = self.viewer.layers["fiducials"].visible
+            # else:
+            #     visible = True
+
+            visible = True
 
             if visible:
 

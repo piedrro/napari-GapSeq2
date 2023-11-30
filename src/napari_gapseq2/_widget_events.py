@@ -74,6 +74,7 @@ class _events_utils:
 
                 self.picasso_channel.clear()
                 self.undrift_channel_selector.clear()
+                self.cluster_channel.clear()
 
                 channel_refs = list(set(channel_refs))
                 fret_mode = list(set(fret_modes))[0]
@@ -90,6 +91,7 @@ class _events_utils:
                         self.gapseq_show_dd.setText("Donor")
                         self.picasso_channel.addItem("Donor")
                         self.undrift_channel_selector.addItem("Donor")
+                        self.cluster_channel.addItem("Donor")
                     else:
                         self.gapseq_show_dd.setEnabled(False)
                         self.gapseq_show_dd.setText("")
@@ -99,6 +101,7 @@ class _events_utils:
                         self.gapseq_show_da.setText("Acceptor")
                         self.picasso_channel.addItem("Acceptor")
                         self.undrift_channel_selector.addItem("Acceptor")
+                        self.cluster_channel.addItem("Acceptor")
                     else:
                         self.gapseq_show_da.setEnabled(False)
                         self.gapseq_show_da.setText("")
@@ -115,6 +118,7 @@ class _events_utils:
                         self.gapseq_show_dd.setEnabled(True)
                         self.picasso_channel.addItem("DD")
                         self.undrift_channel_selector.addItem("DD")
+                        self.cluster_channel.addItem("DD")
                     else:
                         self.gapseq_show_dd.setText("")
                         self.gapseq_show_dd.setEnabled(False)
@@ -124,6 +128,7 @@ class _events_utils:
                         self.gapseq_show_da.setEnabled(True)
                         self.picasso_channel.addItem("DA")
                         self.undrift_channel_selector.addItem("DA")
+                        self.cluster_channel.addItem("DA")
                     else:
                         self.gapseq_show_da.setText("")
                         self.gapseq_show_da.setEnabled(False)
@@ -133,6 +138,7 @@ class _events_utils:
                         self.gapseq_show_aa.setEnabled(True)
                         self.picasso_channel.addItem("AA")
                         self.undrift_channel_selector.addItem("AA")
+                        self.cluster_channel.addItem("AA")
                     else:
                         self.gapseq_show_aa.setText("")
                         self.gapseq_show_aa.setEnabled(False)
@@ -142,6 +148,7 @@ class _events_utils:
                         self.gapseq_show_ad.setEnabled(True)
                         self.picasso_channel.addItem("AD")
                         self.undrift_channel_selector.addItem("AD")
+                        self.cluster_channel.addItem("AD")
                     else:
                         self.gapseq_show_ad.setText("")
                         self.gapseq_show_ad.setEnabled(False)

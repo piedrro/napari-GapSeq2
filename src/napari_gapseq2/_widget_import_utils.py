@@ -9,6 +9,16 @@ from napari_gapseq2._widget_utils_worker import Worker
 from functools import partial
 from PyQt5.QtWidgets import QApplication, QPushButton, QWidget, QVBoxLayout, QShortcut
 from PyQt5.QtGui import QKeySequence
+import json
+import copy
+import time
+import scipy.ndimage
+import multiprocessing
+from multiprocessing import Process, shared_memory, Pool
+import copy
+from functools import partial
+import cv2
+import math
 
 def import_image_frame(import_job):
 
@@ -30,8 +40,184 @@ def import_image_frame(import_job):
 
     return frame_index, frame
 
+def transform_image_frame(dat):
+
+    try:
+
+        shared_mem = shared_memory.SharedMemory(name=dat["shared_memory_name"])
+        np_array = np.ndarray(dat["shape"], dtype=dat["dtype"], buffer=shared_mem.buf)
+
+        # Perform preprocessing steps and overwrite original image
+        img = np_array[dat["frame_index"]]
+        transform_matrix = dat["transform_matrix"]
+
+        h, w = img.shape[:2]
+
+        img = cv2.warpPerspective(img, transform_matrix, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))
+
+        # overwrite the shared memory block
+        np_array[dat["frame_index"]] = img
+
+        # Ensure to close shared memory in child processes
+        shared_mem.close()
+
+    except:
+        print(traceback.format_exc())
+        pass
+
+
+
+def transform_image(img, transform_matrix, progress_callback=None):
+
+    h, w = img.shape[:2]
+
+    n_frames = img.shape[0]
+    n_segments = math.ceil(n_frames / 100)
+    image_splits = np.array_split(img, n_segments)
+
+    transformed_image = []
+
+    iter = 0
+
+    for index, image in enumerate(image_splits):
+        image = np.moveaxis(image, 0, -1)
+        image = cv2.warpPerspective(image, transform_matrix, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))
+
+        transformed_image.append(image)
+        iter += 250
+        progress = int((iter / n_frames) * 100)
+
+        if progress_callback is not None:
+            progress_callback(progress)
+
+    transformed_image = np.dstack(transformed_image)
+    transformed_image = np.moveaxis(transformed_image, -1, 0)
+
+    return transformed_image
+
+
+
 
 class _import_utils:
+
+
+
+    def _apply_transform_matrix_cleanup(self):
+
+        self.tform_progressbar.setValue(0)
+
+        self.update_active_image(channel=self.active_channel)
+
+
+    def _apply_transform_matrix(self, progress_callback=None):
+
+        print("Applying transform matrix...")
+
+        try:
+
+            if self.dataset_dict != {}:
+
+                target_images = []
+                total_frames = 0
+                iter = 0
+                for dataset_name, dataset_dict in self.dataset_dict.items():
+                    for channel_name, channel_dict in dataset_dict.items():
+                        channel_ref = channel_dict["channel_ref"]
+                        if channel_ref[-1].lower() == "a":
+                            n_frames = channel_dict["data"].shape[0]
+                            total_frames += n_frames
+                            target_images.append({"dataset_name": dataset_name,"channel_name": channel_name})
+
+                for i in range(len(target_images)):
+
+                    dataset_name = target_images[i]["dataset_name"]
+                    channel_name = target_images[i]["channel_name"]
+
+                    img = self.dataset_dict[dataset_name][channel_name.lower()]["data"].copy()
+
+                    def transform_progress(progress):
+                        nonlocal iter
+                        iter += progress
+                        progress = int((iter / total_frames) * 100)
+                        progress_callback.emit(progress)
+
+                    img = transform_image(img, self.transform_matrix,progress_callback=transform_progress)
+
+                    self.dataset_dict[dataset_name][channel_name.lower()]["data"] = img
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
+    def apply_transform_matrix(self):
+
+        try:
+
+            if self.dataset_dict != {}:
+
+                if hasattr(self, "transform_matrix") == False:
+
+                    print("No transform matrix loaded.")
+
+                else:
+
+                    if self.transform_matrix is None:
+
+                        print("No transform matrix loaded.")
+
+                    else:
+                        worker = Worker(self._apply_transform_matrix)
+                        worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.tform_progressbar))
+                        worker.signals.finished.connect(self._apply_transform_matrix_cleanup)
+                        self.threadpool.start(worker)
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
+
+
+
+
+    def import_transform_matrix(self):
+
+        try:
+
+            desktop = os.path.expanduser("~/Desktop")
+            path, filter = QFileDialog.getOpenFileName(self, "Open Files", desktop, "Files (*.txt *.mat)")
+
+            self.transform_matrix = None
+
+            if path != "":
+                if os.path.isfile(path) == True:
+                    if path.endswith(".txt"):
+                        with open(path, 'r') as f:
+                            transform_matrix = json.load(f)
+
+                    if path.endswith(".mat"):
+                        from pymatreader import read_mat
+                        transform_matrix = read_mat(path)["TFORM"]["tdata"]["T"].T
+
+                    transform_matrix = np.array(transform_matrix, dtype=np.float64)
+
+                    if transform_matrix.shape == (3, 3):
+                        self.transform_matrix = transform_matrix
+
+                        print(f"Loaded transformation matrix:\n{transform_matrix}")
+
+                    else:
+                        print("Transformation matrix is wrong shape, should be (3,3)")
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
+
+
+
 
 
     def _gapseq_import_data_cleanup(self):
@@ -46,6 +232,8 @@ class _import_utils:
             self.picasso_dataset.addItems(dataset_names)
             self.export_dataset.clear()
             self.export_dataset.addItems(dataset_names)
+            self.cluster_dataset.clear()
+            self.cluster_dataset.addItems(dataset_names)
 
             self.update_channel_select_buttons()
             self.update_active_image()
