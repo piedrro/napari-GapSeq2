@@ -57,6 +57,7 @@ from napari_gapseq2._widget_undrift_utils import _undrift_utils
 from napari_gapseq2._widget_picasso_detect import _picasso_detect_utils
 from napari_gapseq2._widget_import_utils import _import_utils
 from napari_gapseq2._widget_events import _events_utils
+from napari_gapseq2._widget_export_utils import _export_utils
 
 from qtpy.QtWidgets import QFileDialog
 import os
@@ -69,7 +70,7 @@ if TYPE_CHECKING:
 
 
 
-class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils, _events_utils):
+class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils, _events_utils, _export_utils):
 
     # your QWidget.__init__ can optionally request the napari viewer instance
     # use a type annotation of 'napari.viewer.Viewer' for any parameter
@@ -123,8 +124,11 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.undrift_progressbar = self.findChild(QProgressBar, 'undrift_progressbar')
 
         self.gapseq_compute_tform = self.findChild(QPushButton, 'gapseq_compute_tform')
-
         self.gapseq_link_localisations = self.findChild(QPushButton, 'gapseq_link_localisations')
+
+        self.export_dataset = self.findChild(QComboBox, 'export_dataset')
+        self.export_channel = self.findChild(QComboBox, 'export_channel')
+        self.gapseq_export_data = self.findChild(QPushButton, 'gapseq_export_data')
 
 
         self.gapseq_import.clicked.connect(self.gapseq_import_data)
@@ -142,6 +146,9 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.gapseq_compute_tform.clicked.connect(self.compute_transform_matrix)
 
         self.picasso_detect_mode.currentIndexChanged.connect(self.update_picasso_options)
+
+        self.gapseq_export_data.clicked.connect(self.export_data)
+        self.export_dataset.currentIndexChanged.connect(self.update_export_options)
 
         self.viewer.dims.events.current_step.connect(self.draw_fiducials)
 

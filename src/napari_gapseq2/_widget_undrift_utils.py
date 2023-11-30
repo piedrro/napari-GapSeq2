@@ -21,7 +21,7 @@ def undrift_image(dat):
         img = np_array[dat["drift_index"]]
 
         drift = dat["drift"]
-        drift = [-drift[0], -drift[1]]
+        drift = [-drift[1], -drift[0]]
 
         img = scipy.ndimage.shift(img, drift, mode='constant', cval=0.0)
 
@@ -168,8 +168,8 @@ class _undrift_utils:
 
                     for loc in locs:
                         frame = loc.frame
-                        loc.x = loc.x + drift[loc.frame][0]
-                        loc.y = loc.y + drift[loc.frame][1]
+                        loc.x = loc.x - drift[loc.frame][1]
+                        loc.y = loc.y - drift[loc.frame][0]
 
                         if frame not in render_locs.keys():
                             render_locs[frame] = []

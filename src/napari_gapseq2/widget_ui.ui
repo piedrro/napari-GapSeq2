@@ -512,11 +512,48 @@
    </attribute>
    <layout class="QVBoxLayout" name="verticalLayout_4">
     <item>
+     <layout class="QFormLayout" name="formLayout_5">
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_15">
+        <property name="text">
+         <string>Export Dataset</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QComboBox" name="export_dataset"/>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_16">
+        <property name="text">
+         <string>Export Channel(s)</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QComboBox" name="export_channel"/>
+      </item>
+     </layout>
+    </item>
+    <item>
      <widget class="QPushButton" name="gapseq_export_data">
       <property name="text">
        <string>Export Data</string>
       </property>
      </widget>
+    </item>
+    <item>
+     <spacer name="verticalSpacer_6">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>20</width>
+        <height>40</height>
+       </size>
+      </property>
+     </spacer>
     </item>
    </layout>
   </widget>

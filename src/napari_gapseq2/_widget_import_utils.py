@@ -44,11 +44,14 @@ class _import_utils:
             self.gapseq_dataset_selector.addItems(dataset_names)
             self.picasso_dataset.clear()
             self.picasso_dataset.addItems(dataset_names)
+            self.export_dataset.clear()
+            self.export_dataset.addItems(dataset_names)
 
             self.update_channel_select_buttons()
             self.update_active_image()
 
             self.gapseq_import.setEnabled(True)
+            self.update_export_options()
 
         except:
             print(traceback.format_exc())
