@@ -263,6 +263,7 @@ class _trace_compute_utils:
                     background_overlap_mask = self.generate_background_overlap_mask(spot_locs,
                         spot_mask, spot_background_mask, mask_shape)
 
+                    print("background_overlap_mask", background_overlap_mask.shape)
 
                     shared_mem = shared_memory.SharedMemory(create=True, size=image.nbytes)
                     shared_memory_name = shared_mem.name
