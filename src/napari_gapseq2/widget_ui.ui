@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>448</width>
-    <height>532</height>
+    <height>524</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -464,13 +464,13 @@
     </item>
    </layout>
   </widget>
-  <widget class="QWidget" name="tab_3">
+  <widget class="QWidget" name="tab_5">
    <attribute name="title">
-    <string>Align/Undirft</string>
+    <string>Transform</string>
    </attribute>
-   <layout class="QVBoxLayout" name="verticalLayout_3">
+   <layout class="QVBoxLayout" name="verticalLayout_5">
     <item>
-     <widget class="QLabel" name="label_9">
+     <widget class="QLabel" name="label_20">
       <property name="font">
        <font>
         <weight>75</weight>
@@ -478,7 +478,7 @@
        </font>
       </property>
       <property name="text">
-       <string>Tranform Matrix Functions</string>
+       <string>Import Transform Matrix</string>
       </property>
      </widget>
     </item>
@@ -490,11 +490,138 @@
      </widget>
     </item>
     <item>
+     <spacer name="verticalSpacer_8">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <property name="sizeType">
+       <enum>QSizePolicy::Minimum</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>20</width>
+        <height>20</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+    <item>
+     <widget class="QLabel" name="label_9">
+      <property name="font">
+       <font>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string>Compute Transform Matrix (with Fiducials)</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <layout class="QFormLayout" name="formLayout_7">
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_22">
+        <property name="text">
+         <string>Dataset</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QComboBox" name="tform_compute_dataset"/>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_23">
+        <property name="text">
+         <string>Reference Donor Channel</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QComboBox" name="tform_compute_ref_channel"/>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_24">
+        <property name="text">
+         <string>Target Acceptor Channel</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QComboBox" name="tform_compute_target_channel"/>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <widget class="QCheckBox" name="save_tform">
+      <property name="text">
+       <string>Save Transform Matrix</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item>
      <widget class="QPushButton" name="gapseq_compute_tform">
       <property name="text">
        <string>Compute Transform Matrix</string>
       </property>
      </widget>
+    </item>
+    <item>
+     <spacer name="verticalSpacer_9">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <property name="sizeType">
+       <enum>QSizePolicy::Minimum</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>20</width>
+        <height>20</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+    <item>
+     <widget class="QLabel" name="label_21">
+      <property name="font">
+       <font>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string>Apply Transform Matrix</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <layout class="QFormLayout" name="formLayout_8">
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_25">
+        <property name="text">
+         <string>Target Channel(s)</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QComboBox" name="tform_apply_target">
+        <item>
+         <property name="text">
+          <string>Acceptor/DA/AA</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Donor/DD/AD</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+     </layout>
     </item>
     <item>
      <widget class="QPushButton" name="gapseq_apply_tform">
@@ -504,7 +631,7 @@
      </widget>
     </item>
     <item>
-     <widget class="QProgressBar" name="tform_progressbar">
+     <widget class="QProgressBar" name="tform_apply_progressbar">
       <property name="maximumSize">
        <size>
         <width>16777215</width>
@@ -529,6 +656,13 @@
       </property>
      </spacer>
     </item>
+   </layout>
+  </widget>
+  <widget class="QWidget" name="tab_3">
+   <attribute name="title">
+    <string>Align/Undirft</string>
+   </attribute>
+   <layout class="QVBoxLayout" name="verticalLayout_3">
     <item>
      <widget class="QLabel" name="label_10">
       <property name="font">

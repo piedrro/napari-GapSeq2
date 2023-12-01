@@ -58,6 +58,7 @@ from napari_gapseq2._widget_picasso_detect import _picasso_detect_utils
 from napari_gapseq2._widget_import_utils import _import_utils
 from napari_gapseq2._widget_events import _events_utils
 from napari_gapseq2._widget_export_utils import _export_utils
+from napari_gapseq2._widget_transform_utils import _tranform_utils
 
 from qtpy.QtWidgets import QFileDialog
 import os
@@ -70,7 +71,7 @@ if TYPE_CHECKING:
 
 
 
-class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils, _events_utils, _export_utils):
+class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils, _events_utils, _export_utils, _tranform_utils):
 
     # your QWidget.__init__ can optionally request the napari viewer instance
     # use a type annotation of 'napari.viewer.Viewer' for any parameter
@@ -130,10 +131,18 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.undrift_channel_selector = self.findChild(QComboBox, 'undrift_channel_selector')
         self.undrift_progressbar = self.findChild(QProgressBar, 'undrift_progressbar')
 
-        self.gapseq_compute_tform = self.findChild(QPushButton, 'gapseq_compute_tform')
         self.gapseq_import_tform = self.findChild(QPushButton, 'gapseq_import_tform')
+
+
+        self.tform_compute_dataset = self.findChild(QComboBox, 'tform_compute_dataset')
+        self.tform_compute_ref_channel = self.findChild(QComboBox, 'tform_compute_ref_channel')
+        self.tform_compute_target_channel = self.findChild(QComboBox, 'tform_compute_target_channel')
+        self.gapseq_compute_tform = self.findChild(QPushButton, 'gapseq_compute_tform')
+        self.tform_apply_target = self.findChild(QComboBox, 'tform_apply_target')
         self.gapseq_apply_tform = self.findChild(QPushButton, 'gapseq_apply_tform')
-        self.tform_progressbar = self.findChild(QProgressBar, 'tform_progressbar')
+        self.tform_apply_progressbar = self.findChild(QProgressBar, 'tform_apply_progressbar')
+        self.save_tform = self.findChild(QCheckBox, 'save_tform')
+
 
 
         self.gapseq_link_localisations = self.findChild(QPushButton, 'gapseq_link_localisations')
@@ -242,51 +251,6 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         return alignment_keypoints, target_keypoints
 
 
-
-
-    def compute_transform_matrix(self):
-
-        try:
-            if self.image_dict != {}:
-
-                reference_points = None
-                target_points = None
-
-                for channel_name, channel_data in self.image_dict.items():
-                    channel_ex, channel_em = channel_name
-
-                    if "alignment fiducials" in channel_data.keys():
-
-                        localisation_centres = channel_data["alignment fiducials"]["localisation_centres"].copy()
-
-                        if len(localisation_centres) > 0:
-
-                            localisation_centres = [dat[1:] for dat in localisation_centres]
-
-                            if channel_em == "A":
-                                reference_points = localisation_centres
-                            elif channel_em == "D":
-                                target_points = localisation_centres
-
-                if reference_points is not None and target_points is not None:
-
-                    reference_points = [[dat[1], dat[0]] for dat in reference_points]
-                    target_points = [[dat[1], dat[0]] for dat in target_points]
-
-                    reference_points, target_points = self.compute_registration_keypoints(reference_points, target_points)
-
-                    reference_points = np.array(reference_points)
-                    target_points = np.array(target_points)
-
-                    self.transform_matrix, _ = cv2.estimateAffinePartial2D(reference_points, target_points, method=cv2.RANSAC)
-
-                    print(f"Transform matrix: {self.transform_matrix}")
-
-        except:
-            print(traceback.format_exc())
-            pass
-
-
     def draw_bounding_boxes(self):
 
         if hasattr(self, "localisation_dict") and hasattr(self, "active_channel"):
@@ -331,19 +295,12 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
 
             layer_names = [layer.name for layer in self.viewer.layers]
 
-            # if "fiducials" in layer_names:
-            #     visible = self.viewer.layers["fiducials"].visible
-            # else:
-            #     visible = True
+            active_frame = self.viewer.dims.current_step[0]
 
-            visible = True
+            dataset_name = self.gapseq_dataset_selector.currentText()
+            image_channel = self.active_channel
 
-            if visible:
-
-                active_frame = self.viewer.dims.current_step[0]
-
-                dataset_name = self.gapseq_dataset_selector.currentText()
-                image_channel = self.active_channel
+            if image_channel != "":
 
                 if image_channel.lower() in self.localisation_dict["fiducials"][dataset_name].keys():
 
