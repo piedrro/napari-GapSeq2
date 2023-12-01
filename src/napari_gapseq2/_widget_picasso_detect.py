@@ -8,6 +8,7 @@ from sklearn.cluster import DBSCAN
 import pandas as pd
 from picasso.clusterer import extract_valid_labels
 
+
 class _picasso_detect_utils:
 
 
@@ -69,8 +70,6 @@ class _picasso_detect_utils:
             self.localisation_dict["fiducials"][dataset][channel.lower()]["render_locs"] = render_locs
 
             self.draw_fiducials()
-
-            print(True)
 
 
         except:
@@ -338,6 +337,7 @@ class _picasso_detect_utils:
                 self.picasso_fit.setEnabled(False)
 
                 min_net_gradient = self.picasso_min_net_gradient.text()
+                box_size = int(self.picasso_box_size.currentText())
                 dataset_name = self.picasso_dataset.currentText()
                 image_channel = self.picasso_channel.currentText()
                 frame_mode = self.picasso_frame_mode.currentText()
@@ -348,7 +348,7 @@ class _picasso_detect_utils:
                 if min_net_gradient.isdigit() and image_channel != "":
                     worker = Worker(self._detect_localisations,
                         min_net_gradient=min_net_gradient,
-                        box_size=5,
+                        box_size=box_size,
                         camera_info=camera_info,
                         dataset_name=dataset_name,
                         image_channel=image_channel,
@@ -370,6 +370,7 @@ class _picasso_detect_utils:
         try:
 
             min_net_gradient = self.picasso_min_net_gradient.text()
+            box_size = int(self.picasso_box_size.currentText())
             dataset_name = self.picasso_dataset.currentText()
             image_channel = self.picasso_channel.currentText()
             frame_mode = self.picasso_frame_mode.currentText()
@@ -394,7 +395,7 @@ class _picasso_detect_utils:
                     worker = Worker(self._fit_localisations,
                         detected_locs=detected_locs,
                         min_net_gradient=min_net_gradient,
-                        box_size=5,
+                        box_size=box_size,
                         camera_info=camera_info,
                         dataset_name=dataset_name,
                         image_channel=image_channel,

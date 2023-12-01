@@ -59,6 +59,7 @@ from napari_gapseq2._widget_import_utils import _import_utils
 from napari_gapseq2._widget_events import _events_utils
 from napari_gapseq2._widget_export_utils import _export_utils
 from napari_gapseq2._widget_transform_utils import _tranform_utils
+from napari_gapseq2._widget_trace_compute_utils import _trace_compute_utils
 
 from qtpy.QtWidgets import QFileDialog
 import os
@@ -70,8 +71,7 @@ if TYPE_CHECKING:
     import napari
 
 
-
-class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils, _events_utils, _export_utils, _tranform_utils):
+class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils, _events_utils, _export_utils, _tranform_utils, _trace_compute_utils):
 
     # your QWidget.__init__ can optionally request the napari viewer instance
     # use a type annotation of 'napari.viewer.Viewer' for any parameter
@@ -112,6 +112,7 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.picasso_dataset = self.findChild(QComboBox, 'picasso_dataset')
         self.picasso_channel = self.findChild(QComboBox, 'picasso_channel')
         self.picasso_min_net_gradient = self.findChild(QLineEdit, 'picasso_min_net_gradient')
+        self.picasso_box_size = self.findChild(QComboBox, 'picasso_box_size')
         self.picasso_frame_mode = self.findChild(QComboBox, 'picasso_frame_mode')
         self.picasso_detect = self.findChild(QPushButton, 'picasso_detect')
         self.picasso_fit = self.findChild(QPushButton, 'picasso_fit')
@@ -125,13 +126,13 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.picasso_vis_edge_width = self.findChild(QComboBox, 'picasso_vis_edge_width')
 
         self.picasso_vis_mode.currentIndexChanged.connect(self.draw_fiducials)
-        self.picasso_vis_mode.currentIndexChanged.connect(self.draw_localisations)
+        self.picasso_vis_mode.currentIndexChanged.connect(self.draw_bounding_boxes)
         self.picasso_vis_size.currentIndexChanged.connect(self.draw_fiducials)
-        self.picasso_vis_size.currentIndexChanged.connect(self.draw_localisations)
+        self.picasso_vis_size.currentIndexChanged.connect(self.draw_bounding_boxes)
         self.picasso_vis_opacity.currentIndexChanged.connect(self.draw_fiducials)
-        self.picasso_vis_opacity.currentIndexChanged.connect(self.draw_localisations)
+        self.picasso_vis_opacity.currentIndexChanged.connect(self.draw_bounding_boxes)
         self.picasso_vis_edge_width.currentIndexChanged.connect(self.draw_fiducials)
-        self.picasso_vis_edge_width.currentIndexChanged.connect(self.draw_localisations)
+        self.picasso_vis_edge_width.currentIndexChanged.connect(self.draw_bounding_boxes)
 
         self.cluster_localisations = self.findChild(QPushButton, 'cluster_localisations')
         self.cluster_mode = self.findChild(QComboBox, 'cluster_mode')
@@ -162,6 +163,9 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.export_channel = self.findChild(QComboBox, 'export_channel')
         self.gapseq_export_data = self.findChild(QPushButton, 'gapseq_export_data')
 
+        self.traces_box_size = self.findChild(QComboBox, 'traces_box_size')
+        self.compute_traces = self.findChild(QPushButton, 'compute_traces')
+        self.compute_traces_progressbar = self.findChild(QProgressBar, 'compute_traces_progressbar')
 
         self.gapseq_import.clicked.connect(self.gapseq_import_data)
         self.gapseq_import_mode.currentIndexChanged.connect(self.update_import_options)
@@ -176,7 +180,6 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.detect_undrift.clicked.connect(self.gapseq_picasso_undrift)
         self.apply_undrift.clicked.connect(self.gapseq_undrift_images)
 
-
         self.gapseq_import_tform.clicked.connect(self.import_transform_matrix)
         self.gapseq_compute_tform.clicked.connect(self.compute_transform_matrix)
         self.gapseq_apply_tform.clicked.connect(self.apply_transform_matrix)
@@ -187,6 +190,8 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.export_dataset.currentIndexChanged.connect(self.update_export_options)
 
         self.viewer.dims.events.current_step.connect(self.draw_fiducials)
+
+        self.compute_traces.clicked.connect(self.gapseq_compute_traces)
 
         self.dataset_dict = {}
         self.localisation_dict = {"bounding_boxes": {}, "fiducials": {}}
@@ -268,31 +273,42 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
 
             layer_names = [layer.name for layer in self.viewer.layers]
 
-            if "bounding_boxes" in layer_names:
-                visible = self.viewer.layers["bounding_boxes"].visible
-            else:
-                visible = True
+            if "localisation_centres" in self.localisation_dict["bounding_boxes"].keys():
 
-            if visible:
+                localisations = self.localisation_dict["bounding_boxes"]["localisations"]
+                localisation_centres = self.get_localisation_centres(localisations, mode="bounding_boxes")
 
-                if "localisation_centres" in self.localisation_dict["bounding_boxes"].keys():
+                vis_mode = self.picasso_vis_mode.currentText()
+                vis_size = float(self.picasso_vis_size.currentText())
+                vis_opacity = float(self.picasso_vis_opacity.currentText())
+                vis_edge_width = float(self.picasso_vis_edge_width.currentText())
 
-                    localisations = self.localisation_dict["bounding_boxes"]["localisations"]
-                    localisation_centres = self.get_localisation_centres(localisations, mode="bounding_boxes")
+                if vis_mode.lower() == "square":
+                    symbol = "square"
+                elif vis_mode.lower() == "disk":
+                    symbol = "disc"
+                elif vis_mode.lower() == "x":
+                    symbol = "cross"
 
-                    if "bounding_boxes" not in layer_names:
-                        self.viewer.add_points(
-                            localisation_centres,
-                            edge_color="red",
-                            ndim=2,
-                            face_color=[0,0,0,0],
-                            opacity=1.0,
-                            name="bounding_boxes",
-                            symbol="square",
-                            size=2,
-                            visible=True)
-                    else:
-                        self.viewer.layers["bounding_boxes"].data = localisation_centres
+
+                if "bounding_boxes" not in layer_names:
+                    self.viewer.add_points(
+                        localisation_centres,
+                        edge_color="red",
+                        ndim=2,
+                        face_color=[0,0,0,0],
+                        opacity=vis_opacity,
+                        name="bounding_boxes",
+                        symbol=symbol,
+                        size=vis_size,
+                        visible=True,
+                        edge_width=vis_edge_width,)
+                else:
+                    self.viewer.layers["bounding_boxes"].data = localisation_centres
+                    self.viewer.layers["bounding_boxes"].opacity = vis_opacity
+                    self.viewer.layers["bounding_boxes"].symbol = symbol
+                    self.viewer.layers["bounding_boxes"].size = vis_size
+                    self.viewer.layers["bounding_boxes"].edge_width = vis_edge_width
 
             for layer in layer_names:
                 self.viewer.layers[layer].refresh()
