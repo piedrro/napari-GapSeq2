@@ -17,9 +17,7 @@ from datetime import datetime
 
 def transform_image(img, transform_matrix, progress_callback=None):
 
-    print("Applying transform matrix...")
-
-    h, w = img.shape[:2]
+    w, h = img.shape[-2:]
 
     n_frames = img.shape[0]
     n_segments = math.ceil(n_frames / 100)
@@ -31,7 +29,8 @@ def transform_image(img, transform_matrix, progress_callback=None):
 
     for index, image in enumerate(image_splits):
         image = np.moveaxis(image, 0, -1)
-        image = cv2.warpPerspective(image, transform_matrix, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))
+        image = cv2.warpPerspective(image, transform_matrix, (h, w), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))
+        # image = np.moveaxis(image, -1, 0)
 
         transformed_image.append(image)
         iter += 250
@@ -185,7 +184,6 @@ class _tranform_utils:
                         progress_callback.emit(progress)
 
                     img = transform_image(img, self.transform_matrix,progress_callback=transform_progress)
-
                     self.dataset_dict[dataset_name][channel_name.lower()]["data"] = img
 
         except:

@@ -119,6 +119,20 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.picasso_window_cropping = self.findChild(QCheckBox, 'picasso_window_cropping')
         self.picasso_progressbar = self.findChild(QProgressBar, 'picasso_progressbar')
 
+        self.picasso_vis_mode = self.findChild(QComboBox, 'picasso_vis_mode')
+        self.picasso_vis_size = self.findChild(QComboBox, 'picasso_vis_size')
+        self.picasso_vis_opacity = self.findChild(QComboBox, 'picasso_vis_opacity')
+        self.picasso_vis_edge_width = self.findChild(QComboBox, 'picasso_vis_edge_width')
+
+        self.picasso_vis_mode.currentIndexChanged.connect(self.draw_fiducials)
+        self.picasso_vis_mode.currentIndexChanged.connect(self.draw_localisations)
+        self.picasso_vis_size.currentIndexChanged.connect(self.draw_fiducials)
+        self.picasso_vis_size.currentIndexChanged.connect(self.draw_localisations)
+        self.picasso_vis_opacity.currentIndexChanged.connect(self.draw_fiducials)
+        self.picasso_vis_opacity.currentIndexChanged.connect(self.draw_localisations)
+        self.picasso_vis_edge_width.currentIndexChanged.connect(self.draw_fiducials)
+        self.picasso_vis_edge_width.currentIndexChanged.connect(self.draw_localisations)
+
         self.cluster_localisations = self.findChild(QPushButton, 'cluster_localisations')
         self.cluster_mode = self.findChild(QComboBox, 'cluster_mode')
         self.cluster_channel = self.findChild(QComboBox, 'cluster_channel')
@@ -133,7 +147,6 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
 
         self.gapseq_import_tform = self.findChild(QPushButton, 'gapseq_import_tform')
 
-
         self.tform_compute_dataset = self.findChild(QComboBox, 'tform_compute_dataset')
         self.tform_compute_ref_channel = self.findChild(QComboBox, 'tform_compute_ref_channel')
         self.tform_compute_target_channel = self.findChild(QComboBox, 'tform_compute_target_channel')
@@ -142,8 +155,6 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.gapseq_apply_tform = self.findChild(QPushButton, 'gapseq_apply_tform')
         self.tform_apply_progressbar = self.findChild(QProgressBar, 'tform_apply_progressbar')
         self.save_tform = self.findChild(QCheckBox, 'save_tform')
-
-
 
         self.gapseq_link_localisations = self.findChild(QPushButton, 'gapseq_link_localisations')
 
@@ -300,7 +311,7 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
             dataset_name = self.gapseq_dataset_selector.currentText()
             image_channel = self.active_channel
 
-            if image_channel != "":
+            if image_channel.lower() != "" and dataset_name != "":
 
                 if image_channel.lower() in self.localisation_dict["fiducials"][dataset_name].keys():
 
@@ -310,9 +321,21 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
 
                         render_locs = localisation_dict["render_locs"]
 
-                        remove_fiducials = False
+                        vis_mode = self.picasso_vis_mode.currentText()
+                        vis_size = float(self.picasso_vis_size.currentText())
+                        vis_opacity = float(self.picasso_vis_opacity.currentText())
+                        vis_edge_width = float(self.picasso_vis_edge_width.currentText())
+
+                        if vis_mode.lower() == "square":
+                            symbol = "square"
+                        elif vis_mode.lower() == "disk":
+                            symbol = "disc"
+                        elif vis_mode.lower() == "x":
+                            symbol = "cross"
 
                         if active_frame in render_locs.keys():
+
+                            remove_fiducials = False
 
                             if "fiducials" not in layer_names:
                                 self.viewer.add_points(
@@ -320,14 +343,20 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
                                     ndim=2,
                                     edge_color="red",
                                     face_color=[0,0,0,0],
-                                    opacity=1.0,
+                                    opacity=vis_opacity,
                                     name="fiducials",
-                                    symbol="disc",
-                                    size=5,
-                                    edge_width=0.1, )
+                                    symbol=symbol,
+                                    size=vis_size,
+                                    edge_width=vis_edge_width, )
                             else:
                                 self.viewer.layers["fiducials"].data = []
+
                                 self.viewer.layers["fiducials"].data = render_locs[active_frame]
+                                self.viewer.layers["fiducials"].opacity = vis_opacity
+                                self.viewer.layers["fiducials"].symbol = symbol
+                                self.viewer.layers["fiducials"].size = vis_size
+                                self.viewer.layers["fiducials"].edge_width = vis_edge_width
+
 
             if remove_fiducials:
                 if "fiducials" in layer_names:
@@ -344,6 +373,8 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         if hasattr(self, "image_dict"):
 
             try:
+
+                print(True)
 
                 layer_names = [layer.name for layer in self.viewer.layers]
 
@@ -369,6 +400,8 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
                     if data_key in ["alignment fiducials","undrift fiducials","bounding boxes"]:
 
                         if "localisation_centres" in data_dict.keys():
+
+                            print("drawing localisations for {}".format(data_key))
 
                             localisation_centres = copy.deepcopy(data_dict["localisation_centres"])
 
@@ -398,16 +431,15 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
                                 else:
                                     self.viewer.layers[layer_name].data = []
                                     self.viewer.layers[layer_name].data = localisation_centres
-                                    # self.viewer.layers[layer_name].symbol = symbol
-                                    # self.viewer.layers[layer_name].size = vis_size
-                                    # self.viewer.layers[layer_name].opacity = vis_opacity
-                                    # self.viewer.layers[layer_name].edge_width = vis_edge_width
-                                    # self.viewer.layers[layer_name].edge_color = colour
+                                    self.viewer.layers[layer_name].symbol = symbol
+                                    self.viewer.layers[layer_name].size = vis_size
+                                    self.viewer.layers[layer_name].opacity = vis_opacity
+                                    self.viewer.layers[layer_name].edge_width = vis_edge_width
+                                    self.viewer.layers[layer_name].edge_color = colour
 
                 if show_localisaiton == False:
-                    for data_key in ["alignment fiducials","undrift fiducials","bounding boxes"]:
-                        if data_key in layer_names:
-                            self.viewer.layers[data_key.lower()].data = []
+                    if "fiducials" in layer_names:
+                        self.viewer.layers["fiducials"].data = []
 
                 for layer in layer_names:
                     self.viewer.layers[layer].refresh()
