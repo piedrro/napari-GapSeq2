@@ -8,6 +8,8 @@ from qtpy.QtWidgets import QFileDialog,QComboBox
 from multiprocessing import Process, shared_memory, Pool
 import multiprocessing
 from picasso.gaussmle import gaussmle
+from picasso import gausslq, lib, localize
+
 
 LOCS_DTYPE = [
     ("frame", "u4"),
@@ -118,56 +120,6 @@ def extract_spot_metrics(dat):
         spot_metrics["snr_std"] = spot_metrics["spot_std"] / spot_metrics["bg_std"]
 
 
-
-        #
-        # print(spot_values[0])
-
-        # spot_values[:, spot_mask==0] = 0
-        # spot_background[:, spot_background_mask==0] = 0
-
-
-
-
-
-
-        # spot_background_mask = spot_background_mask & spot_overlap
-
-
-
-
-
-
-
-        # spot_list = []
-        # spot_metrics["frame"] = frame
-        #
-        # for (spot_loc, [x1,x2,y1,y2]) in zip(spot_locs,spot_bounds):
-        #
-        #     loc_index = spot_loc.loc_index
-        #
-        #     if loc_index not in spot_metrics.keys():
-        #         spot_metrics[loc_index] = {}
-        #
-        #     roi = frame[y1:y2, x1:x2]
-
-            # spot_overlap = background_overlap_mask[y1:y2, x1:x2].copy()
-            # spot_background_mask = spot_background_mask & spot_overlap
-            #
-            # spot_values = roi[spot_mask].copy()
-            # background_values = roi[spot_background_mask].copy()
-            #
-            # spot_metrics[loc_index]["spot_mean"] = np.mean(spot_values)
-            # spot_metrics[loc_index]["spot_sum"] = np.sum(spot_values)
-            # spot_metrics[loc_index]["spot_max"] = np.max(spot_values)
-            # spot_metrics[loc_index]["spot_std"] = np.std(spot_values)
-            #
-            # spot_metrics[loc_index]["spot_bg_mean"] = np.mean(background_values)
-            # spot_metrics[loc_index]["spot_bg_sum"] = np.sum(background_values)
-            # spot_metrics[loc_index]["spot_bg_max"] = np.max(background_values)
-            # spot_metrics[loc_index]["spot_bg_std"] = np.std(background_values)
-
-        #     spot_list.append(roi)
-        #
         # thetas, CRLBs, likelihoods, iterations = gaussmle(spot_list, eps=0.001, max_it=100, method="sigma")
         # locs = locs_from_fits(spot_locs, thetas, CRLBs, likelihoods, iterations, len(spot_list[0]))
         #
@@ -404,10 +356,7 @@ class _trace_compute_utils:
 
     def _gapseq_compute_traces(self, progress_callback=None):
 
-
         try:
-
-            from picasso import gausslq, lib, localize
 
             self.traces_spot_size = self.findChild(QComboBox, "traces_spot_size")
 
@@ -415,31 +364,24 @@ class _trace_compute_utils:
             spot_shape = self.traces_spot_shape.currentText()
 
             localisation_dict = copy.deepcopy(self.localisation_dict["bounding_boxes"])
-
-            localisations = localisation_dict["localisations"]
+            locs = localisation_dict["localisations"].copy()
 
             spot_mask, spot_background_mask = self.generate_localisation_mask(spot_size,spot_shape, plot=False)
+
+            spot_bounds = self.generate_spot_bounds(locs, spot_mask)
 
             self.shared_images = self.create_shared_images()
 
             compute_jobs = []
+
             for image_dict in self.shared_images:
 
-                n_frames = image_dict["n_frames"]
                 mask_shape = image_dict["shape"][1:]
 
-                bbox_locs = self._get_bbox_localisations(n_frames)
-
-                spot_locs = copy.deepcopy(bbox_locs)
-                spot_locs = [loc for loc in spot_locs if loc.frame == 0]
-                spot_locs = np.rec.fromrecords(spot_locs, dtype=bbox_locs.dtype)
-
-                spot_bounds = self.generate_spot_bounds(spot_locs, spot_mask)
-
-                background_overlap_mask = self.generate_background_overlap_mask(spot_locs,
+                background_overlap_mask = self.generate_background_overlap_mask(locs,
                     spot_mask, spot_background_mask, mask_shape)
 
-                for spot_index, (spot_loc,spot_bound) in enumerate(zip(spot_locs,spot_bounds)):
+                for spot_index, (spot_loc,spot_bound) in enumerate(zip(locs,spot_bounds)):
                     compute_task = {"spot_size": spot_size,
                                     "spot_mask": spot_mask,
                                     "spot_background_mask": spot_background_mask,
@@ -462,88 +404,12 @@ class _trace_compute_utils:
             cpu_count = int(multiprocessing.cpu_count() * 0.75)
 
             with Pool(cpu_count) as p:
-                imported_data = [p.apply_async(extract_spot_metrics, args=(i,), callback=callback) for i in compute_jobs]
-                imported_data = [p.get() for p in imported_data]
+                spot_metrics = [p.apply_async(extract_spot_metrics, args=(i,), callback=callback) for i in compute_jobs]
+                spot_metrics = [p.get() for p in spot_metrics]
                 p.close()
-
+                p.join()
 
             self.restore_shared_images()
-
-
-
-
-
-
-
-            #
-            # iter = 0
-            #
-            # for i in range(len(target_images)):
-            #
-            #     dataset_name = target_images[i]["dataset_name"]
-            #     channel_name = target_images[i]["channel_name"]
-            #     n_frames = target_images[i]["n_frames"]
-            #
-            #     bbox_locs = self._get_bbox_localisations(n_frames)
-            #
-            #     spot_locs = copy.deepcopy(bbox_locs)
-            #     spot_locs = [loc for loc in spot_locs if loc.frame == 0]
-            #     spot_locs = np.rec.fromrecords(spot_locs, dtype=bbox_locs.dtype)
-            #
-            #     spot_bounds = self.generate_spot_bounds(spot_locs, spot_mask)
-            #
-            #     image = self.dataset_dict[dataset_name][channel_name.lower()]["data"].copy()
-            #     image = copy.deepcopy(image)
-            #
-            #     mask_shape = image.shape[1:]
-            #
-            #     background_overlap_mask = self.generate_background_overlap_mask(spot_locs,
-            #         spot_mask, spot_background_mask, mask_shape)
-            #
-            #     shared_mem = shared_memory.SharedMemory(create=True, size=image.nbytes)
-            #     shared_memory_name = shared_mem.name
-            #     shared_image = np.ndarray(image.shape, dtype=image.dtype, buffer=shared_mem.buf)
-            #     shared_image[:] = image[:]
-            #
-            #     compute_jobs = []
-            #
-            #     for spot_index, (spot_loc, spot_bound) in enumerate(zip(spot_locs, spot_bounds)):
-            #
-                    # compute_jobs.append({"shape": image.shape,
-                    #                      "dtype": image.dtype,
-                    #                      "shared_memory_name": shared_memory_name,
-                    #                      "spot_size": spot_size,
-                    #                      "spot_mask": spot_mask,
-                    #                      "spot_background_mask": spot_background_mask,
-                    #                      "background_overlap_mask": background_overlap_mask,
-                    #                      "spot_loc": spot_loc,
-                    #                      "spot_bound": spot_bound,
-                    #                      "spot_index": spot_index,
-                    #                      })
-            #
-            #     extract_spot_metrics(compute_jobs[0])
-            #
-            #     shared_mem.close()
-            #     break
-
-                # def callback(*args, offset=0):
-                #     nonlocal iter
-                #     iter += 1
-                #     progress = int((iter / total_frames) * 100)
-                #     if progress_callback != None:
-                #         progress_callback.emit(progress - offset)
-                #     return
-                #
-                # cpu_count = int(multiprocessing.cpu_count() * 0.75)
-                #
-                # with Pool(cpu_count) as p:
-                #     imported_data = [p.apply_async(extract_spot_metrics, args=(i,), callback=callback) for i in compute_jobs]
-                #     imported_data = [p.get() for p in imported_data]
-                #     p.close()
-                #
-                # shared_mem.close()
-                #
-                # break
 
         except:
             self.compute_traces.setEnabled(True)
@@ -564,7 +430,7 @@ class _trace_compute_utils:
                 if "bounding_boxes" in self.localisation_dict.keys():
                     if "fitted" in self.localisation_dict["bounding_boxes"].keys():
 
-                        # self.compute_traces.setEnabled(False)
+                        self.compute_traces.setEnabled(False)
 
                         worker = Worker(self._gapseq_compute_traces)
                         worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.compute_traces_progressbar))
