@@ -163,7 +163,9 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.export_channel = self.findChild(QComboBox, 'export_channel')
         self.gapseq_export_data = self.findChild(QPushButton, 'gapseq_export_data')
 
-        self.traces_box_size = self.findChild(QComboBox, 'traces_box_size')
+        self.traces_spot_size = self.findChild(QComboBox, "traces_spot_size")
+        self.traces_spot_shape = self.findChild(QComboBox, "traces_spot_shape")
+        self.traces_visualise_masks = self.findChild(QPushButton, 'traces_visualise_masks')
         self.compute_traces = self.findChild(QPushButton, 'compute_traces')
         self.compute_traces_progressbar = self.findChild(QProgressBar, 'compute_traces_progressbar')
 
@@ -192,6 +194,7 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.viewer.dims.events.current_step.connect(self.draw_fiducials)
 
         self.compute_traces.clicked.connect(self.gapseq_compute_traces)
+        self.traces_visualise_masks.clicked.connect(self.visualise_spot_masks)
 
         self.dataset_dict = {}
         self.localisation_dict = {"bounding_boxes": {}, "fiducials": {}}
