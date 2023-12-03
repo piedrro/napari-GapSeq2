@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>650</width>
+    <width>392</width>
     <height>726</height>
    </rect>
   </property>
@@ -140,6 +140,47 @@
        <widget class="QLineEdit" name="gapseq_dataset_name">
         <property name="text">
          <string>Dataset1</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QComboBox" name="gapseq_import_limt">
+        <item>
+         <property name="text">
+          <string>None</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>100</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>200</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>300</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>400</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>500</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="label_32">
+        <property name="text">
+         <string>Import Limit</string>
         </property>
        </widget>
       </item>
@@ -1159,6 +1200,13 @@
        </layout>
       </item>
      </layout>
+    </item>
+    <item>
+     <widget class="QCheckBox" name="compute_with_picasso">
+      <property name="text">
+       <string>Picasso Fitting</string>
+      </property>
+     </widget>
     </item>
     <item>
      <widget class="QPushButton" name="compute_traces">

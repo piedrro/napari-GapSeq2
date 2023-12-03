@@ -81,6 +81,11 @@ class _import_utils:
             with Image.open(path) as img:
                 num_frames = img.n_frames
 
+            import_limit = self.gapseq_import_limt.currentText()
+
+            if import_limit != "None":
+                num_frames = int(self.gapseq_import_limt.currentText())
+
             n_cpu = multiprocessing.cpu_count()//2
 
             import_jobs = []

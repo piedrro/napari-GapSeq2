@@ -91,6 +91,7 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
 
 
         self.gapseq_import_mode = self.findChild(QComboBox, 'gapseq_import_mode')
+        self.gapseq_import_limt = self.findChild(QComboBox, 'gapseq_import_limt')
         self.gapseq_channel_layout = self.findChild(QComboBox, 'gapseq_channel_layout')
         self.gapseq_channel_layout_label = self.findChild(QLabel, 'gapseq_channel_layout_label')
         self.gapseq_alex_first_frame = self.findChild(QComboBox, 'gapseq_alex_first_frame')
@@ -165,6 +166,7 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
 
         self.traces_spot_size = self.findChild(QComboBox, "traces_spot_size")
         self.traces_spot_shape = self.findChild(QComboBox, "traces_spot_shape")
+        self.compute_with_picasso = self.findChild(QCheckBox, "compute_with_picasso")
         self.traces_visualise_masks = self.findChild(QPushButton, 'traces_visualise_masks')
         self.compute_traces = self.findChild(QPushButton, 'compute_traces')
         self.compute_traces_progressbar = self.findChild(QProgressBar, 'compute_traces_progressbar')
@@ -330,7 +332,7 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
             dataset_name = self.gapseq_dataset_selector.currentText()
             image_channel = self.active_channel
 
-            if image_channel.lower() != "" and dataset_name != "":
+            if image_channel != "" and dataset_name != "":
 
                 if image_channel.lower() in self.localisation_dict["fiducials"][dataset_name].keys():
 

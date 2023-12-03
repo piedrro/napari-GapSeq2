@@ -9,7 +9,15 @@ from multiprocessing import Process, shared_memory, Pool
 import multiprocessing
 from picasso.gaussmle import gaussmle
 from picasso import gausslq, lib, localize
+import warnings
+from numba.core.errors import NumbaPendingDeprecationWarning
+import time
+import concurrent.futures
+import pandas as pd
 
+warnings.filterwarnings('ignore', category=RuntimeWarning)
+warnings.filterwarnings('ignore', category=NumbaPendingDeprecationWarning)
+np.seterr(divide='ignore', invalid='ignore')
 
 LOCS_DTYPE = [
     ("frame", "u4"),
@@ -24,7 +32,7 @@ LOCS_DTYPE = [
     ("net_gradient", "f4"),
     ("likelihood", "f4"),
     ("iterations", "i4"),
-    ("loc_index", "u4")
+    # ("loc_index", "u4")
 ]
 
 def locs_from_fits(identifications, theta, CRLBs, likelihoods, iterations, box):
@@ -48,16 +56,115 @@ def locs_from_fits(identifications, theta, CRLBs, likelihoods, iterations, box):
             identifications.net_gradient,
             likelihoods,
             iterations,
-            identifications.loc_index,
+            # identifications.loc_index,
         ),
         dtype=LOCS_DTYPE,
     )
     locs.sort(kind="mergesort", order="frame")
     return locs
 
+def get_loc_from_fit(loc, theta, CRLBs, likelihoods, iterations, box):
+
+    box_offset = int(box / 2)
+    y = (theta[:, 0]
+         + loc.y - box_offset)
+    x = (theta[:, 1] +
+         loc.x - box_offset)
+    lpy = np.sqrt(CRLBs[:, 0])
+    lpx = np.sqrt(CRLBs[:, 1])
+
+    loc.x = x
+    loc.y = y
+    loc.photons = theta[:, 2]
+    loc.sx = theta[:, 5]
+    loc.sy = theta[:, 4]
+    loc.bg = theta[:, 3]
+    loc.lpx = lpx
+    loc.lpy = lpy
+    loc.net_gradient = loc.net_gradient
+    loc.likelihood = likelihoods
+    loc.iterations = iterations
+
+    return loc
 
 
 
+
+
+
+
+
+def create_frame_locs(loc, n_frames):
+
+    frame_locs = []
+    for frame_index in range(n_frames):
+        frame_loc = copy.deepcopy(loc)
+        frame_loc.frame = frame_index
+        frame_locs.append(frame_loc)
+
+    frame_locs = np.array(frame_locs, dtype=loc).view(np.recarray)
+
+    return frame_locs
+
+
+def extract_picasso_spot_metrics(dat):
+
+    spot_metrics = {}
+
+    try:
+
+        # Load data from shared memory
+        shared_mem = dat["shared_mem"]
+        np_array = np.ndarray(dat["shape"], dtype=dat["dtype"], buffer=shared_mem.buf)
+
+        [x1,x2,y1,y2] = dat["loc_bound"]
+        spot_data = [np_array[dat["frame_index"], y1:y2, x1:x2].copy()]
+        spot_loc = dat["spot_loc"]
+        coords = [spot_loc[0].x, spot_loc[0].y]
+
+        try:
+            thetas, CRLBs, likelihoods, iterations = gaussmle(spot_data, eps=0.001, max_it=100, method="sigma")
+            loc = locs_from_fits(spot_loc, thetas, CRLBs, likelihoods, iterations, dat["box_size"])
+        except:
+            loc = None
+
+        # metadata
+        spot_metrics["dataset"] = dat["dataset"]
+        spot_metrics["channel"] = dat["channel"]
+        spot_metrics["frame_index"] = dat["frame_index"]
+        spot_metrics["spot_index"] = dat["loc_index"]
+        spot_metrics["SPO_coords"] = coords
+        spot_metrics["spot_size"] = dat["box_size"]
+
+        # picasso metrics
+        if type(loc) != type(None):
+
+            spot_metrics["spot_photons"] = loc[0].photons
+            spot_metrics["spot_bg"] = loc[0].bg
+            spot_metrics["spot_sx"] = loc[0].sx
+            spot_metrics["spot_sy"] = loc[0].sy
+            spot_metrics["spot_lpx"] = loc[0].lpx
+            spot_metrics["spot_lpy"] = loc[0].lpy
+            spot_metrics["spot_net_gradient"] = loc[0].net_gradient
+            spot_metrics["spot_likelihood"] = loc[0].likelihood
+            spot_metrics["spot_iterations"] = loc[0].iterations
+        else:
+            spot_metrics["spot_photons"] = np.nan
+            spot_metrics["spot_bg"] = np.nan
+            spot_metrics["spot_sx"] = np.nan
+            spot_metrics["spot_sy"] = np.nan
+            spot_metrics["spot_lpx"] = np.nan
+            spot_metrics["spot_lpy"] = np.nan
+            spot_metrics["spot_net_gradient"] = np.nan
+            spot_metrics["spot_likelihood"] = np.nan
+            spot_metrics["spot_iterations"] = np.nan
+
+    except:
+        print(traceback.format_exc())
+        spot_metrics = None
+        pass
+
+    return spot_metrics
 
 
 def extract_spot_metrics(dat):
@@ -97,55 +204,50 @@ def extract_spot_metrics(dat):
         spot_values = np.ma.array(spot_values, mask=spot_mask)
         spot_background = np.ma.array(spot_background, mask=spot_background)
 
-        mean = np.ma.mean(spot_values,axis=(1,2))
-
         # metadata
-        spot_metrics["dataset"] = dat["dataset"]
-        spot_metrics["channel"] = dat["channel"]
-        spot_metrics["spot_index"] = dat["spot_index"]
-        spot_metrics["spot_size"] = dat["spot_size"]
+        spot_metrics["dataset"] = [dat["dataset"]]*len(spot_values)
+        spot_metrics["channel"] = [dat["channel"]]*len(spot_values)
+        spot_metrics["frame_index"] = np.arange(len(spot_values)).tolist()
+        spot_metrics["spot_index"] = [dat["spot_index"]]*len(spot_values)
+        spot_metrics["spot_index"] = [dat["spot_index"]]*len(spot_values)
+        spot_metrics["spot_size"] = [dat["spot_size"]]*len(spot_values)
 
         # metrics
-        spot_metrics["spot_mean"] = np.ma.mean(spot_values,axis=(1,2))
-        spot_metrics["spot_sum"] = np.ma.sum(spot_values,axis=(1,2))
-        spot_metrics["spot_max"] = np.ma.max(spot_values,axis=(1,2))
-        spot_metrics["spot_std"] = np.ma.std(spot_values,axis=(1,2))
-        spot_metrics["bg_mean"] = np.ma.mean(spot_background,axis=(1,2))
-        spot_metrics["bg_sum"] = np.ma.sum(spot_background,axis=(1,2))
-        spot_metrics["bg_max"] = np.ma.max(spot_background,axis=(1,2))
-        spot_metrics["bg_std"] = np.ma.std(spot_background,axis=(1,2))
+        spot_metrics["spot_mean"] = np.nanmean(spot_values,axis=(1,2)).data
+        spot_metrics["spot_sum"] = np.nansum(spot_values,axis=(1,2)).data
+        spot_metrics["spot_max"] = np.nanmax(spot_values,axis=(1,2)).data
+        spot_metrics["spot_std"] = np.nanstd(spot_values,axis=(1,2)).data
+        spot_metrics["bg_mean"] = np.nanmean(spot_background,axis=(1,2)).data
+        spot_metrics["bg_sum"] = np.nansum(spot_background,axis=(1,2)).data
+        spot_metrics["bg_max"] = np.nanmax(spot_background,axis=(1,2)).data
+        spot_metrics["bg_std"] = np.nanstd(spot_background,axis=(1,2)).data
         spot_metrics["snr_mean"] = spot_metrics["spot_mean"] / spot_metrics["bg_mean"]
         spot_metrics["snr_sum"] = spot_metrics["spot_sum"] / spot_metrics["bg_sum"]
         spot_metrics["snr_max"] = spot_metrics["spot_max"] / spot_metrics["bg_max"]
         spot_metrics["snr_std"] = spot_metrics["spot_std"] / spot_metrics["bg_std"]
 
+        spot_metrics_keys = list(spot_metrics.keys())
+        len_arrays = len(spot_metrics[spot_metrics_keys[0]])
 
-        # thetas, CRLBs, likelihoods, iterations = gaussmle(spot_list, eps=0.001, max_it=100, method="sigma")
-        # locs = locs_from_fits(spot_locs, thetas, CRLBs, likelihoods, iterations, len(spot_list[0]))
-        #
-        # for loc in locs:
-        #     if loc.loc_index in spot_metrics.keys():
-        #         loc_index = loc.loc_index
-        #         spot_metrics[loc_index]["picasso_photons"] = loc.photons
-        #         spot_metrics[loc_index]["picasso_sx"] = loc.sx
-        #         spot_metrics[loc_index]["picasso_sy"] = loc.sy
-        #         spot_metrics[loc_index]["picasso_lpx"] = loc.lpx
-        #         spot_metrics[loc_index]["picasso_lpy"] = loc.lpy
-        #         spot_metrics[loc_index]["picasso_bg"] = loc.bg
+        reshaped_spot_metrics = []
+        for i in range(len_arrays):
+            new_dict = {key: spot_metrics[key][i] for key in spot_metrics}
+            reshaped_spot_metrics.append(new_dict)
+
+        reshaped_spot_metrics = pd.DataFrame.from_dict(reshaped_spot_metrics)
 
     except:
         print(traceback.format_exc())
         spot_metrics = None
         pass
 
-    return spot_metrics
+    return reshaped_spot_metrics
+
 
 class _trace_compute_utils:
 
 
-    def generate_spot_bounds(self, locs, spot_mask):
-
-        spot_mask_width = len(spot_mask[0])
+    def generate_spot_bounds(self, locs, box_size):
 
         spot_bounds = []
 
@@ -153,21 +255,21 @@ class _trace_compute_utils:
 
             x,y = loc.x, loc.y
 
-            if spot_mask_width % 2 == 0:
+            if box_size % 2 == 0:
                 x += 0.5
                 y += 0.5
                 x, y = round(x), round(y)
-                x1 = x - (spot_mask_width // 2)
-                x2 = x + (spot_mask_width // 2)
-                y1 = y - (spot_mask_width // 2)
-                y2 = y + (spot_mask_width // 2)
+                x1 = x - (box_size // 2)
+                x2 = x + (box_size // 2)
+                y1 = y - (box_size // 2)
+                y2 = y + (box_size // 2)
             else:
                 # Odd spot width
                 x, y = round(x), round(y)
-                x1 = x - (spot_mask_width // 2)
-                x2 = x + (spot_mask_width // 2)+1
-                y1 = y - (spot_mask_width // 2)
-                y2 = y + (spot_mask_width // 2)+1
+                x1 = x - (box_size // 2)
+                x2 = x + (box_size // 2)+1
+                y1 = y - (box_size // 2)
+                y2 = y + (box_size // 2)+1
 
             spot_bounds.append([x1,x2,y1,y2])
 
@@ -288,7 +390,7 @@ class _trace_compute_utils:
         spot_mask = spot_mask.astype(np.uint16)
         spot_background_mask = spot_background_mask
 
-        spot_bounds = self.generate_spot_bounds(locs, spot_mask)
+        spot_bounds = self.generate_spot_bounds(locs,  len(spot_mask[0]))
 
         for loc_index, [x1,x2,y1,y2] in enumerate(spot_bounds):
 
@@ -351,10 +453,12 @@ class _trace_compute_utils:
                     shared_mem.unlink()
 
                 except:
+                    print(traceback.format_exc())
                     pass
 
+    def extract_spot_metrics_wrapper(self, progress_callback):
 
-    def _gapseq_compute_traces(self, progress_callback=None):
+        spot_metrics = []
 
         try:
 
@@ -366,50 +470,180 @@ class _trace_compute_utils:
             localisation_dict = copy.deepcopy(self.localisation_dict["bounding_boxes"])
             locs = localisation_dict["localisations"].copy()
 
-            spot_mask, spot_background_mask = self.generate_localisation_mask(spot_size,spot_shape, plot=False)
+            spot_mask, spot_background_mask = self.generate_localisation_mask(spot_size, spot_shape, plot=False)
 
-            spot_bounds = self.generate_spot_bounds(locs, spot_mask)
-
-            self.shared_images = self.create_shared_images()
+            spot_bounds = self.generate_spot_bounds(locs, len(spot_mask[0]))
 
             compute_jobs = []
 
             for image_dict in self.shared_images:
-
                 mask_shape = image_dict["shape"][1:]
 
-                background_overlap_mask = self.generate_background_overlap_mask(locs,
-                    spot_mask, spot_background_mask, mask_shape)
+                background_overlap_mask = self.generate_background_overlap_mask(locs, spot_mask, spot_background_mask, mask_shape)
 
-                for spot_index, (spot_loc,spot_bound) in enumerate(zip(locs,spot_bounds)):
-                    compute_task = {"spot_size": spot_size,
+                for spot_index, (spot_loc, spot_bound) in enumerate(zip(locs, spot_bounds)):
+                    compute_task = {"spot_index": spot_index,
+                                    "spot_size": spot_size,
                                     "spot_mask": spot_mask,
                                     "spot_background_mask": spot_background_mask,
                                     "background_overlap_mask": background_overlap_mask,
                                     "spot_loc": spot_loc,
-                                    "spot_bound": spot_bound,
-                                    "spot_index": spot_index,}
+                                    "spot_bound": spot_bound, }
                     compute_task = {**compute_task, **image_dict}
                     compute_jobs.append(compute_task)
 
-            iter = 0
-            def callback(*args, offset=0):
-                nonlocal iter
-                iter += 1
-                progress = int((iter / len(compute_jobs)) * 100)
-                if progress_callback != None:
-                    progress_callback.emit(progress - offset)
-                return
+            cpu_count = int(multiprocessing.cpu_count() * 0.75)
+            timeout_duration = 10  # Timeout in seconds
+
+            with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
+                # Submit all jobs and store the future objects
+                futures = {executor.submit(extract_spot_metrics, job): job for job in compute_jobs}
+
+                iter = 0
+                for future in concurrent.futures.as_completed(futures):
+                    job = futures[future]
+                    try:
+                        result = future.result(timeout=timeout_duration)  # Process result here
+                        spot_metrics.append(result)
+                    except concurrent.futures.TimeoutError:
+                        # print(f"Task {job} timed out after {timeout_duration} seconds.")
+                        pass
+                    except Exception as e:
+                        # print(f"Error occurred in task {job}: {e}")  # Handle other exceptions
+                        pass
+
+                    # Update progress
+                    iter += 1
+                    progress = int((iter / len(compute_jobs)) * 100)
+                    progress_callback.emit(progress)  # Emit the signal
+
+        except:
+            self.compute_traces.setEnabled(True)
+            self.restore_shared_images()
+            print(traceback.format_exc())
+
+        return spot_metrics
+
+    def extract_picasso_spot_metrics_wrapper(self, progress_callback):
+
+        spot_metrics = []
+
+        try:
+
+            localisation_dict = copy.deepcopy(self.localisation_dict["bounding_boxes"])
+            box_size = int(self.picasso_box_size.currentText())
+            loc_bounds = self.generate_spot_bounds(localisation_dict["localisations"], box_size)
+
+            locs = localisation_dict["localisations"].copy()
+
+            print(f"populating compute jobs")
+
+            spot_locs = []
+            for loc in locs:
+                spot_loc = [loc.copy()]
+                spot_loc = np.rec.fromrecords(spot_loc, dtype=loc.dtype)
+                spot_locs.append(spot_loc)
+
+
+            compute_jobs = []
+
+            for image_dict in self.shared_images:
+                n_frames = image_dict["n_frames"]
+                for frame_index in range(n_frames):
+                    for loc_index, (spot_loc, loc_bound) in enumerate(zip(spot_locs, loc_bounds)):
+
+                        compute_task = {"image_dict": image_dict,
+                                        "frame_index": frame_index,
+                                        "loc_index": loc_index,
+                                        "spot_loc": spot_loc,
+                                        "loc_bound": loc_bound,
+                                        "box_size": box_size,
+                                        }
+                        compute_task = {**compute_task, **image_dict}
+                        compute_jobs.append(compute_task)
+
+            print(f"compute jobs populated, N={len(compute_jobs)}")
 
             cpu_count = int(multiprocessing.cpu_count() * 0.75)
+            timeout_duration = 10  # Timeout in seconds
 
-            with Pool(cpu_count) as p:
-                spot_metrics = [p.apply_async(extract_spot_metrics, args=(i,), callback=callback) for i in compute_jobs]
-                spot_metrics = [p.get() for p in spot_metrics]
-                p.close()
-                p.join()
+            with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
+                # Submit all jobs and store the future objects
+                futures = {executor.submit(extract_picasso_spot_metrics, job): job for job in compute_jobs}
 
+                iter = 0
+                for future in concurrent.futures.as_completed(futures):
+                    job = futures[future]
+                    try:
+                        result = future.result(timeout=timeout_duration)  # Process result here
+                        spot_metrics.append(result)
+                    except concurrent.futures.TimeoutError:
+                        # print(f"Task {job} timed out after {timeout_duration} seconds.")
+                        pass
+                    except Exception as e:
+                        # print(f"Error occurred in task {job}: {e}")  # Handle other exceptions
+                        pass
+
+                    # Update progress
+                    iter += 1
+                    progress = int((iter / len(compute_jobs)) * 100)
+                    progress_callback.emit(progress)  # Emit the signal
+
+
+        except:
+            self.compute_traces.setEnabled(True)
             self.restore_shared_images()
+            print(traceback.format_exc())
+            pass
+
+        return spot_metrics
+
+
+    def populatate_traces_dict(self, spot_metrics, picasso_spot_metrics=None):
+
+        try:
+
+            self.traces_dict = {}
+
+            spot_metrics = pd.concat(spot_metrics)
+
+            spot_metrics = spot_metrics.sort_values(by=["dataset", "channel", "spot_index", "frame_index"])
+
+            for names, data in spot_metrics.groupby(["dataset", "channel", "spot_index"]):
+                dataset, channel, spot_index = names
+
+                if dataset not in self.traces_dict.keys():
+                    self.traces_dict[dataset] = {}
+                if channel not in self.traces_dict[dataset].keys():
+                    self.traces_dict[dataset][channel] = {}
+                if spot_index not in self.traces_dict[dataset][channel].keys():
+                    self.traces_dict[dataset][channel][spot_index] = {}
+
+                for column in data.columns:
+                    if column not in ["dataset", "channel", "spot_index", "frame_index"]:
+                        self.traces_dict[dataset][channel][spot_index][column] = data[column].values
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
+
+
+    def _gapseq_compute_traces(self, progress_callback=None, picasso=False):
+
+        try:
+
+            # self.shared_images = self.create_shared_images()
+            #
+            # self.spot_metrics = self.extract_spot_metrics_wrapper(progress_callback)
+            #
+            # if self.compute_with_picasso.isChecked():
+            #     self.picasso_spot_metrics = self.extract_picasso_spot_metrics_wrapper(progress_callback)
+            #
+            # self.restore_shared_images()
+
+            self.populatate_traces_dict(self.spot_metrics)
 
         except:
             self.compute_traces.setEnabled(True)
@@ -440,6 +674,7 @@ class _trace_compute_utils:
 
         except:
             self.compute_traces.setEnabled(True)
+            self.restore_shared_images()
             print(traceback.format_exc())
 
 
@@ -459,7 +694,7 @@ class _trace_compute_utils:
 
                     spot_mask, spot_background_mask = self.generate_localisation_mask(spot_size, spot_shape, plot=False)
 
-                    spot_bounds = self.generate_spot_bounds(locs, spot_mask)
+                    spot_bounds = self.generate_spot_bounds(locs, len(spot_mask[0]))
 
                     spot_mask = spot_mask.astype(np.uint8)
 
@@ -487,3 +722,54 @@ class _trace_compute_utils:
         except:
             print(traceback.format_exc())
             pass
+
+
+
+
+camera_info = {"baseline": 100.0, "gain": 1, "sensitivity": 1.0, "qe": 0.9, }
+
+# method = "lq"
+# gain = 1
+#
+# total_locs = 0
+# progress_dict = {}
+# for image_index, image_dict in enumerate(self.shared_images):
+#     total_locs += image_dict["n_frames"] * len(locs)
+#     if image_index not in progress_dict:
+#         progress_dict[image_index] = 0
+#
+#
+# for image_index, image_dict in enumerate(self.shared_images):
+#
+#     n_frames = image_dict["n_frames"]
+#
+#     image_data = np.ndarray(image_dict["shape"],
+#         dtype=image_dict["dtype"], buffer=image_dict["shared_mem"].buf)
+#
+#     image_locs = []
+#
+#     for frame_index in range(n_frames):
+#         locs_copy = copy.deepcopy(locs)
+#         for loc in locs_copy:
+#             loc.frame = frame_index
+#             image_locs.append(loc)
+#
+#     image_locs = np.rec.fromrecords(image_locs, dtype=locs.dtype)
+#
+#     detected_loc_spots = localize.get_spots(image_data,
+#         image_locs, box_size, camera_info)
+#
+#     fs = gausslq.fit_spots_parallel(detected_loc_spots, asynch=True)
+#
+#     n_tasks = len(fs)
+#     while lib.n_futures_done(fs) < n_tasks:
+#         progress = (lib.n_futures_done(fs) / n_tasks) * 100
+#         progress_dict[image_index] = progress
+#         total_progress = int(np.sum(list(progress_dict.values())) / total_locs)
+#         progress_callback.emit(total_progress)
+#         time.sleep(0.1)
+#
+#     theta = gausslq.fits_from_futures(fs)
+#     em = gain > 1
+#
+#     fitted_locs = gausslq.locs_from_fits(image_locs, theta, box_size, em)
