@@ -60,6 +60,7 @@ from napari_gapseq2._widget_events import _events_utils
 from napari_gapseq2._widget_export_utils import _export_utils
 from napari_gapseq2._widget_transform_utils import _tranform_utils
 from napari_gapseq2._widget_trace_compute_utils import _trace_compute_utils
+from napari_gapseq2._widget_plot_utils import _plot_utils, CustomPyQTGraphWidget
 
 from qtpy.QtWidgets import QFileDialog
 import os
@@ -71,7 +72,10 @@ if TYPE_CHECKING:
     import napari
 
 
-class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils, _events_utils, _export_utils, _tranform_utils, _trace_compute_utils):
+class GapSeqWidget(QWidget,
+    _undrift_utils, _picasso_detect_utils,
+    _import_utils, _events_utils, _export_utils,
+    _tranform_utils, _trace_compute_utils, _plot_utils):
 
     # your QWidget.__init__ can optionally request the napari viewer instance
     # use a type annotation of 'napari.viewer.Viewer' for any parameter
@@ -88,8 +92,16 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.form.setupUi(self.gapseq_ui)
         self.layout().addWidget(self.gapseq_ui)
 
+        #create pyqt graph container
+        self.graph_container = self.findChild(QWidget, "graph_container")
+        self.graph_container.setLayout(QVBoxLayout())
+        self.graph_container.setMinimumWidth(100)
 
+        self.graph_canvas = CustomPyQTGraphWidget(self)
+        self.graph_container.layout().addWidget(self.graph_canvas)
+        self.graph_canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
+        # register controls
         self.gapseq_import_mode = self.findChild(QComboBox, 'gapseq_import_mode')
         self.gapseq_import_limt = self.findChild(QComboBox, 'gapseq_import_limt')
         self.gapseq_channel_layout = self.findChild(QComboBox, 'gapseq_channel_layout')
@@ -170,6 +182,16 @@ class GapSeqWidget(QWidget, _undrift_utils, _picasso_detect_utils, _import_utils
         self.traces_visualise_masks = self.findChild(QPushButton, 'traces_visualise_masks')
         self.compute_traces = self.findChild(QPushButton, 'compute_traces')
         self.compute_traces_progressbar = self.findChild(QProgressBar, 'compute_traces_progressbar')
+
+        self.plot_data = self.findChild(QComboBox, 'plot_data')
+        self.plot_channel = self.findChild(QComboBox, 'plot_channel')
+        self.plot_metric = self.findChild(QComboBox, 'plot_metric')
+        self.plot_background_metric = self.findChild(QComboBox, 'plot_background_metric')
+        self.split_plots = self.findChild(QCheckBox, 'split_plots')
+        self.normalise_plots = self.findChild(QCheckBox, 'normalise_plots')
+        self.plot_compute_progress = self.findChild(QProgressBar, 'plot_compute_progress')
+        self.plot_localisation_number = self.findChild(QCheckBox, 'plot_localisation_number')
+        self.plot_localisation_number_label = self.findChild(QLabel, 'plot_localisation_number_label')
 
         self.gapseq_import.clicked.connect(self.gapseq_import_data)
         self.gapseq_import_mode.currentIndexChanged.connect(self.update_import_options)
