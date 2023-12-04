@@ -253,6 +253,7 @@ class _import_utils:
                     image_dict[import_mode.lower()]["FRET"] = True
                     func = partial(self.update_active_image, channel=import_mode.lower())
                     self.gapseq_show_dd.clicked.connect(func)
+                    self.viewer.bind_key(key="F1", func=self.select_channel_donor, overwrite=True)
 
                 elif import_mode == "Acceptor":
                     image_dict[import_mode.lower()]["excitation"] = "donor"
@@ -260,7 +261,8 @@ class _import_utils:
                     image_dict[import_mode.lower()]["channel_ref"] = "da"
                     image_dict[import_mode.lower()]["FRET"] = True
                     func = partial(self.update_active_image, channel=import_mode.lower())
-                    self.gapseq_show_dd.clicked.connect(func)
+                    self.gapseq_show_da.clicked.connect(func)
+                    self.viewer.bind_key(key="F2", func=self.select_channel_acceptor, overwrite=True)
 
                 elif import_mode == "DD":
                     image_dict[import_mode.lower()]["excitation"] = "donor"
@@ -269,6 +271,7 @@ class _import_utils:
                     image_dict[import_mode.lower()]["FRET"] = False
                     func = partial(self.update_active_image, channel=import_mode.lower())
                     self.gapseq_show_dd.clicked.connect(func)
+                    self.viewer.bind_key(key="F1", func=self.select_channel_dd, overwrite=True)
 
                 elif import_mode == "DA":
                     image_dict[import_mode.lower()]["excitation"] = "donor"
@@ -276,8 +279,8 @@ class _import_utils:
                     image_dict[import_mode.lower()]["channel_ref"] = "da"
                     image_dict[import_mode.lower()]["FRET"] = False
                     func = partial(self.update_active_image, channel=import_mode.lower())
-
-                    self.gapseq_show_dd.clicked.connect(func)
+                    self.gapseq_show_da.clicked.connect(func)
+                    self.viewer.bind_key(key="F2", func=self.select_channel_da, overwrite=True)
 
                 elif import_mode == "AD":
                     image_dict[import_mode.lower()]["excitation"] = "acceptor"
@@ -285,7 +288,8 @@ class _import_utils:
                     image_dict[import_mode.lower()]["channel_ref"] = "ad"
                     image_dict[import_mode.lower()]["FRET"] = False
                     func = partial(self.update_active_image, channel=import_mode.lower())
-                    self.gapseq_show_dd.clicked.connect(func)
+                    self.gapseq_show_ad.clicked.connect(func)
+                    self.viewer.bind_key(key="F3", func=self.select_channel_ad, overwrite=True)
 
                 elif import_mode == "AA":
                     image_dict[import_mode.lower()]["excitation"] = "acceptor"
@@ -293,7 +297,8 @@ class _import_utils:
                     image_dict[import_mode.lower()]["channel_ref"] = "aa"
                     image_dict[import_mode.lower()]["FRET"] = False
                     func = partial(self.update_active_image, channel=import_mode.lower())
-                    self.gapseq_show_dd.clicked.connect(func)
+                    self.gapseq_show_aa.clicked.connect(func)
+                    self.viewer.bind_key(key="F4", func=self.select_channel_aa, overwrite=True)
 
             elif import_mode == "FRET":
 
@@ -303,6 +308,7 @@ class _import_utils:
                 image_dict["donor"]["FRET"] = True
 
                 self.gapseq_show_dd.clicked.connect(partial(self.update_active_image, channel="donor"))
+                self.viewer.bind_key(key="F1", func=self.select_channel_donor, overwrite=True)
 
 
                 image_dict["acceptor"]["excitation"] = "donor"
@@ -311,6 +317,7 @@ class _import_utils:
                 image_dict["acceptor"]["FRET"] = True
 
                 self.gapseq_show_da.clicked.connect(partial(self.update_active_image, channel="acceptor"))
+                self.viewer.bind_key(key="F2", func=self.select_channel_acceptor, overwrite=True)
 
             elif import_mode == "ALEX":
 
@@ -342,6 +349,13 @@ class _import_utils:
                 self.gapseq_show_da.clicked.connect(funct_da)
                 self.gapseq_show_aa.clicked.connect(funct_aa)
                 self.gapseq_show_ad.clicked.connect(funct_ad)
+
+                self.viewer.bind_key(key="F1", func=self.select_channel_dd, overwrite=True)
+                self.viewer.bind_key(key="F2", func=self.select_channel_da, overwrite=True)
+                self.viewer.bind_key(key="F3", func=self.select_channel_ad, overwrite=True)
+                self.viewer.bind_key(key="F4", func=self.select_channel_aa, overwrite=True)
+
+
 
             for channel in image_dict.keys():
 

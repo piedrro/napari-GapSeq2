@@ -287,6 +287,10 @@ class _trace_compute_utils:
         print("Finished computing traces.")
         self.compute_traces.setEnabled(True)
 
+        self.populate_plot_combos()
+        self.initialize_plot()
+
+
     def _get_bbox_localisations(self, n_frames):
 
         bbox_locs = None
@@ -645,16 +649,16 @@ class _trace_compute_utils:
 
         try:
 
-            # self.shared_images = self.create_shared_images()
-            #
-            # self.spot_metrics = self.extract_spot_metrics_wrapper(progress_callback)
-            #
-            # if self.compute_with_picasso.isChecked():
-            #     self.picasso_spot_metrics = self.extract_picasso_spot_metrics_wrapper(progress_callback)
-            # else:
-            #     self.picasso_spot_metrics = None
-            #
-            # self.restore_shared_images()
+            self.shared_images = self.create_shared_images()
+
+            self.spot_metrics = self.extract_spot_metrics_wrapper(progress_callback)
+
+            if self.compute_with_picasso.isChecked():
+                self.picasso_spot_metrics = self.extract_picasso_spot_metrics_wrapper(progress_callback)
+            else:
+                self.picasso_spot_metrics = None
+
+            self.restore_shared_images()
 
             self.populatate_traces_dict(self.spot_metrics, self.picasso_spot_metrics)
 

@@ -35,7 +35,7 @@ from magicgui.widgets import CheckBox, Container, create_widget
 from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget
 from skimage.util import img_as_float
 from qtpy.QtCore import QObject, QRunnable, QThreadPool
-from qtpy.QtWidgets import (QWidget,QVBoxLayout,QTabWidget,QSizePolicy, QComboBox,QLineEdit, QProgressBar, QLabel, QCheckBox)
+from qtpy.QtWidgets import (QWidget,QVBoxLayout,QTabWidget,QFrame, QSizePolicy, QSlider, QComboBox,QLineEdit, QProgressBar, QLabel, QCheckBox)
 from PIL import Image
 from tqdm import tqdm
 import numpy as np
@@ -83,23 +83,24 @@ class GapSeqWidget(QWidget,
         super().__init__()
         self.viewer = viewer
 
-        from napari_gapseq2.widget_ui import Ui_TabWidget
+        from napari_gapseq2.widget_ui import Ui_Frame
 
         #create UI
         self.setLayout(QVBoxLayout())
-        self.form = Ui_TabWidget()
-        self.gapseq_ui = QTabWidget()
+        self.form = Ui_Frame()
+        self.gapseq_ui = QFrame()
         self.form.setupUi(self.gapseq_ui)
         self.layout().addWidget(self.gapseq_ui)
 
         #create pyqt graph container
         self.graph_container = self.findChild(QWidget, "graph_container")
         self.graph_container.setLayout(QVBoxLayout())
-        self.graph_container.setMinimumWidth(100)
+        self.graph_container.setMinimumWidth(10)
+        self.graph_container.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
 
         self.graph_canvas = CustomPyQTGraphWidget(self)
+        self.graph_canvas.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
         self.graph_container.layout().addWidget(self.graph_canvas)
-        self.graph_canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         # register controls
         self.gapseq_import_mode = self.findChild(QComboBox, 'gapseq_import_mode')
@@ -190,7 +191,7 @@ class GapSeqWidget(QWidget,
         self.split_plots = self.findChild(QCheckBox, 'split_plots')
         self.normalise_plots = self.findChild(QCheckBox, 'normalise_plots')
         self.plot_compute_progress = self.findChild(QProgressBar, 'plot_compute_progress')
-        self.plot_localisation_number = self.findChild(QCheckBox, 'plot_localisation_number')
+        self.plot_localisation_number = self.findChild(QSlider, 'plot_localisation_number')
         self.plot_localisation_number_label = self.findChild(QLabel, 'plot_localisation_number_label')
 
         self.gapseq_import.clicked.connect(self.gapseq_import_data)
@@ -220,8 +221,23 @@ class GapSeqWidget(QWidget,
         self.compute_traces.clicked.connect(self.gapseq_compute_traces)
         self.traces_visualise_masks.clicked.connect(self.visualise_spot_masks)
 
+        self.plot_data.currentIndexChanged.connect(partial(self.update_plot_combos, combo="plot_data"))
+        self.plot_channel.currentIndexChanged.connect(partial(self.update_plot_combos, combo="plot_channel"))
+
+        self.plot_data.currentIndexChanged.connect(self.initialize_plot)
+        self.plot_channel.currentIndexChanged.connect(self.initialize_plot)
+        self.plot_metric.currentIndexChanged.connect(self.initialize_plot)
+        self.plot_background_metric.currentIndexChanged.connect(self.initialize_plot)
+        self.split_plots.stateChanged.connect(self.initialize_plot)
+        self.normalise_plots.stateChanged.connect(self.initialize_plot)
+
+        self.plot_localisation_number.valueChanged.connect(lambda: self.update_slider_label("plot_localisation_number"))
+        self.plot_localisation_number.valueChanged.connect(partial(self.plot_traces))
+
         self.dataset_dict = {}
         self.localisation_dict = {"bounding_boxes": {}, "fiducials": {}}
+        self.traces_dict = {}
+        self.plot_dict = {}
 
         self.active_dataset = None
         self.active_channel = None
@@ -239,6 +255,25 @@ class GapSeqWidget(QWidget,
 
 
         self.update_import_options()
+
+        self.metric_dict = {"spot_mean": "Mean", "spot_sum": "Sum", "spot_max": "Maximum",
+                            "spot_std": "std", "snr_mean": "Mean SNR", "snr_std": "std SNR",
+                            "snr_max": "Maximum SNR", "snr_sum": "Sum SNR", "spot_photons": "Picasso Photons", }
+
+        self.background_metric_dict = {"bg_mean": "Local Mean", "bg_sum": "Local Sum",
+                                       "bg_std": "Local std", "bg_max": "Local Maximum",
+                                       "spot_bg": "Picasso Background", }
+
+
+    def update_slider_label(self, slider_name):
+
+        label_name = slider_name + "_label"
+
+        self.slider = self.findChild(QSlider, slider_name)
+        self.label = self.findChild(QLabel, label_name)
+
+        slider_value = self.slider.value()
+        self.label.setText(str(slider_value))
 
     def update_picasso_options(self):
 

@@ -1,3 +1,4 @@
+import os.path
 import traceback
 import numpy as np
 
@@ -5,17 +6,58 @@ import numpy as np
 class _events_utils:
 
 
-    def select_channel_da(self):
+    def update_overlay_text(self):
+
+        try:
+
+            if self.dataset_dict  != {}:
+
+                dataset_name = self.gapseq_dataset_selector.currentText()
+                channel_name = self.active_channel
+
+                channel_dict = self.dataset_dict[dataset_name][channel_name].copy()
+
+                path = channel_dict["path"]
+                file_name = os.path.basename(path)
+
+                if channel_name in ["da", "dd", "aa", "ad"]:
+                    channel_name = channel_name.upper()
+                else:
+                    channel_name = channel_name.capitalize()
+
+                overlay_string = ""
+                overlay_string += f"File: {file_name}\n"
+                overlay_string += f"Dataset: {dataset_name}\n"
+                overlay_string += f"Channel: {channel_name}\n"
+
+                if overlay_string != "":
+                    self.viewer.text_overlay.visible = True
+                    self.viewer.text_overlay.position = "top_left"
+                    self.viewer.text_overlay.text = overlay_string.lstrip("\n")
+                else:
+                    self.viewer.text_overlay.visible = False
+
+        except:
+            print(traceback.format_exc())
+
+
+    def select_channel_da(self, event=None):
         self.update_active_image(channel="da")
 
-    def select_channel_dd(self):
+    def select_channel_dd(self, event=None):
         self.update_active_image(channel="dd")
 
-    def select_channel_aa(self):
+    def select_channel_aa(self, event=None):
         self.update_active_image(channel="aa")
 
-    def select_channel_ad(self):
+    def select_channel_ad(self, event=None):
         self.update_active_image(channel="ad")
+
+    def select_channel_donor(self, event=None):
+        self.update_active_image(channel="donor")
+
+    def select_channel_acceptor(self, event=None):
+        self.update_active_image(channel="acceptor")
 
     def update_active_image(self, channel=None, event=None):
 
@@ -57,6 +99,8 @@ class _events_utils:
 
             self.draw_fiducials()
 
+            self.update_overlay_text()
+
         except:
             print(traceback.format_exc())
             pass
@@ -93,7 +137,7 @@ class _events_utils:
 
                     if "dd" in channel_refs:
                         self.gapseq_show_dd.setEnabled(True)
-                        self.gapseq_show_dd.setText("Donor")
+                        self.gapseq_show_dd.setText("Donor [F1]")
                         self.picasso_channel.addItem("Donor")
                         self.undrift_channel_selector.addItem("Donor")
                         self.cluster_channel.addItem("Donor")
@@ -104,7 +148,7 @@ class _events_utils:
 
                     if "da" in channel_refs:
                         self.gapseq_show_da.setEnabled(True)
-                        self.gapseq_show_da.setText("Acceptor")
+                        self.gapseq_show_da.setText("Acceptor [F2]")
                         self.picasso_channel.addItem("Acceptor")
                         self.undrift_channel_selector.addItem("Acceptor")
                         self.cluster_channel.addItem("Acceptor")
@@ -121,7 +165,7 @@ class _events_utils:
                     self.gapseq_show_ad.setVisible(True)
 
                     if "dd" in channel_refs:
-                        self.gapseq_show_dd.setText("DD")
+                        self.gapseq_show_dd.setText("DD [F1]")
                         self.gapseq_show_dd.setEnabled(True)
                         self.picasso_channel.addItem("DD")
                         self.undrift_channel_selector.addItem("DD")
@@ -132,7 +176,7 @@ class _events_utils:
                         self.gapseq_show_dd.setEnabled(False)
 
                     if "da" in channel_refs:
-                        self.gapseq_show_da.setText("DA")
+                        self.gapseq_show_da.setText("DA [F2]")
                         self.gapseq_show_da.setEnabled(True)
                         self.picasso_channel.addItem("DA")
                         self.undrift_channel_selector.addItem("DA")
@@ -142,19 +186,8 @@ class _events_utils:
                         self.gapseq_show_da.setText("")
                         self.gapseq_show_da.setEnabled(False)
 
-                    if "aa" in channel_refs:
-                        self.gapseq_show_aa.setText("AA")
-                        self.gapseq_show_aa.setEnabled(True)
-                        self.picasso_channel.addItem("AA")
-                        self.undrift_channel_selector.addItem("AA")
-                        self.cluster_channel.addItem("AA")
-                        target_channels.append("AA")
-                    else:
-                        self.gapseq_show_aa.setText("")
-                        self.gapseq_show_aa.setEnabled(False)
-
                     if "ad" in channel_refs:
-                        self.gapseq_show_ad.setText("AD")
+                        self.gapseq_show_ad.setText("AD [F3]")
                         self.gapseq_show_ad.setEnabled(True)
                         self.picasso_channel.addItem("AD")
                         self.undrift_channel_selector.addItem("AD")
@@ -163,6 +196,17 @@ class _events_utils:
                     else:
                         self.gapseq_show_ad.setText("")
                         self.gapseq_show_ad.setEnabled(False)
+
+                    if "aa" in channel_refs:
+                        self.gapseq_show_aa.setText("AA [F4]")
+                        self.gapseq_show_aa.setEnabled(True)
+                        self.picasso_channel.addItem("AA")
+                        self.undrift_channel_selector.addItem("AA")
+                        self.cluster_channel.addItem("AA")
+                        target_channels.append("AA")
+                    else:
+                        self.gapseq_show_aa.setText("")
+                        self.gapseq_show_aa.setEnabled(False)
 
                 self.tform_compute_ref_channel.addItems(reference_channels)
                 self.tform_compute_target_channel.addItems(target_channels)
