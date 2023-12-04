@@ -78,7 +78,7 @@ class _picasso_detect_utils:
 
 
 
-    def populate_localisation_dict(self, locs, detect_mode, dataset_name, image_channel, fitted=False):
+    def populate_localisation_dict(self, locs, detect_mode, dataset_name, image_channel, box_size, fitted=False):
 
         detect_mode = detect_mode.lower()
 
@@ -98,6 +98,7 @@ class _picasso_detect_utils:
                     fiducial_dict["render_locs"] = self.detected_render_locs.copy()
 
                 fiducial_dict["fitted"] = fitted
+                fiducial_dict["box_size"] = box_size
 
                 if dataset_name not in self.localisation_dict["fiducials"].keys():
                     self.localisation_dict["fiducials"][dataset_name] = {}
@@ -113,6 +114,7 @@ class _picasso_detect_utils:
                 self.localisation_dict["bounding_boxes"]["localisations"] = locs.copy()
                 self.localisation_dict["bounding_boxes"]["localisation_centres"] = loc_centres.copy()
                 self.localisation_dict["bounding_boxes"]["fitted"] = fitted
+                self.localisation_dict["bounding_boxes"]["box_size"] = box_size
 
 
         except:
@@ -155,8 +157,10 @@ class _picasso_detect_utils:
             detect_mode = self.picasso_detect_mode.currentText()
             dataset_name = self.picasso_dataset.currentText()
             image_channel = self.picasso_channel.currentText()
+            box_size = int(self.picasso_box_size.currentText())
 
-            self.populate_localisation_dict(self.detected_locs, detect_mode, dataset_name, image_channel, fitted=False)
+            self.populate_localisation_dict(self.detected_locs, detect_mode,
+                dataset_name, image_channel, box_size, fitted=False)
 
             n_frames = len(np.unique([loc[0] for loc in self.detected_locs]))
             print("detected {} localisations from {} frame(s)".format(len(self.detected_locs), n_frames))
@@ -184,8 +188,10 @@ class _picasso_detect_utils:
             detect_mode = self.picasso_detect_mode.currentText()
             dataset_name = self.picasso_dataset.currentText()
             image_channel = self.picasso_channel.currentText()
+            box_size = int(self.picasso_box_size.currentText())
 
-            self.populate_localisation_dict(self.fitted_locs, detect_mode, dataset_name, image_channel, fitted=True)
+            self.populate_localisation_dict(self.fitted_locs, detect_mode,
+                dataset_name, image_channel, box_size, fitted=True)
 
             n_frames = len(np.unique([loc[0] for loc in self.fitted_locs]))
             print("Fitted {} localisations from {} frame(s)".format(len(self.fitted_locs), n_frames))

@@ -120,7 +120,8 @@ def extract_picasso_spot_metrics(dat):
         [x1,x2,y1,y2] = dat["loc_bound"]
         spot_data = [np_array[dat["frame_index"], y1:y2, x1:x2].copy()]
         spot_loc = dat["spot_loc"]
-        coords = [spot_loc[0].x, spot_loc[0].y]
+        spot_x = spot_loc[0].x
+        spot_y = spot_loc[0].y
 
         try:
             thetas, CRLBs, likelihoods, iterations = gaussmle(spot_data, eps=0.001, max_it=100, method="sigma")
@@ -133,8 +134,9 @@ def extract_picasso_spot_metrics(dat):
         spot_metrics["channel"] = dat["channel"]
         spot_metrics["frame_index"] = dat["frame_index"]
         spot_metrics["spot_index"] = dat["loc_index"]
-        spot_metrics["SPO_coords"] = coords
-        spot_metrics["spot_size"] = dat["box_size"]
+        spot_metrics["spot_x"] = spot_x
+        spot_metrics["spot_y"] = spot_y
+        spot_metrics["box_size"] = dat["box_size"]
 
         # picasso metrics
         if type(loc) != type(None):
@@ -158,6 +160,8 @@ def extract_picasso_spot_metrics(dat):
             spot_metrics["spot_net_gradient"] = np.nan
             spot_metrics["spot_likelihood"] = np.nan
             spot_metrics["spot_iterations"] = np.nan
+
+        spot_metrics = pd.Series(spot_metrics)
 
     except:
         print(traceback.format_exc())
@@ -193,6 +197,9 @@ def extract_spot_metrics(dat):
         spot_background_mask = np.logical_not(spot_background_mask).astype(int)
 
         spot_loc = dat["spot_loc"]
+        spot_x = spot_loc.x
+        spot_y = spot_loc.y
+        coords = [spot_loc.x, spot_loc.y]
 
         # Perform preprocessing steps and overwrite original image
         spot_values = np_array[:, y1:y2, x1:x2].copy()
@@ -209,7 +216,8 @@ def extract_spot_metrics(dat):
         spot_metrics["channel"] = [dat["channel"]]*len(spot_values)
         spot_metrics["frame_index"] = np.arange(len(spot_values)).tolist()
         spot_metrics["spot_index"] = [dat["spot_index"]]*len(spot_values)
-        spot_metrics["spot_index"] = [dat["spot_index"]]*len(spot_values)
+        spot_metrics["spot_x"] = [spot_x]*len(spot_values)
+        spot_metrics["spot_y"] = [spot_y]*len(spot_values)
         spot_metrics["spot_size"] = [dat["spot_size"]]*len(spot_values)
 
         # metrics
@@ -226,22 +234,21 @@ def extract_spot_metrics(dat):
         spot_metrics["snr_max"] = spot_metrics["spot_max"] / spot_metrics["bg_max"]
         spot_metrics["snr_std"] = spot_metrics["spot_std"] / spot_metrics["bg_std"]
 
-        spot_metrics_keys = list(spot_metrics.keys())
-        len_arrays = len(spot_metrics[spot_metrics_keys[0]])
+        n_frames = len(spot_values)
 
         reshaped_spot_metrics = []
-        for i in range(len_arrays):
+        for i in range(n_frames):
             new_dict = {key: spot_metrics[key][i] for key in spot_metrics}
             reshaped_spot_metrics.append(new_dict)
 
-        reshaped_spot_metrics = pd.DataFrame.from_dict(reshaped_spot_metrics)
+        spot_metrics = pd.DataFrame.from_dict(reshaped_spot_metrics)
 
     except:
         print(traceback.format_exc())
         spot_metrics = None
         pass
 
-    return reshaped_spot_metrics
+    return spot_metrics
 
 
 class _trace_compute_utils:
@@ -275,13 +282,10 @@ class _trace_compute_utils:
 
         return spot_bounds
 
-
-
     def _gapseq_compute_traces_cleanup(self):
 
         print("Finished computing traces.")
         self.compute_traces.setEnabled(True)
-
 
     def _get_bbox_localisations(self, n_frames):
 
@@ -325,7 +329,6 @@ class _trace_compute_utils:
             pass
 
         return bbox_locs
-
 
     def generate_localisation_mask(self, spot_size, spot_shape = "square", plot=False):
 
@@ -380,8 +383,6 @@ class _trace_compute_utils:
 
         return mask, background_mask
 
-
-
     def generate_background_overlap_mask(self, locs, spot_mask, spot_background_mask, image_mask_shape):
 
         global_spot_mask = np.zeros(image_mask_shape, dtype=np.uint8)
@@ -433,7 +434,6 @@ class _trace_compute_utils:
                                       "shared_memory_name": shared_memory_name})
 
         return self.shared_images
-
 
     def restore_shared_images(self):
 
@@ -529,12 +529,12 @@ class _trace_compute_utils:
         spot_metrics = []
 
         try:
-
             localisation_dict = copy.deepcopy(self.localisation_dict["bounding_boxes"])
-            box_size = int(self.picasso_box_size.currentText())
-            loc_bounds = self.generate_spot_bounds(localisation_dict["localisations"], box_size)
 
             locs = localisation_dict["localisations"].copy()
+            box_size = localisation_dict["box_size"]
+
+            loc_bounds = self.generate_spot_bounds(localisation_dict["localisations"], box_size)
 
             print(f"populating compute jobs")
 
@@ -598,37 +598,48 @@ class _trace_compute_utils:
 
         return spot_metrics
 
-
-    def populatate_traces_dict(self, spot_metrics, picasso_spot_metrics=None):
+    def populatate_traces_dict(self, spot_metrics=None, picasso_spot_metrics=None):
 
         try:
 
             self.traces_dict = {}
 
-            spot_metrics = pd.concat(spot_metrics)
+            # format spot metrics into dataframe
+            if spot_metrics is not None:
 
-            spot_metrics = spot_metrics.sort_values(by=["dataset", "channel", "spot_index", "frame_index"])
+                spot_metrics = pd.concat(spot_metrics)
+                spot_metrics.sort_values(by=["dataset", "channel", "spot_index", "frame_index"], inplace=True)
 
-            for names, data in spot_metrics.groupby(["dataset", "channel", "spot_index"]):
-                dataset, channel, spot_index = names
+            # format picasso spot metrics into dataframe and merge with spot metrics
+            if picasso_spot_metrics is not None:
 
-                if dataset not in self.traces_dict.keys():
-                    self.traces_dict[dataset] = {}
-                if channel not in self.traces_dict[dataset].keys():
-                    self.traces_dict[dataset][channel] = {}
-                if spot_index not in self.traces_dict[dataset][channel].keys():
-                    self.traces_dict[dataset][channel][spot_index] = {}
+                picasso_spot_metrics = pd.DataFrame(picasso_spot_metrics)
+                picasso_spot_metrics.sort_values(by=["dataset", "channel", "spot_index", "frame_index"], inplace=True)
 
-                for column in data.columns:
-                    if column not in ["dataset", "channel", "spot_index", "frame_index"]:
-                        self.traces_dict[dataset][channel][spot_index][column] = data[column].values
+                merge_keys = ["dataset", "channel", "spot_index","frame_index","spot_x", "spot_y"]
+                spot_metrics = pd.merge(spot_metrics, picasso_spot_metrics, on=merge_keys, how='left')
+
+            # populate traces dict
+            if spot_metrics is not None:
+
+                for names, data in spot_metrics.groupby(["dataset", "channel", "spot_index"]):
+
+                    dataset, channel, spot_index = names
+
+                    if dataset not in self.traces_dict.keys():
+                        self.traces_dict[dataset] = {}
+                    if channel not in self.traces_dict[dataset].keys():
+                        self.traces_dict[dataset][channel] = {}
+                    if spot_index not in self.traces_dict[dataset][channel].keys():
+                        self.traces_dict[dataset][channel][spot_index] = {}
+
+                    for column in data.columns:
+                        if column not in ["dataset", "channel", "spot_index", "frame_index"]:
+                            self.traces_dict[dataset][channel][spot_index][column] = data[column].values
 
         except:
             print(traceback.format_exc())
             pass
-
-
-
 
     def _gapseq_compute_traces(self, progress_callback=None, picasso=False):
 
@@ -640,17 +651,18 @@ class _trace_compute_utils:
             #
             # if self.compute_with_picasso.isChecked():
             #     self.picasso_spot_metrics = self.extract_picasso_spot_metrics_wrapper(progress_callback)
+            # else:
+            #     self.picasso_spot_metrics = None
             #
             # self.restore_shared_images()
 
-            self.populatate_traces_dict(self.spot_metrics)
+            self.populatate_traces_dict(self.spot_metrics, self.picasso_spot_metrics)
 
         except:
             self.compute_traces.setEnabled(True)
             self.restore_shared_images()
             print(traceback.format_exc())
             pass
-
 
 
     def gapseq_compute_traces(self):
@@ -676,7 +688,6 @@ class _trace_compute_utils:
             self.compute_traces.setEnabled(True)
             self.restore_shared_images()
             print(traceback.format_exc())
-
 
     def visualise_spot_masks(self):
 
