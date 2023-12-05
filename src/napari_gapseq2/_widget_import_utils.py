@@ -427,18 +427,42 @@ class _import_utils:
 
     def populate_dataset_combos(self):
 
-        dataset_names = list(self.dataset_dict.keys())
+        try:
 
-        self.gapseq_dataset_selector.clear()
-        self.gapseq_dataset_selector.addItems(dataset_names)
-        self.picasso_dataset.clear()
-        self.picasso_dataset.addItems(dataset_names)
-        self.export_dataset.clear()
-        self.export_dataset.addItems(dataset_names)
-        self.cluster_dataset.clear()
-        self.cluster_dataset.addItems(dataset_names)
-        self.tform_compute_dataset.clear()
-        self.tform_compute_dataset.addItems(dataset_names)
+            dataset_names = list(self.dataset_dict.keys())
+
+            self.gapseq_dataset_selector.blockSignals(True)
+            self.gapseq_dataset_selector.clear()
+            self.gapseq_dataset_selector.addItems(dataset_names)
+            self.gapseq_dataset_selector.blockSignals(False)
+
+            self.picasso_dataset.blockSignals(True)
+            self.picasso_dataset.clear()
+            self.picasso_dataset.addItems(dataset_names)
+            self.picasso_dataset.blockSignals(False)
+
+            self.export_dataset.blockSignals(True)
+            self.export_dataset.clear()
+            self.export_dataset.addItems(dataset_names)
+            self.export_dataset.blockSignals(False)
+
+            self.cluster_dataset.blockSignals(True)
+            self.cluster_dataset.clear()
+            self.cluster_dataset.addItems(dataset_names)
+            self.cluster_dataset.blockSignals(False)
+
+            self.tform_compute_dataset.blockSignals(True)
+            self.tform_compute_dataset.clear()
+            self.tform_compute_dataset.addItems(dataset_names)
+            self.tform_compute_dataset.blockSignals(False)
+
+            self.gapseq_old_dataset_name.blockSignals(True)
+            self.gapseq_old_dataset_name.clear()
+            self.gapseq_old_dataset_name.addItems(dataset_names)
+            self.gapseq_old_dataset_name.blockSignals(False)
+
+        except:
+            print(traceback.format_exc())
 
     def initialise_localisation_dict(self):
 
@@ -482,6 +506,8 @@ class _import_utils:
             paths = [path for path in paths if path != ""]
 
             if paths != []:
+
+                self.gapseq_import.setEnabled(False)
 
                 worker = Worker(self._gapseq_import_data, paths=paths)
                 worker.signals.progress.connect(partial(self.gapseq_progress,

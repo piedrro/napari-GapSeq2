@@ -112,6 +112,10 @@ class GapSeqWidget(QWidget,
         self.gapseq_import = self.findChild(QPushButton, 'gapseq_import')
         self.gapseq_import_progressbar = self.findChild(QProgressBar, 'gapseq_import_progressbar')
 
+        self.gapseq_old_dataset_name = self.findChild(QComboBox, 'gapseq_old_dataset_name')
+        self.gapseq_new_dataset_name = self.findChild(QLineEdit, 'gapseq_new_dataset_name')
+        self.gapseq_update_dataset_name = self.findChild(QPushButton, 'gapseq_update_dataset_name')
+
         self.gapseq_dataset_selector = self.findChild(QComboBox, 'gapseq_dataset_selector')
         self.gapseq_show_dd = self.findChild(QPushButton, 'gapseq_show_dd')
         self.gapseq_show_da = self.findChild(QPushButton, 'gapseq_show_da')
@@ -195,6 +199,7 @@ class GapSeqWidget(QWidget,
 
         self.gapseq_import.clicked.connect(self.gapseq_import_data)
         self.gapseq_import_mode.currentIndexChanged.connect(self.update_import_options)
+        self.gapseq_update_dataset_name.clicked.connect(self.update_dataset_name)
 
         self.picasso_detect.clicked.connect(self.gapseq_picasso_detect)
         self.picasso_fit.clicked.connect(self.gapseq_picasso_fit)
@@ -262,6 +267,33 @@ class GapSeqWidget(QWidget,
         self.background_metric_dict = {"bg_mean": "Local Mean", "bg_sum": "Local Sum",
                                        "bg_std": "Local std", "bg_max": "Local Maximum",
                                        "spot_bg": "Picasso Background", }
+
+
+    def update_dataset_name(self):
+
+        try:
+
+            old_name = self.gapseq_old_dataset_name.currentText()
+            new_name = self.gapseq_new_dataset_name.text()
+
+            if new_name == "":
+                raise ValueError("New dataset name cannot be blank")
+            elif new_name in self.dataset_dict.keys():
+                raise ValueError("New dataset name must be unique")
+            else:
+                dataset_data = self.dataset_dict.pop(old_name)
+                self.dataset_dict[new_name] = dataset_data
+
+                localisation_data = self.localisation_dict["fiducials"].pop(old_name)
+                self.localisation_dict["fiducials"][new_name] = localisation_data
+
+            self.populate_dataset_combos()
+            self.update_channel_select_buttons()
+            self.update_active_image()
+
+        except:
+            print(traceback.format_exc())
+
 
 
     def update_slider_label(self, slider_name):
