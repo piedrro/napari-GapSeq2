@@ -184,7 +184,7 @@ class _tranform_utils:
                         progress_callback.emit(progress)
 
                     img = transform_image(img, self.transform_matrix,progress_callback=transform_progress)
-                    self.dataset_dict[dataset_name][channel_name.lower()]["data"] = img
+                    self.dataset_dict[dataset_name][channel_name.lower()]["data"] = img.copy()
 
         except:
             print(traceback.format_exc())

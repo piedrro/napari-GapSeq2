@@ -62,47 +62,47 @@ class _events_utils:
     def select_channel_acceptor(self, event=None):
         self.update_active_image(channel="acceptor")
 
-    def update_active_image(self, channel=None, event=None):
+    def update_active_image(self, channel=None, dataset=None, event=None):
 
         try:
 
-            dataset_name = self.gapseq_dataset_selector.currentText()
+            if dataset == None or dataset not in self.dataset_dict.keys():
+                dataset_name = self.gapseq_dataset_selector.currentText()
+            else:
+                dataset_name = dataset
 
             if dataset_name in self.dataset_dict.keys():
 
                 channel_names = [channel for channel in self.dataset_dict[dataset_name].keys()]
 
                 if channel not in channel_names:
-
-                    channel = channel_names[0]
-
-                if self.active_dataset != dataset_name or self.active_channel != channel:
-
-                    self.active_dataset = dataset_name
-                    self.active_channel = channel
-
-                    image_layers = [layer.name for layer in self.viewer.layers if layer.name not in ["bounding_boxes", "fiducials"]]
-
-                    image = self.dataset_dict[dataset_name][channel]["data"]
-
-                    contrast_range = [np.min(image), np.max(image)]
-
-                    if hasattr(self, "image_layer") == False:
-
-                        self.image_layer = self.viewer.add_image(image,
-                            name=dataset_name,
-                            colormap="gray",
-                            blending="additive",
-                            visible=True)
-
+                    if self.active_channel in channel_names:
+                        channel = self.active_channel
                     else:
-                        self.image_layer.data = image
-                        self.image_layer.name = dataset_name
+                        channel = channel_names[0]
 
-                    self.viewer.layers[dataset_name].contrast_limits = contrast_range
+                self.active_dataset = dataset_name
+                self.active_channel = channel
+
+                image = self.dataset_dict[dataset_name][channel]["data"]
+
+                contrast_range = [np.min(image), np.max(image)]
+
+                if hasattr(self, "image_layer") == False:
+
+                    self.image_layer = self.viewer.add_image(image,
+                        name=dataset_name,
+                        colormap="gray",
+                        blending="additive",
+                        visible=True)
+
+                else:
+                    self.image_layer.data = image
+                    self.image_layer.name = dataset_name
+
+                self.viewer.layers[dataset_name].contrast_limits = contrast_range
 
             self.draw_fiducials()
-
             self.update_overlay_text()
 
         except:

@@ -461,6 +461,11 @@ class _import_utils:
             self.gapseq_old_dataset_name.addItems(dataset_names)
             self.gapseq_old_dataset_name.blockSignals(False)
 
+            self.align_reference_dataset.blockSignals(True)
+            self.align_reference_dataset.clear()
+            self.align_reference_dataset.addItems(dataset_names)
+            self.align_reference_dataset.blockSignals(False)
+
         except:
             print(traceback.format_exc())
 
@@ -491,6 +496,8 @@ class _import_utils:
         self.update_channel_select_buttons()
         self.update_active_image()
         self.update_export_options()
+
+        self.update_align_reference_channel()
 
         self.gapseq_import.setEnabled(True)
         self.gapseq_import_progressbar.setValue(0)

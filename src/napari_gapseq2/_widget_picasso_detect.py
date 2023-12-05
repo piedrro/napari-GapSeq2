@@ -169,13 +169,13 @@ class _picasso_detect_utils:
             self.picasso_detect.setEnabled(True)
             self.picasso_fit.setEnabled(True)
 
-
             self.draw_fiducials()
             self.draw_bounding_boxes()
 
+            self.gapseq_dataset_selector.blockSignals(True)
             self.gapseq_dataset_selector.setCurrentIndex(self.gapseq_dataset_selector.findText(dataset_name))
-            self.update_active_image(channel=image_channel.lower())
-
+            self.gapseq_dataset_selector.blockSignals(False)
+            self.update_active_image(channel=image_channel.lower(), dataset=dataset_name)
 
         except:
             print(traceback.format_exc())
@@ -203,8 +203,10 @@ class _picasso_detect_utils:
             self.draw_fiducials()
             self.draw_bounding_boxes()
 
+            self.gapseq_dataset_selector.blockSignals(True)
             self.gapseq_dataset_selector.setCurrentIndex(self.gapseq_dataset_selector.findText(dataset_name))
-            self.update_active_image(channel=image_channel.lower())
+            self.gapseq_dataset_selector.blockSignals(False)
+            self.update_active_image(channel=image_channel.lower(), dataset=dataset_name)
 
         except:
             print(traceback.format_exc())

@@ -61,6 +61,7 @@ from napari_gapseq2._widget_export_utils import _export_utils
 from napari_gapseq2._widget_transform_utils import _tranform_utils
 from napari_gapseq2._widget_trace_compute_utils import _trace_compute_utils
 from napari_gapseq2._widget_plot_utils import _plot_utils, CustomPyQTGraphWidget
+from napari_gapseq2._widget_align_utils import _align_utils
 
 from qtpy.QtWidgets import QFileDialog
 import os
@@ -75,7 +76,8 @@ if TYPE_CHECKING:
 class GapSeqWidget(QWidget,
     _undrift_utils, _picasso_detect_utils,
     _import_utils, _events_utils, _export_utils,
-    _tranform_utils, _trace_compute_utils, _plot_utils):
+    _tranform_utils, _trace_compute_utils, _plot_utils,
+    _align_utils):
 
     # your QWidget.__init__ can optionally request the napari viewer instance
     # use a type annotation of 'napari.viewer.Viewer' for any parameter
@@ -163,6 +165,11 @@ class GapSeqWidget(QWidget,
         self.undrift_channel_selector = self.findChild(QComboBox, 'undrift_channel_selector')
         self.undrift_progressbar = self.findChild(QProgressBar, 'undrift_progressbar')
 
+        self.align_reference_dataset = self.findChild(QComboBox, 'align_reference_dataset')
+        self.align_reference_channel = self.findChild(QComboBox, 'align_reference_channel')
+        self.gapseq_align_datasets = self.findChild(QPushButton, 'gapseq_align_datasets')
+        self.align_progressbar = self.findChild(QProgressBar, 'align_progressbar')
+
         self.gapseq_import_tform = self.findChild(QPushButton, 'gapseq_import_tform')
 
         self.tform_compute_dataset = self.findChild(QComboBox, 'tform_compute_dataset')
@@ -206,10 +213,14 @@ class GapSeqWidget(QWidget,
         self.cluster_localisations.clicked.connect(self.gapseq_cluster_localisations)
 
         self.gapseq_dataset_selector.currentIndexChanged.connect(self.update_channel_select_buttons)
-        self.gapseq_dataset_selector.currentIndexChanged.connect(self.update_active_image)
+        self.gapseq_dataset_selector.currentIndexChanged.connect(partial(self.update_active_image,
+            dataset = self.gapseq_dataset_selector.currentText()))
 
         self.detect_undrift.clicked.connect(self.gapseq_picasso_undrift)
         self.apply_undrift.clicked.connect(self.gapseq_undrift_images)
+
+        self.gapseq_align_datasets.clicked.connect(self.align_datasets)
+        self.align_reference_dataset.currentIndexChanged.connect(self.update_align_reference_channel)
 
         self.gapseq_import_tform.clicked.connect(self.import_transform_matrix)
         self.gapseq_compute_tform.clicked.connect(self.compute_transform_matrix)
@@ -276,20 +287,22 @@ class GapSeqWidget(QWidget,
             old_name = self.gapseq_old_dataset_name.currentText()
             new_name = self.gapseq_new_dataset_name.text()
 
-            if new_name == "":
-                raise ValueError("New dataset name cannot be blank")
-            elif new_name in self.dataset_dict.keys():
-                raise ValueError("New dataset name must be unique")
-            else:
-                dataset_data = self.dataset_dict.pop(old_name)
-                self.dataset_dict[new_name] = dataset_data
+            if old_name != "":
 
-                localisation_data = self.localisation_dict["fiducials"].pop(old_name)
-                self.localisation_dict["fiducials"][new_name] = localisation_data
+                if new_name == "":
+                    raise ValueError("New dataset name cannot be blank")
+                elif new_name in self.dataset_dict.keys():
+                    raise ValueError("New dataset name must be unique")
+                else:
+                    dataset_data = self.dataset_dict.pop(old_name)
+                    self.dataset_dict[new_name] = dataset_data
 
-            self.populate_dataset_combos()
-            self.update_channel_select_buttons()
-            self.update_active_image()
+                    localisation_data = self.localisation_dict["fiducials"].pop(old_name)
+                    self.localisation_dict["fiducials"][new_name] = localisation_data
+
+                self.populate_dataset_combos()
+                self.update_channel_select_buttons()
+                self.update_active_image()
 
         except:
             print(traceback.format_exc())
