@@ -261,14 +261,6 @@ class GapSeqWidget(QWidget,
 
         self.transform_matrix = None
 
-        # transform_matrix_path = r"C:\Users\turnerp\Desktop\PicassoDEV\gapseq_transform_matrix-230719.txt"
-        #
-        # with open(transform_matrix_path, 'r') as f:
-        #     transform_matrix = json.load(f)
-        #
-        # self.transform_matrix = np.array(transform_matrix)
-
-
         self.update_import_options()
 
         self.metric_dict = {"spot_mean": "Mean", "spot_sum": "Sum", "spot_max": "Maximum",
@@ -278,6 +270,151 @@ class GapSeqWidget(QWidget,
         self.background_metric_dict = {"bg_mean": "Local Mean", "bg_sum": "Local Sum",
                                        "bg_std": "Local std", "bg_max": "Local Maximum",
                                        "spot_bg": "Picasso Background", }
+
+
+
+
+    def add_manual_localisation(self, position, mode):
+
+        try:
+
+            layer_names = [layer.name for layer in self.viewer.layers]
+
+            active_dataset = self.gapseq_dataset_selector.currentText()
+            active_channel = self.active_channel
+            frame = self.viewer.dims.current_step[0]
+            net_gradient = 100
+
+            if mode == "fiducial":
+
+                fiducial_dict = self.localisation_dict["fiducials"]
+
+                localisation_dict = {}
+                if active_dataset in fiducial_dict.keys():
+                    if active_channel in fiducial_dict[active_dataset].keys():
+                        if "localisations" in fiducial_dict[active_dataset][active_channel].keys():
+                            localisation_dict = fiducial_dict[active_dataset][active_channel]
+
+                if len(localisation_dict.keys()) > 0:
+
+                    locs = localisation_dict["localisations"].copy()
+                    render_locs = localisation_dict["render_locs"].copy()
+                    loc_centers = localisation_dict["localisation_centres"].copy()
+
+                    x,y = position
+
+                    loc_centers = np.array(loc_centers)
+
+                    if loc_centers.shape[-1] !=2:
+                        loc_coords = loc_centers[:,1:].copy()
+                    else:
+                        loc_coords = loc_centers.copy()
+
+                    dtype = locs.dtype
+                    box_size = int(localisation_dict["box_size"])
+
+                    # Calculate Euclidean distances
+                    distances = np.sqrt(np.sum((loc_coords - np.array([y,x])) ** 2, axis=1))
+
+                    # Find the index of the minimum distance
+                    min_index = np.argmin(distances)
+                    min_distance = distances[min_index]
+
+
+                    if min_distance < box_size:
+
+                        locs = locs.view(np.float32).reshape(len(locs), -1)
+                        locs = np.delete(locs, min_index, axis=0)
+                        locs = locs.view(dtype)
+
+                        loc_centers = np.delete(loc_centers, min_index, axis=0)
+                        loc_centers = loc_centers.tolist()
+
+                        render_frame_locs = render_locs[frame].copy()
+                        render_frame_locs = np.unique(render_frame_locs, axis=0).tolist()
+                        distances = np.sqrt(np.sum((np.array(render_frame_locs) - np.array([y,x])) ** 2, axis=1))
+                        min_index = np.argmin(distances)
+                        render_frame_locs.pop(min_index)
+                        render_locs[frame] = render_frame_locs
+
+                    else:
+
+                        new_loc = np.array([(frame, position[0], position[1], net_gradient)],
+                            dtype=dtype)
+
+                        locs = np.append(locs, new_loc)
+
+                        loc_centers = np.append(loc_centers, np.array([[frame,y,x]], dtype=int), axis=0)
+                        loc_centers = loc_centers.tolist()
+                        render_locs[frame].append([round(y),round(x)])
+
+                    localisation_dict["localisations"] = locs
+                    localisation_dict["localisation_centres"] = loc_centers
+                    localisation_dict["render_locs"] = render_locs
+
+                    self.draw_fiducials()
+
+                else:
+                    x, y = position
+
+                    box_size = int(self.picasso_box_size.currentText())
+
+                    dtype = [("frame", int), ("y", float), ("x", float), ("net_gradient", float)]
+
+                    new_loc = np.array([[frame, position[0], position[1], net_gradient]])
+
+                    new_loc = np.rec.fromrecords(new_loc, names="frame,y,x,net_gradient")
+
+                    loc_centers = [[frame, y, x]]
+                    render_locs = {frame: [[round(y), round(x)]]}
+
+                    localisation_dict["localisations"] = new_loc
+                    localisation_dict["localisation_centres"] = loc_centers
+                    localisation_dict["render_locs"] = render_locs
+
+                    if active_dataset not in fiducial_dict.keys():
+                        fiducial_dict[active_dataset] = {}
+                    if active_channel not in fiducial_dict[active_dataset].keys():
+                        fiducial_dict[active_dataset][active_channel] = {}
+
+                    self.localisation_dict["fiducials"][active_dataset][active_channel]["localisations"] = new_loc
+                    self.localisation_dict["fiducials"][active_dataset][active_channel]["localisation_centres"] = loc_centers
+                    self.localisation_dict["fiducials"][active_dataset][active_channel]["render_locs"] = render_locs
+                    self.localisation_dict["fiducials"][active_dataset][active_channel]["fitted"] = False
+                    self.localisation_dict["fiducials"][active_dataset][active_channel]["box_size"] = box_size
+
+                    self.draw_fiducials()
+
+
+
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
+    def _mouse_event(self, viewer, event):
+
+        try:
+
+            event_pos = self.image_layer.world_to_data(event.position)
+            image_shape = self.image_layer.data.shape
+            modifiers = event.modifiers
+
+            if "Shift" in modifiers or "Control" in modifiers:
+
+                mode = "fiducial"
+
+                [y,x] = [event_pos[-2], event_pos[-1]]
+
+                if (x >= 0) & (x < image_shape[-1]) & (y >= 0) & (y < image_shape[-2]):
+
+                    self.add_manual_localisation(position=[x,y], mode=mode)
+
+        except:
+            print(traceback.format_exc())
+
+
 
 
     def update_dataset_name(self):

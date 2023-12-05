@@ -96,6 +96,9 @@ class _events_utils:
                         blending="additive",
                         visible=True)
 
+                    self.image_layer.mouse_drag_callbacks.append(self._mouse_event)
+
+
                 else:
                     self.image_layer.data = image
                     self.image_layer.name = dataset_name
