@@ -145,20 +145,13 @@
           </widget>
          </item>
          <item row="3" column="0">
-          <widget class="QLabel" name="label_4">
+          <widget class="QLabel" name="label_32">
            <property name="text">
-            <string>Dataset Name</string>
+            <string>Import Limit</string>
            </property>
           </widget>
          </item>
          <item row="3" column="1">
-          <widget class="QLineEdit" name="gapseq_dataset_name">
-           <property name="text">
-            <string>Dataset1</string>
-           </property>
-          </widget>
-         </item>
-         <item row="4" column="1">
           <widget class="QComboBox" name="gapseq_import_limt">
            <item>
             <property name="text">
@@ -192,13 +185,6 @@
            </item>
           </widget>
          </item>
-         <item row="4" column="0">
-          <widget class="QLabel" name="label_32">
-           <property name="text">
-            <string>Import Limit</string>
-           </property>
-          </widget>
-         </item>
         </layout>
        </item>
        <item>
@@ -222,14 +208,71 @@
         </widget>
        </item>
        <item>
+        <spacer name="verticalSpacer_5">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_4">
+         <property name="font">
+          <font>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Update Dataset Name</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QFormLayout" name="formLayout_9">
+         <item row="0" column="0">
+          <widget class="QLabel" name="label_13">
+           <property name="text">
+            <string>Old Dataset Name</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QComboBox" name="gapseq_old_dataset_name"/>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="label_29">
+           <property name="text">
+            <string>New Dataset Name</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QLineEdit" name="gapseq_new_dataset_name"/>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QPushButton" name="gapseq_update_dataset_name">
+         <property name="text">
+          <string>Update Dataset Name</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <spacer name="verticalSpacer">
          <property name="orientation">
           <enum>Qt::Vertical</enum>
          </property>
          <property name="sizeHint" stdset="0">
           <size>
-           <width>354</width>
-           <height>301</height>
+           <width>20</width>
+           <height>40</height>
           </size>
          </property>
         </spacer>

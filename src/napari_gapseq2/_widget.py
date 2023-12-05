@@ -109,7 +109,6 @@ class GapSeqWidget(QWidget,
         self.gapseq_channel_layout_label = self.findChild(QLabel, 'gapseq_channel_layout_label')
         self.gapseq_alex_first_frame = self.findChild(QComboBox, 'gapseq_alex_first_frame')
         self.gapseq_alex_first_frame_label = self.findChild(QLabel, 'gapseq_alex_first_frame_label')
-        self.gapseq_dataset_name = self.findChild(QLineEdit, 'gapseq_dataset_name')
         self.gapseq_import = self.findChild(QPushButton, 'gapseq_import')
         self.gapseq_import_progressbar = self.findChild(QProgressBar, 'gapseq_import_progressbar')
 

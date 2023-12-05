@@ -1,7 +1,7 @@
 import os.path
 import traceback
 import numpy as np
-
+from functools import partial
 
 class _events_utils:
 
@@ -15,27 +15,30 @@ class _events_utils:
                 dataset_name = self.gapseq_dataset_selector.currentText()
                 channel_name = self.active_channel
 
-                channel_dict = self.dataset_dict[dataset_name][channel_name].copy()
+                if dataset_name in self.dataset_dict.keys():
+                    if channel_name in self.dataset_dict[dataset_name].keys():
 
-                path = channel_dict["path"]
-                file_name = os.path.basename(path)
+                        channel_dict = self.dataset_dict[dataset_name][channel_name].copy()
 
-                if channel_name in ["da", "dd", "aa", "ad"]:
-                    channel_name = channel_name.upper()
-                else:
-                    channel_name = channel_name.capitalize()
+                        path = channel_dict["path"]
+                        file_name = os.path.basename(path)
 
-                overlay_string = ""
-                overlay_string += f"File: {file_name}\n"
-                overlay_string += f"Dataset: {dataset_name}\n"
-                overlay_string += f"Channel: {channel_name}\n"
+                        if channel_name in ["da", "dd", "aa", "ad"]:
+                            channel_name = channel_name.upper()
+                        else:
+                            channel_name = channel_name.capitalize()
 
-                if overlay_string != "":
-                    self.viewer.text_overlay.visible = True
-                    self.viewer.text_overlay.position = "top_left"
-                    self.viewer.text_overlay.text = overlay_string.lstrip("\n")
-                else:
-                    self.viewer.text_overlay.visible = False
+                        overlay_string = ""
+                        overlay_string += f"File: {file_name}\n"
+                        overlay_string += f"Dataset: {dataset_name}\n"
+                        overlay_string += f"Channel: {channel_name}\n"
+
+                        if overlay_string != "":
+                            self.viewer.text_overlay.visible = True
+                            self.viewer.text_overlay.position = "top_left"
+                            self.viewer.text_overlay.text = overlay_string.lstrip("\n")
+                        else:
+                            self.viewer.text_overlay.visible = False
 
         except:
             print(traceback.format_exc())
@@ -84,16 +87,17 @@ class _events_utils:
 
                     contrast_range = [np.min(image), np.max(image)]
 
-                    if dataset_name not in image_layers:
+                    if hasattr(self, "image_layer") == False:
 
-                        self.viewer.add_image(image,
+                        self.image_layer = self.viewer.add_image(image,
                             name=dataset_name,
                             colormap="gray",
                             blending="additive",
                             visible=True)
 
                     else:
-                        self.viewer.layers[dataset_name].data = image
+                        self.image_layer.data = image
+                        self.image_layer.name = dataset_name
 
                     self.viewer.layers[dataset_name].contrast_limits = contrast_range
 
@@ -128,6 +132,11 @@ class _events_utils:
                 channel_refs = list(set(channel_refs))
                 fret_mode = list(set(fret_modes))[0]
 
+                self.gapseq_show_dd.clicked.connect(lambda: None)
+                self.gapseq_show_da.clicked.connect(lambda: None)
+                self.gapseq_show_aa.clicked.connect(lambda: None)
+                self.gapseq_show_ad.clicked.connect(lambda: None)
+
                 if fret_mode == True:
 
                     self.gapseq_show_dd.setVisible(True)
@@ -142,6 +151,8 @@ class _events_utils:
                         self.undrift_channel_selector.addItem("Donor")
                         self.cluster_channel.addItem("Donor")
                         reference_channels.append("Donor")
+                        self.viewer.bind_key(key="F1", func=self.select_channel_donor, overwrite=True)
+                        self.gapseq_show_dd.clicked.connect(partial(self.update_active_image, channel="donor"))
                     else:
                         self.gapseq_show_dd.setEnabled(False)
                         self.gapseq_show_dd.setText("")
@@ -153,6 +164,8 @@ class _events_utils:
                         self.undrift_channel_selector.addItem("Acceptor")
                         self.cluster_channel.addItem("Acceptor")
                         target_channels.append("Acceptor")
+                        self.viewer.bind_key(key="F2", func=self.select_channel_acceptor, overwrite=True)
+                        self.gapseq_show_da.clicked.connect(partial(self.update_active_image, channel="acceptor"))
                     else:
                         self.gapseq_show_da.setEnabled(False)
                         self.gapseq_show_da.setText("")
@@ -171,6 +184,9 @@ class _events_utils:
                         self.undrift_channel_selector.addItem("DD")
                         self.cluster_channel.addItem("DD")
                         reference_channels.append("DD")
+                        self.viewer.bind_key(key="F1", func=self.select_channel_dd, overwrite=True)
+                        self.gapseq_show_dd.clicked.connect(partial(self.update_active_image, channel="dd"))
+
                     else:
                         self.gapseq_show_dd.setText("")
                         self.gapseq_show_dd.setEnabled(False)
@@ -182,6 +198,8 @@ class _events_utils:
                         self.undrift_channel_selector.addItem("DA")
                         self.cluster_channel.addItem("DA")
                         target_channels.append("DA")
+                        self.viewer.bind_key(key="F2", func=self.select_channel_da, overwrite=True)
+                        self.gapseq_show_da.clicked.connect(partial(self.update_active_image, channel="da"))
                     else:
                         self.gapseq_show_da.setText("")
                         self.gapseq_show_da.setEnabled(False)
@@ -193,6 +211,8 @@ class _events_utils:
                         self.undrift_channel_selector.addItem("AD")
                         self.cluster_channel.addItem("AD")
                         reference_channels.append("AD")
+                        self.viewer.bind_key(key="F3", func=self.select_channel_ad, overwrite=True)
+                        self.gapseq_show_ad.clicked.connect(partial(self.update_active_image, channel="ad"))
                     else:
                         self.gapseq_show_ad.setText("")
                         self.gapseq_show_ad.setEnabled(False)
@@ -204,6 +224,8 @@ class _events_utils:
                         self.undrift_channel_selector.addItem("AA")
                         self.cluster_channel.addItem("AA")
                         target_channels.append("AA")
+                        self.viewer.bind_key(key="F4", func=self.select_channel_aa, overwrite=True)
+                        self.gapseq_show_aa.clicked.connect(partial(self.update_active_image, channel="aa"))
                     else:
                         self.gapseq_show_aa.setText("")
                         self.gapseq_show_aa.setEnabled(False)
