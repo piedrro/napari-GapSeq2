@@ -2,9 +2,9 @@ import os.path
 import traceback
 import numpy as np
 from functools import partial
+from qtpy.QtWidgets import (QSlider, QLabel)
 
 class _events_utils:
-
 
     def update_overlay_text(self):
 
@@ -299,3 +299,76 @@ class _events_utils:
         else:
             progress_bar.setHidden(False)
             progress_bar.setEnabled(True)
+
+    def _mouse_event(self, viewer, event):
+
+        try:
+
+            event_pos = self.image_layer.world_to_data(event.position)
+            image_shape = self.image_layer.data.shape
+            modifiers = event.modifiers
+
+            if "Shift" in modifiers or "Control" in modifiers:
+
+                if "Shift" in modifiers:
+                    mode = "fiducials"
+                elif "Control" in modifiers:
+                    mode = "bounding_box"
+
+                [y,x] = [event_pos[-2], event_pos[-1]]
+
+                if (x >= 0) & (x < image_shape[-1]) & (y >= 0) & (y < image_shape[-2]):
+
+                    self.add_manual_localisation(position=[x,y], mode=mode)
+
+        except:
+            print(traceback.format_exc())
+
+
+    def update_dataset_name(self):
+
+        try:
+
+            old_name = self.gapseq_old_dataset_name.currentText()
+            new_name = self.gapseq_new_dataset_name.text()
+
+            if old_name != "":
+
+                if new_name == "":
+                    raise ValueError("New dataset name cannot be blank")
+                elif new_name in self.dataset_dict.keys():
+                    raise ValueError("New dataset name must be unique")
+                else:
+                    dataset_data = self.dataset_dict.pop(old_name)
+                    self.dataset_dict[new_name] = dataset_data
+
+                    localisation_data = self.localisation_dict["fiducials"].pop(old_name)
+                    self.localisation_dict["fiducials"][new_name] = localisation_data
+
+                self.populate_dataset_combos()
+                self.update_channel_select_buttons()
+                self.update_active_image()
+
+        except:
+            print(traceback.format_exc())
+
+
+
+    def update_slider_label(self, slider_name):
+
+        label_name = slider_name + "_label"
+
+        self.slider = self.findChild(QSlider, slider_name)
+        self.label = self.findChild(QLabel, label_name)
+
+        slider_value = self.slider.value()
+        self.label.setText(str(slider_value))
+
+    def update_picasso_options(self):
+
+        if self.picasso_detect_mode.currentText() == "Fiducials":
+            self.picasso_frame_mode.clear()
+            self.picasso_frame_mode.addItems(["Active", "All"])
+        else:
+            self.picasso_frame_mode.clear()
+            self.picasso_frame_mode.addItem("Active")

@@ -55,6 +55,7 @@ import cv2
 from napari_gapseq2._widget_utils_worker import Worker, WorkerSignals
 from napari_gapseq2._widget_undrift_utils import _undrift_utils
 from napari_gapseq2._widget_picasso_detect import _picasso_detect_utils
+from napari_gapseq2._widget_loc_utils import _loc_utils, picasso_loc_utils
 from napari_gapseq2._widget_import_utils import _import_utils
 from napari_gapseq2._widget_events import _events_utils
 from napari_gapseq2._widget_export_utils import _export_utils
@@ -77,7 +78,7 @@ class GapSeqWidget(QWidget,
     _undrift_utils, _picasso_detect_utils,
     _import_utils, _events_utils, _export_utils,
     _tranform_utils, _trace_compute_utils, _plot_utils,
-    _align_utils):
+    _align_utils, _loc_utils):
 
     # your QWidget.__init__ can optionally request the napari viewer instance
     # use a type annotation of 'napari.viewer.Viewer' for any parameter
@@ -272,208 +273,6 @@ class GapSeqWidget(QWidget,
                                        "spot_bg": "Picasso Background", }
 
 
-
-
-    def add_manual_localisation(self, position, mode):
-
-        try:
-
-            layer_names = [layer.name for layer in self.viewer.layers]
-
-            active_dataset = self.gapseq_dataset_selector.currentText()
-            active_channel = self.active_channel
-            frame = self.viewer.dims.current_step[0]
-            net_gradient = 100
-
-            if mode == "fiducial":
-
-                fiducial_dict = self.localisation_dict["fiducials"]
-
-                localisation_dict = {}
-                if active_dataset in fiducial_dict.keys():
-                    if active_channel in fiducial_dict[active_dataset].keys():
-                        if "localisations" in fiducial_dict[active_dataset][active_channel].keys():
-                            localisation_dict = fiducial_dict[active_dataset][active_channel]
-
-                if len(localisation_dict.keys()) > 0:
-
-                    locs = localisation_dict["localisations"].copy()
-                    render_locs = localisation_dict["render_locs"].copy()
-                    loc_centers = localisation_dict["localisation_centres"].copy()
-
-                    x,y = position
-
-                    loc_centers = np.array(loc_centers)
-
-                    if loc_centers.shape[-1] !=2:
-                        loc_coords = loc_centers[:,1:].copy()
-                    else:
-                        loc_coords = loc_centers.copy()
-
-                    dtype = locs.dtype
-                    box_size = int(localisation_dict["box_size"])
-
-                    # Calculate Euclidean distances
-                    distances = np.sqrt(np.sum((loc_coords - np.array([y,x])) ** 2, axis=1))
-
-                    # Find the index of the minimum distance
-                    min_index = np.argmin(distances)
-                    min_distance = distances[min_index]
-
-
-                    if min_distance < box_size:
-
-                        locs = locs.view(np.float32).reshape(len(locs), -1)
-                        locs = np.delete(locs, min_index, axis=0)
-                        locs = locs.view(dtype)
-
-                        loc_centers = np.delete(loc_centers, min_index, axis=0)
-                        loc_centers = loc_centers.tolist()
-
-                        render_frame_locs = render_locs[frame].copy()
-                        render_frame_locs = np.unique(render_frame_locs, axis=0).tolist()
-                        distances = np.sqrt(np.sum((np.array(render_frame_locs) - np.array([y,x])) ** 2, axis=1))
-                        min_index = np.argmin(distances)
-                        render_frame_locs.pop(min_index)
-                        render_locs[frame] = render_frame_locs
-
-                    else:
-
-                        new_loc = np.array([(frame, position[0], position[1], net_gradient)],
-                            dtype=dtype)
-
-                        locs = np.append(locs, new_loc)
-
-                        loc_centers = np.append(loc_centers, np.array([[frame,y,x]], dtype=int), axis=0)
-                        loc_centers = loc_centers.tolist()
-                        render_locs[frame].append([round(y),round(x)])
-
-                    localisation_dict["localisations"] = locs
-                    localisation_dict["localisation_centres"] = loc_centers
-                    localisation_dict["render_locs"] = render_locs
-
-                    self.draw_fiducials()
-
-                else:
-                    x, y = position
-
-                    box_size = int(self.picasso_box_size.currentText())
-
-                    dtype = [("frame", int), ("y", float), ("x", float), ("net_gradient", float)]
-
-                    new_loc = np.array([[frame, position[0], position[1], net_gradient]])
-
-                    new_loc = np.rec.fromrecords(new_loc, names="frame,y,x,net_gradient")
-
-                    loc_centers = [[frame, y, x]]
-                    render_locs = {frame: [[round(y), round(x)]]}
-
-                    localisation_dict["localisations"] = new_loc
-                    localisation_dict["localisation_centres"] = loc_centers
-                    localisation_dict["render_locs"] = render_locs
-
-                    if active_dataset not in fiducial_dict.keys():
-                        fiducial_dict[active_dataset] = {}
-                    if active_channel not in fiducial_dict[active_dataset].keys():
-                        fiducial_dict[active_dataset][active_channel] = {}
-
-                    self.localisation_dict["fiducials"][active_dataset][active_channel]["localisations"] = new_loc
-                    self.localisation_dict["fiducials"][active_dataset][active_channel]["localisation_centres"] = loc_centers
-                    self.localisation_dict["fiducials"][active_dataset][active_channel]["render_locs"] = render_locs
-                    self.localisation_dict["fiducials"][active_dataset][active_channel]["fitted"] = False
-                    self.localisation_dict["fiducials"][active_dataset][active_channel]["box_size"] = box_size
-
-                    self.draw_fiducials()
-
-
-
-
-        except:
-            print(traceback.format_exc())
-            pass
-
-
-    def _mouse_event(self, viewer, event):
-
-        try:
-
-            event_pos = self.image_layer.world_to_data(event.position)
-            image_shape = self.image_layer.data.shape
-            modifiers = event.modifiers
-
-            if "Shift" in modifiers or "Control" in modifiers:
-
-                mode = "fiducial"
-
-                [y,x] = [event_pos[-2], event_pos[-1]]
-
-                if (x >= 0) & (x < image_shape[-1]) & (y >= 0) & (y < image_shape[-2]):
-
-                    self.add_manual_localisation(position=[x,y], mode=mode)
-
-        except:
-            print(traceback.format_exc())
-
-
-
-
-    def update_dataset_name(self):
-
-        try:
-
-            old_name = self.gapseq_old_dataset_name.currentText()
-            new_name = self.gapseq_new_dataset_name.text()
-
-            if old_name != "":
-
-                if new_name == "":
-                    raise ValueError("New dataset name cannot be blank")
-                elif new_name in self.dataset_dict.keys():
-                    raise ValueError("New dataset name must be unique")
-                else:
-                    dataset_data = self.dataset_dict.pop(old_name)
-                    self.dataset_dict[new_name] = dataset_data
-
-                    localisation_data = self.localisation_dict["fiducials"].pop(old_name)
-                    self.localisation_dict["fiducials"][new_name] = localisation_data
-
-                self.populate_dataset_combos()
-                self.update_channel_select_buttons()
-                self.update_active_image()
-
-        except:
-            print(traceback.format_exc())
-
-
-
-    def update_slider_label(self, slider_name):
-
-        label_name = slider_name + "_label"
-
-        self.slider = self.findChild(QSlider, slider_name)
-        self.label = self.findChild(QLabel, label_name)
-
-        slider_value = self.slider.value()
-        self.label.setText(str(slider_value))
-
-    def update_picasso_options(self):
-
-        if self.picasso_detect_mode.currentText() == "Fiducials":
-            self.picasso_frame_mode.clear()
-            self.picasso_frame_mode.addItems(["Active", "All"])
-        else:
-            self.picasso_frame_mode.clear()
-            self.picasso_frame_mode.addItems(["Active", "All (Linked)"])
-
-    def link_localisations(self):
-
-        try:
-            print(f"Linking localisations")
-
-        except:
-            print(traceback.format_exc())
-
-
     def compute_registration_keypoints(self, reference_box_centres, target_box_centres, alignment_distance=20):
 
         alignment_keypoints = []
@@ -535,9 +334,9 @@ class GapSeqWidget(QWidget,
 
 
                 if "bounding_boxes" not in layer_names:
-                    self.viewer.add_points(
+                    self.bbox_layer = self.viewer.add_points(
                         localisation_centres,
-                        edge_color="red",
+                        edge_color="white",
                         ndim=2,
                         face_color=[0,0,0,0],
                         opacity=vis_opacity,
@@ -546,12 +345,16 @@ class GapSeqWidget(QWidget,
                         size=vis_size,
                         visible=True,
                         edge_width=vis_edge_width,)
+
+                    self.bbox_layer.mouse_drag_callbacks.append(self._mouse_event)
+
                 else:
                     self.viewer.layers["bounding_boxes"].data = localisation_centres
                     self.viewer.layers["bounding_boxes"].opacity = vis_opacity
                     self.viewer.layers["bounding_boxes"].symbol = symbol
                     self.viewer.layers["bounding_boxes"].size = vis_size
                     self.viewer.layers["bounding_boxes"].edge_width = vis_edge_width
+                    self.viewer.layers["bounding_boxes"].edge_color = "white"
 
             for layer in layer_names:
                 self.viewer.layers[layer].refresh()
@@ -597,7 +400,7 @@ class GapSeqWidget(QWidget,
                             remove_fiducials = False
 
                             if "fiducials" not in layer_names:
-                                self.viewer.add_points(
+                                self.fiducial_layer = self.viewer.add_points(
                                     render_locs[active_frame],
                                     ndim=2,
                                     edge_color="red",
@@ -607,6 +410,9 @@ class GapSeqWidget(QWidget,
                                     symbol=symbol,
                                     size=vis_size,
                                     edge_width=vis_edge_width, )
+
+                                self.fiducial_layer.mouse_drag_callbacks.append(self._mouse_event)
+
                             else:
                                 self.viewer.layers["fiducials"].data = []
 
@@ -615,6 +421,7 @@ class GapSeqWidget(QWidget,
                                 self.viewer.layers["fiducials"].symbol = symbol
                                 self.viewer.layers["fiducials"].size = vis_size
                                 self.viewer.layers["fiducials"].edge_width = vis_edge_width
+                                self.viewer.layers["fiducials"].edge_color = "red"
 
 
             if remove_fiducials:
@@ -623,89 +430,6 @@ class GapSeqWidget(QWidget,
 
             for layer in layer_names:
                 self.viewer.layers[layer].refresh()
-
-
-
-
-    def draw_localisations(self):
-
-        if hasattr(self, "image_dict"):
-
-            try:
-
-                print(True)
-
-                layer_names = [layer.name for layer in self.viewer.layers]
-
-                vis_mode = "square"
-                vis_size = 10
-                vis_opacity = 1.0
-                vis_edge_width = 0.1
-
-                if vis_mode.lower() == "square":
-                    symbol = "square"
-                elif vis_mode.lower() == "disk":
-                    symbol = "disc"
-                elif vis_mode.lower() == "x":
-                    symbol = "cross"
-
-                image_channel = self.channel_selector.currentText()
-
-                channel_dict = self.image_dict[image_channel]
-
-                show_localisaiton = False
-
-                for data_key, data_dict in channel_dict.items():
-                    if data_key in ["alignment fiducials","undrift fiducials","bounding boxes"]:
-
-                        if "localisation_centres" in data_dict.keys():
-
-                            print("drawing localisations for {}".format(data_key))
-
-                            localisation_centres = copy.deepcopy(data_dict["localisation_centres"])
-
-                            if len(localisation_centres) > 0:
-
-                                show_localisaiton = True
-
-                                layer_name = data_key
-
-                                if layer_name.lower() == "alignment fiducials":
-                                    colour = "blue"
-                                elif layer_name.lower() == "undrift fiducials":
-                                    colour = "red"
-                                else:
-                                    colour = "white"
-
-                                if layer_name not in layer_names:
-
-                                    self.viewer.add_points(localisation_centres,
-                                        edge_color=colour,
-                                        face_color=[0, 0, 0,0],
-                                        opacity=vis_opacity,
-                                        name=layer_name,
-                                        symbol=symbol,
-                                        size=vis_size,
-                                        edge_width=vis_edge_width, )
-                                else:
-                                    self.viewer.layers[layer_name].data = []
-                                    self.viewer.layers[layer_name].data = localisation_centres
-                                    self.viewer.layers[layer_name].symbol = symbol
-                                    self.viewer.layers[layer_name].size = vis_size
-                                    self.viewer.layers[layer_name].opacity = vis_opacity
-                                    self.viewer.layers[layer_name].edge_width = vis_edge_width
-                                    self.viewer.layers[layer_name].edge_color = colour
-
-                if show_localisaiton == False:
-                    if "fiducials" in layer_names:
-                        self.viewer.layers["fiducials"].data = []
-
-                for layer in layer_names:
-                    self.viewer.layers[layer].refresh()
-
-            except:
-                print(traceback.format_exc())
-
 
 
     def get_localisation_centres(self, locs, mode = "fiducials"):
@@ -725,39 +449,4 @@ class GapSeqWidget(QWidget,
             print(traceback.format_exc())
 
         return loc_centres
-
-
-    def apply_transform(self, locs, inverse = False):
-
-        try:
-
-            image_shape = self.image_dict["AA"]["data"].shape[1:]
-
-            tform = self.transform_matrix.copy().astype(np.float32)
-
-            if inverse:
-                tform = cv2.invertAffineTransform(tform)
-
-            for loc_index, loc in enumerate(locs):
-
-                loc_centre = np.array([[loc.x, loc.y]], dtype=np.float32)
-
-                transformed_point = cv2.transform(np.array([loc_centre]), tform)
-
-                transformed_loc_centre = transformed_point[0][0]
-
-                transformed_loc = copy.deepcopy(loc)
-
-                transformed_loc.x = transformed_loc_centre[0]
-                transformed_loc.y = transformed_loc_centre[1]
-
-                locs[loc_index] = transformed_loc
-
-        except:
-            print(traceback.format_exc())
-            pass
-
-
-        return locs
-
 

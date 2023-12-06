@@ -689,7 +689,7 @@ class Ui_Frame(object):
 
         self.retranslateUi(Frame)
         self.tabWidget.setCurrentIndex(0)
-        self.picasso_box_size.setCurrentIndex(0)
+        self.picasso_box_size.setCurrentIndex(2)
         self.picasso_vis_size.setCurrentIndex(4)
         self.picasso_vis_opacity.setCurrentIndex(9)
         self.picasso_vis_edge_width.setCurrentIndex(0)

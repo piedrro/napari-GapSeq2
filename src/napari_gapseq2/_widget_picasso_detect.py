@@ -9,6 +9,18 @@ import pandas as pd
 from picasso.clusterer import extract_valid_labels
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 class _picasso_detect_utils:
 
 
@@ -74,6 +86,9 @@ class _picasso_detect_utils:
 
         except:
             print(traceback.format_exc())
+            self.picasso_progressbar.setValue(0)
+            self.picasso_detect.setEnabled(True)
+            self.picasso_fit.setEnabled(True)
             pass
 
 
@@ -119,6 +134,9 @@ class _picasso_detect_utils:
 
         except:
             print(traceback.format_exc())
+            self.picasso_progressbar.setValue(0)
+            self.picasso_detect.setEnabled(True)
+            self.picasso_fit.setEnabled(True)
 
 
     def filter_localisations(self, locs):
@@ -179,6 +197,9 @@ class _picasso_detect_utils:
 
         except:
             print(traceback.format_exc())
+            self.picasso_progressbar.setValue(0)
+            self.picasso_detect.setEnabled(True)
+            self.picasso_fit.setEnabled(True)
             pass
 
 
@@ -210,6 +231,9 @@ class _picasso_detect_utils:
 
         except:
             print(traceback.format_exc())
+            self.picasso_progressbar.setValue(0)
+            self.picasso_detect.setEnabled(True)
+            self.picasso_fit.setEnabled(True)
             pass
 
 
@@ -281,6 +305,9 @@ class _picasso_detect_utils:
 
         except:
             print(traceback.format_exc())
+            self.picasso_progressbar.setValue(0)
+            self.picasso_detect.setEnabled(True)
+            self.picasso_fit.setEnabled(True)
             pass
 
     def _detect_localisations(self, progress_callback, min_net_gradient, box_size, camera_info, dataset_name, image_channel, frame_mode, detect_mode):
@@ -332,6 +359,9 @@ class _picasso_detect_utils:
 
         except:
             print(traceback.format_exc())
+            self.picasso_progressbar.setValue(0)
+            self.picasso_detect.setEnabled(True)
+            self.picasso_fit.setEnabled(True)
             pass
 
 
