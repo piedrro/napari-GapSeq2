@@ -188,6 +188,7 @@ class GapSeqWidget(QWidget,
         self.export_dataset = self.findChild(QComboBox, 'export_dataset')
         self.export_channel = self.findChild(QComboBox, 'export_channel')
         self.gapseq_export_data = self.findChild(QPushButton, 'gapseq_export_data')
+        self.export_progressbar = self.findChild(QProgressBar, 'export_progressbar')
 
         self.traces_spot_size = self.findChild(QComboBox, "traces_spot_size")
         self.traces_spot_shape = self.findChild(QComboBox, "traces_spot_shape")
