@@ -310,7 +310,7 @@ class _picasso_detect_utils:
             self.picasso_fit.setEnabled(True)
             pass
 
-    def _detect_localisations(self, progress_callback, min_net_gradient, box_size, camera_info, dataset_name, image_channel, frame_mode, detect_mode):
+    def _detect_localisations(self, progress_callback, min_net_gradient, roi, box_size, camera_info, dataset_name, image_channel, frame_mode, detect_mode):
 
         try:
             from picasso import localize
@@ -325,7 +325,7 @@ class _picasso_detect_utils:
 
             n_frames = image_data.shape[0]
 
-            curr, futures = localize.identify_async(image_data, min_net_gradient, box_size, roi=None)
+            curr, futures = localize.identify_async(image_data, min_net_gradient, box_size, roi=roi)
 
             while curr[0] < n_frames:
                 progress = (curr[0]/ n_frames) * 100
@@ -364,6 +364,39 @@ class _picasso_detect_utils:
             self.picasso_fit.setEnabled(True)
             pass
 
+    def generate_roi(self):
+
+        border_width = self.picasso_roi_border_width.text()
+
+        roi = None
+
+        try:
+            generate_roi = False
+            if type(border_width) == str:
+                border_width = int(border_width)
+                if border_width > 0:
+                    generate_roi = True
+            elif type(border_width) == int:
+                if border_width > 0:
+                    generate_roi = True
+
+            if generate_roi:
+
+                dataset = self.picasso_dataset.currentText()
+                channel = self.picasso_channel.currentText()
+
+                image_shape = self.dataset_dict[dataset][channel.lower()]["data"].shape
+
+                frame_shape = image_shape[1:]
+
+                roi = [[int(border_width), int(border_width)],
+                       [int(frame_shape[0] - border_width), int(frame_shape[1] - border_width)]]
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+        return roi
 
     def gapseq_picasso_detect(self):
 
@@ -381,11 +414,14 @@ class _picasso_detect_utils:
                 frame_mode = self.picasso_frame_mode.currentText()
                 detect_mode = self.picasso_detect_mode.currentText()
 
+                roi = self.generate_roi()
+
                 camera_info = {"baseline": 100.0, "gain": 1, "sensitivity": 1.0, "qe": 0.9, }
 
                 if min_net_gradient.isdigit() and image_channel != "":
                     worker = Worker(self._detect_localisations,
                         min_net_gradient=min_net_gradient,
+                        roi = roi,
                         box_size=box_size,
                         camera_info=camera_info,
                         dataset_name=dataset_name,
@@ -414,6 +450,8 @@ class _picasso_detect_utils:
             frame_mode = self.picasso_frame_mode.currentText()
             detect_mode = self.picasso_detect_mode.currentText()
 
+            roi = self.generate_roi()
+
             if detect_mode.lower() == "fiducials":
                 localisation_dict = self.localisation_dict["fiducials"][dataset_name][image_channel.lower()]
             else:
@@ -433,6 +471,7 @@ class _picasso_detect_utils:
                     worker = Worker(self._fit_localisations,
                         detected_locs=detected_locs,
                         min_net_gradient=min_net_gradient,
+                        roi = roi,
                         box_size=box_size,
                         camera_info=camera_info,
                         dataset_name=dataset_name,

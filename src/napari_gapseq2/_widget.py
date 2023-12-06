@@ -132,6 +132,7 @@ class GapSeqWidget(QWidget,
         self.picasso_dataset = self.findChild(QComboBox, 'picasso_dataset')
         self.picasso_channel = self.findChild(QComboBox, 'picasso_channel')
         self.picasso_min_net_gradient = self.findChild(QLineEdit, 'picasso_min_net_gradient')
+        self.picasso_roi_border_width = self.findChild(QLineEdit, 'picasso_roi_border_width')
         self.picasso_box_size = self.findChild(QComboBox, 'picasso_box_size')
         self.picasso_frame_mode = self.findChild(QComboBox, 'picasso_frame_mode')
         self.picasso_detect = self.findChild(QPushButton, 'picasso_detect')
