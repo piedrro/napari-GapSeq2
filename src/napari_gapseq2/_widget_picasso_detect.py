@@ -413,7 +413,7 @@ class _picasso_detect_utils:
             image_shape = self.dataset_dict[dataset_name][image_channel.lower()]["data"].shape
 
             base, ext = os.path.splitext(path)
-            path = base + "_picasso_locs.hdf5"
+            path = base + f"_{image_channel}_picasso_locs.hdf5"
 
             info = [{"Byte Order": "<", "Data Type": "uint16", "File": path,
                      "Frames": image_shape[0], "Height": image_shape[1],
