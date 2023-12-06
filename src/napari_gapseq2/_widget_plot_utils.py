@@ -37,8 +37,10 @@ class _plot_utils:
 
                     self.updating_plot_combos = True
 
+                    self.plot_data.blockSignals(True)
                     self.plot_data.clear()
                     self.plot_data.addItems(self.traces_dict.keys())
+                    self.plot_data.blockSignals(False)
 
                     self.updating_plot_combos = False
 
@@ -59,7 +61,9 @@ class _plot_utils:
 
                         self.updating_plot_combos = True
 
+                        self.plot_channel.blockSignals(True)
                         self.plot_channel.clear()
+
                         channel_names = list(self.traces_dict[dataset_name].keys())
 
                         if set(channel_names).issubset(["da", "dd", "aa", "ad"]):
@@ -74,6 +78,8 @@ class _plot_utils:
                                 self.plot_channel.addItem(channel.upper())
                             else:
                                 self.plot_channel.addItem(channel.capitalize())
+
+                        self.plot_channel.blockSignals(False)
 
                         self.updating_plot_combos = False
 
@@ -110,7 +116,12 @@ class _plot_utils:
 
                             self.updating_plot_combos = True
 
+                            self.plot_metric.blockSignals(True)
+                            self.plot_background_metric.blockSignals(True)
+
                             self.plot_metric.clear()
+                            self.plot_background_metric.clear()
+
                             self.plot_background_metric.clear()
                             self.plot_background_metric.addItem("None")
 
@@ -141,6 +152,9 @@ class _plot_utils:
                                     self.plot_metric.addItem(self.metric_dict[metric])
                                 if metric in self.background_metric_dict.keys():
                                     self.plot_background_metric.addItem(self.background_metric_dict[metric])
+
+                            self.plot_metric.blockSignals(False)
+                            self.plot_background_metric.blockSignals(False)
 
                             self.updating_plot_combos = False
 
@@ -262,8 +276,6 @@ class _plot_utils:
 
             for dataset_name in plot_datasets:
 
-                # print(f"data set: {dataset_name}")
-
                 for channel in plot_channels:
                     channel_dict = self.traces_dict[dataset_name][channel].copy()
                     for trace_index, trace_dict in channel_dict.items():
@@ -310,7 +322,6 @@ class _plot_utils:
         except:
             print(traceback.format_exc())
             pass
-
 
     def initialize_plot(self):
 

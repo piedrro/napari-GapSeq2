@@ -206,10 +206,10 @@ def extract_spot_metrics(dat):
         spot_background = np_array[:, y1:y2, x1:x2].copy()
 
         spot_mask = np.repeat(spot_mask[np.newaxis, :, :], len(spot_values), axis=0)
-        spot_background_mask = np.repeat(spot_background_mask[np.newaxis, :, :], len(spot_values), axis=0)
+        spot_background_mask = np.repeat(spot_background_mask[np.newaxis, :, :], len(spot_background), axis=0)
 
         spot_values = np.ma.array(spot_values, mask=spot_mask)
-        spot_background = np.ma.array(spot_background, mask=spot_background)
+        spot_background = np.ma.array(spot_background, mask=spot_background_mask)
 
         # metadata
         spot_metrics["dataset"] = [dat["dataset"]]*len(spot_values)
@@ -253,7 +253,6 @@ def extract_spot_metrics(dat):
 
 class _trace_compute_utils:
 
-
     def generate_spot_bounds(self, locs, box_size):
 
         spot_bounds = []
@@ -289,7 +288,6 @@ class _trace_compute_utils:
 
         self.populate_plot_combos()
         self.initialize_plot()
-
 
     def _get_bbox_localisations(self, n_frames):
 
@@ -540,8 +538,6 @@ class _trace_compute_utils:
 
             loc_bounds = self.generate_spot_bounds(localisation_dict["localisations"], box_size)
 
-            print(f"populating compute jobs")
-
             spot_locs = []
             for loc in locs:
                 spot_loc = [loc.copy()]
@@ -565,8 +561,6 @@ class _trace_compute_utils:
                                         }
                         compute_task = {**compute_task, **image_dict}
                         compute_jobs.append(compute_task)
-
-            print(f"compute jobs populated, N={len(compute_jobs)}")
 
             cpu_count = int(multiprocessing.cpu_count() * 0.75)
             timeout_duration = 10  # Timeout in seconds
