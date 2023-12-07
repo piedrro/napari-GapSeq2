@@ -211,11 +211,13 @@ class _picasso_detect_utils:
             image_channel = self.picasso_channel.currentText()
             box_size = int(self.picasso_box_size.currentText())
 
-            self.populate_localisation_dict(self.fitted_locs, detect_mode,
-                dataset_name, image_channel, box_size, fitted=True)
-
-            n_frames = len(np.unique([loc[0] for loc in self.fitted_locs]))
-            print("Fitted {} localisations from {} frame(s)".format(len(self.fitted_locs), n_frames))
+            if hasattr(self, "fitted_locs"):
+                self.populate_localisation_dict(self.fitted_locs, detect_mode,
+                    dataset_name, image_channel, box_size, fitted=True)
+                n_frames = len(np.unique([loc[0] for loc in self.fitted_locs]))
+                print("Fitted {} localisations from {} frame(s)".format(len(self.fitted_locs), n_frames))
+            else:
+                print("No localisations fitted")
 
             self.gapseq_progress(100, self.picasso_progressbar)
             self.picasso_detect.setEnabled(True)

@@ -96,15 +96,23 @@ class _align_utils:
 
                 src_locs = self.localisation_dict["fiducials"][dataset][reference_channel.lower()]["localisations"].copy()
 
-                if len(dst_locs) > 0 and len(src_locs) > 0:
+                dst_pts = [[loc.x, loc.y] for loc in dst_locs]
+                src_pts = [[loc.x, loc.y] for loc in src_locs]
 
-                    dst_pts = [[loc.x, loc.y] for loc in dst_locs]
-                    src_pts = [[loc.x, loc.y] for loc in src_locs]
+                dst_pts = np.array(dst_pts).astype(np.float32)
+                src_pts = np.array(src_pts).astype(np.float32)
 
-                    dst_pts = np.array(dst_pts).astype(np.float32)
-                    src_pts = np.array(src_pts).astype(np.float32)
+                bf = cv2.BFMatcher(cv2.NORM_L1, crossCheck=True)
 
-                    transform_matrix, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+                matches = bf.match(dst_pts, src_pts)
+                matches = sorted(matches, key=lambda x: x.distance)
+
+                dst_pts = np.float32([dst_pts[m.queryIdx] for m in matches]).reshape(-1, 2)
+                src_pts = np.float32([src_pts[m.trainIdx] for m in matches]).reshape(-1, 2)
+
+                transform_matrix, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+
+                if transform_matrix.shape == (3,3):
 
                     for channel_name, channel_dict in self.dataset_dict[dataset].items():
 
@@ -150,8 +158,6 @@ class _align_utils:
                         else:
                             localisation_dict =  self.localisation_dict["fiducials"][dataset_name][reference_channel.lower()]
 
-                            print(localisation_dict.keys())
-
                             if "fitted" not in localisation_dict.keys():
                                 missing_fiducial_list.append(dataset_name)
                             else:
@@ -168,18 +174,13 @@ class _align_utils:
                         localisations = self.localisation_dict["fiducials"][dataset_name][reference_channel.lower()]["localisations"]
                         align_dict[dataset_name] = localisations
 
-                    unique_locs = ([len(loc) for loc in align_dict.values()])
+                    self.align_progressbar.setValue(0)
+                    self.gapseq_align_datasets.setEnabled(False)
 
-                    if len(unique_locs) != 1:
-                        print("Different number of fitted fiducials in each dataset, please check")
-                    else:
-                        self.align_progressbar.setValue(0)
-                        self.gapseq_align_datasets.setEnabled(False)
-
-                        worker = Worker(self._align_datasets)
-                        worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.align_progressbar))
-                        worker.signals.finished.connect(self._align_datasets_cleanup)
-                        self.threadpool.start(worker)
+                    worker = Worker(self._align_datasets)
+                    worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.align_progressbar))
+                    worker.signals.finished.connect(self._align_datasets_cleanup)
+                    self.threadpool.start(worker)
 
         except:
             print(traceback.format_exc())
