@@ -7,7 +7,9 @@
 [![codecov](https://codecov.io/gh/piedrro/napari-GapSeq2/branch/main/graph/badge.svg)](https://codecov.io/gh/piedrro/napari-GapSeq2)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-GapSeq2)](https://napari-hub.org/plugins/napari-GapSeq2)
 
-GapSeq Analysis for Gene Machines Group, Deparment of Physics, Oxford
+A **Napari** plugin for extracting time series traces from **Single Molecule Localisation Microsocpy** (SMLM) data, using **Picasso** (picassosr) as a backend. Includes features for **aligning** image channels/datasets, **undrifting** images, **detecting/fitting** localisations and extracting **traces**, and supports both **ALEX** and **FRET** data. Traces can be exported in different formats for downstream analysis. 
+
+This was built by Dr Piers Turner from the Kapanidis Lab, University of Oxford.
 
 ----------------------------------
 
@@ -23,13 +25,12 @@ https://napari.org/stable/plugins/index.html
 
 ## Installation
 
-You can install `napari-GapSeq2` via [pip]:
+You can install `napari-GapSeq2` via [GitHub]:
 
-    pip install napari-GapSeq2
-
-
-
-To install latest development version :
+    conda create –-name napari-gapseq2 python==3.9
+    conda activate napari-gapseq2
+    conda install -c anaconda git
+    conda update --all
 
     pip install git+https://github.com/piedrro/napari-GapSeq2.git
 
