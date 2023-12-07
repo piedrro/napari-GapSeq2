@@ -200,8 +200,11 @@ class GapSeqWidget(QWidget,
 
         self.traces_spot_size = self.findChild(QComboBox, "traces_spot_size")
         self.traces_spot_shape = self.findChild(QComboBox, "traces_spot_shape")
+        self.traces_background_buffer = self.findChild(QComboBox, "traces_background_buffer")
+        self.traces_background_width = self.findChild(QComboBox, "traces_background_width")
         self.compute_with_picasso = self.findChild(QCheckBox, "compute_with_picasso")
         self.traces_visualise_masks = self.findChild(QPushButton, 'traces_visualise_masks')
+        self.traces_visualise_bg_masks = self.findChild(QPushButton, 'traces_visualise_bg_masks')
         self.compute_traces = self.findChild(QPushButton, 'compute_traces')
         self.compute_traces_progressbar = self.findChild(QProgressBar, 'compute_traces_progressbar')
 
@@ -249,6 +252,7 @@ class GapSeqWidget(QWidget,
 
         self.compute_traces.clicked.connect(self.gapseq_compute_traces)
         self.traces_visualise_masks.clicked.connect(self.visualise_spot_masks)
+        self.traces_visualise_masks.clicked.connect(self.visualise_background_masks)
 
         self.plot_data.currentIndexChanged.connect(partial(self.update_plot_combos, combo="plot_data"))
         self.plot_channel.currentIndexChanged.connect(partial(self.update_plot_combos, combo="plot_channel"))
@@ -384,15 +388,15 @@ class GapSeqWidget(QWidget,
 
                         self.viewer.layers["bounding_boxes"].data = localisation_centres
 
-                    if update_vis:
-                        self.bbox_layer.selected_data = list(range(len(self.bbox_layer.data)))
-                        self.bbox_layer.opacity = vis_opacity
-                        self.bbox_layer.symbol = symbol
-                        self.bbox_layer.size = vis_size
-                        self.bbox_layer.edge_width = vis_edge_width
-                        self.bbox_layer.edge_color = "white"
-                        self.bbox_layer.selected_data = []
-                        self.bbox_layer.refresh()
+
+                    self.bbox_layer.selected_data = list(range(len(self.bbox_layer.data)))
+                    self.bbox_layer.opacity = vis_opacity
+                    self.bbox_layer.symbol = symbol
+                    self.bbox_layer.size = vis_size
+                    self.bbox_layer.edge_width = vis_edge_width
+                    self.bbox_layer.edge_color = "white"
+                    self.bbox_layer.selected_data = []
+                    self.bbox_layer.refresh()
 
                 for layer in layer_names:
                     self.viewer.layers[layer].refresh()

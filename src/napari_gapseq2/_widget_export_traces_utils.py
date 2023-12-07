@@ -106,10 +106,13 @@ class _export_traces_utils:
         else:
             channel_list = [channel_name]
 
+        spot_size = self.traces_dict[dataset_list[0]][channel_list[0]][0]["spot_size"][0].copy()
+        n_pixels = spot_size ** 2
+
         if set(["dd", "da", "ad", "aa"]).issubset(channel_list):
-            self.compute_alex_efficiency(dataset_name, metric_key,progress_callback)
+            self.compute_alex_efficiency(dataset_name, metric_key, background_metric_key, n_pixels, progress_callback)
         if set(["donor", "acceptor"]).issubset(channel_list):
-            self.compute_fret_efficiency(dataset_name, metric_key, progress_callback)
+            self.compute_fret_efficiency(dataset_name, metric_key, background_metric_key, n_pixels, progress_callback)
 
         json_dict = {"metadata": {}, "data": {}}
 
@@ -149,9 +152,10 @@ class _export_traces_utils:
 
                     data = trace_dict[metric_key].copy()
 
-                    if background_metric_name != "None":
-                        background = trace_dict[background_metric_key].copy()
-                        data = data - background
+                    if "efficiency" not in channel:
+                        if background_metric_name != "None":
+                            background = trace_dict[background_metric_key].copy()
+                            data = data - background
 
                     data = data.astype(float).tolist()
 

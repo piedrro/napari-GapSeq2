@@ -83,3 +83,4 @@ venv/
 # written by setuptools_scm
 **/_version.py
 /mmapped_array.dat
+/src/napari_gapseq2/dev/

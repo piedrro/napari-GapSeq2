@@ -21,7 +21,7 @@ import cv2
 import math
 import tifffile
 import concurrent.futures
-
+import matplotlib.pyplot as plt
 
 def import_image_data(dat):
 
@@ -63,7 +63,6 @@ def import_image_data(dat):
 
 
 class _import_utils:
-
 
     def create_shared_image(self, image_shape, image_dtype):
 
@@ -158,6 +157,8 @@ class _import_utils:
                                   "channel_frame_list": frame_list,
                                   "channel_images": channel_images,
                                   "image_shape": image_shape,
+                                  "channel_layout": channel_layout,
+                                  "alex_first_frame": alex_first_frame,
                                   "dtype": dtype,
                                   "import_mode": import_mode.lower()}
 
@@ -199,6 +200,8 @@ class _import_utils:
                                   "channel_frame_list": frame_list,
                                   "channel_images": channel_images,
                                   "image_shape": image_shape,
+                                  "channel_layout": channel_layout,
+                                  "alex_first_frame": alex_first_frame,
                                   "dtype": dtype,
                                   "import_mode": import_mode.lower()}
 
@@ -261,10 +264,15 @@ class _import_utils:
                                   "channel_frame_list": channel_frame_list,
                                   "channel_images": channel_images,
                                   "image_shape": image_shape,
+                                  "channel_layout": channel_layout,
+                                  "alex_first_frame": alex_first_frame,
                                   "dtype": dtype,
                                   "import_mode": import_mode.lower()}
 
                     image_list.append(image_dict)
+
+                channel_layout = self.gapseq_channel_layout.currentText()
+                alex_first_frame = self.gapseq_alex_first_frame.currentText()
 
                 if dataset_name not in import_dict.keys():
                     import_dict[dataset_name] = {"path":path,
@@ -370,11 +378,6 @@ class _import_utils:
                         emission = "d"
                     else:
                         emission = "a"
-
-                    if channel_name in ["donor", "acceptor", "da", "dd", "ad", "aa"]:
-                        channel_layout = None
-                    if import_mode.lower() != "alex":
-                        alex_first_frame = None
 
                     if import_mode.lower() == "fret":
                         fret = True
@@ -514,7 +517,6 @@ class _import_utils:
 
         self.gapseq_import.setEnabled(True)
         self.gapseq_import_progressbar.setValue(0)
-
 
     def gapseq_import_data(self):
 

@@ -163,14 +163,18 @@ class _plot_utils:
 
     def get_dict_key(self, dict, target_value):
 
-        key = None
+        dict_key = None
 
-        for key, value in dict.items():
-            if value == target_value:
-                break
-        return key
+        if target_value not in ["None", None]:
 
-    def compute_fret_efficiency(self,  dataset_name, metric_key,
+            for key, value in dict.items():
+                if value == target_value:
+                    dict_key = key
+                    break
+
+        return dict_key
+
+    def compute_fret_efficiency(self,  dataset_name, metric_key,background_metric_key,n_pixels,
             progress_callback=None, gamma_correction=1):
 
         try:
@@ -183,6 +187,12 @@ class _plot_utils:
 
                 donor = dataset_dict["donor"][trace_index][metric_key]
                 acceptor = dataset_dict["acceptor"][trace_index][metric_key]
+
+                if background_metric_key in self.background_metric_dict.keys():
+                    donor_bg = dataset_dict["donor"][trace_index][background_metric_key].copy()
+                    acceptor_bg = dataset_dict["acceptor"][trace_index][background_metric_key].copy()
+                    donor = donor - donor_bg
+                    acceptor = acceptor - acceptor_bg
 
                 efficiency = acceptor / ((gamma_correction * donor) + acceptor)
                 efficiency = efficiency.tolist()
@@ -199,7 +209,7 @@ class _plot_utils:
             print(traceback.format_exc())
             pass
 
-    def compute_alex_efficiency(self, dataset_name, metric_key,
+    def compute_alex_efficiency(self, dataset_name, metric_key,background_metric_key,n_pixels,
             progress_callback=None, gamma_correction=1):
 
         try:
@@ -215,12 +225,45 @@ class _plot_utils:
 
             for trace_index in range(n_traces):
 
-                dd = dataset_dict["dd"][trace_index][metric_key]
-                da = dataset_dict["da"][trace_index][metric_key]
+                dd = copy.deepcopy(dataset_dict["dd"][trace_index][metric_key])
+                da = copy.deepcopy(dataset_dict["da"][trace_index][metric_key])
+
+                # if trace_index == 0:
+                #     print("dd",metric_key, dd[:5])
+                #     print("da",metric_key, da[:5])
+                #     eff = da / ((gamma_correction * dd) + da)
+                #     print("efficiency",metric_key, eff[:5])
+
                 gamma_correction = 1
 
-                efficiency = da / ((gamma_correction * dd) + da)
-                efficiency = np.array(efficiency)
+                if background_metric_key == None:
+
+                    efficiency = da / ((gamma_correction * dd) + da)
+                    efficiency = np.array(efficiency)
+
+                elif "sum" not in background_metric_key.lower():
+
+                    dd_bg = dataset_dict["dd"][trace_index][background_metric_key].copy()
+                    da_bg = dataset_dict["da"][trace_index][background_metric_key].copy()
+                    dd = dd - dd_bg
+                    da = da - da_bg
+
+                    efficiency = da / ((gamma_correction * dd) + da)
+                    efficiency = np.array(efficiency)
+
+                else:
+
+                    dd_bg = dataset_dict["dd"][trace_index]["bg_mean"].copy()
+                    da_bg = dataset_dict["da"][trace_index]["bg_mean"].copy()
+
+                    dd_bg = dd_bg * n_pixels
+                    da_bg = da_bg * n_pixels
+
+                    dd = dd - dd_bg
+                    da = da - da_bg
+
+                    efficiency = da / ((gamma_correction * dd) + da)
+                    efficiency = np.array(efficiency)
 
                 dataset_dict["alex_efficiency"][trace_index][metric_key] = efficiency
 
@@ -253,21 +296,29 @@ class _plot_utils:
                 iteration_channel = "aa"
             elif channel_name == "ALEX Efficiency":
                 plot_channels = ["alex_efficiency"]
-                self.compute_alex_efficiency(dataset_name, metric_key, progress_callback)
                 iteration_channel = "aa"
             elif channel_name == "FRET Data":
                 plot_channels = ["donor", "acceptor"]
                 iteration_channel = "donor"
             elif channel_name == "FRET Efficiency":
                 plot_channels = ["fret_efficiency"]
-                self.compute_fret_efficiency(dataset_name, metric_key, progress_callback)
                 iteration_channel = "donor"
             else:
                 plot_channels = [channel_name.lower()]
                 iteration_channel = channel_name.lower()
 
+
             n_traces = len(self.traces_dict[dataset_name][iteration_channel])
             n_iterations = len(plot_datasets) * len(plot_channels) * n_traces
+            spot_size = self.traces_dict[dataset_name][iteration_channel][0]["spot_size"][0].copy()
+            n_pixels = spot_size**2
+
+            if channel_name == "ALEX Efficiency":
+                self.compute_alex_efficiency(dataset_name, metric_key,
+                    background_metric_key, n_pixels, progress_callback)
+            elif channel_name == "FRET Efficiency":
+                self.compute_fret_efficiency(dataset_name, metric_key,
+                    background_metric_key, n_pixels, progress_callback)
 
             iter = 0
 
@@ -281,9 +332,13 @@ class _plot_utils:
 
                         data = np.array(trace_dict[metric_key].copy())
 
-                        if background_metric_name != "None":
-                            background = np.array(trace_dict[background_metric_key].copy())
-                            data = data - background
+                        if "efficiency" not in channel:
+                            if background_metric_name != "None":
+                                background = np.array(trace_dict[background_metric_key].copy())
+                                data = data - background
+
+                        # if trace_index == 0:
+                        #     print(metric_key, background_metric_key, data[:5])
 
                         if channel in ["dd", "da", "ad", "aa"]:
                             label = f"{channel.upper()} [{metric_name}]"
@@ -319,6 +374,7 @@ class _plot_utils:
             self.plot_dict = plot_dict
 
         except:
+            print(channel)
             print(traceback.format_exc())
             pass
 
@@ -518,6 +574,7 @@ class _plot_utils:
 
                     plot_details = f"{plot_dataset} [#:{localisation_number}]"
 
+                    plot_ranges = {"xRange": [0, 100], "yRange": [0, 100]}
                     for line_index, (plot, line, plot_label) in enumerate(zip(sub_axes, plot_lines, plot_lines_labels)):
 
                         legend = plot.legend
@@ -526,16 +583,31 @@ class _plot_utils:
                         if self.normalise_plots.isChecked() and "efficiency" not in plot_label.lower():
                             data = (data - np.min(data)) / (np.max(data) - np.min(data))
 
+                        # print(np.min(data), np.max(data), np.max(data) - np.min(data))
+
                         plot_line = plot_lines[line_index]
                         plot_line.setData(data)
 
+                        if plot_ranges["xRange"][1] < len(data):
+                            plot_ranges["xRange"][1] = len(data)
+                        if plot_ranges["yRange"][1] < np.max(data):
+                            plot_ranges["yRange"][1] = np.max(data)
+                        if plot_ranges["yRange"][0] > np.min(data):
+                            plot_ranges["yRange"][0] = np.min(data)
+                        if plot_ranges["xRange"][0] > 0:
+                            plot_ranges["xRange"][0] = 0
+
+
+                    for line_index, (plot, line, plot_label) in enumerate(zip(sub_axes, plot_lines, plot_lines_labels)):
                         plot.setRange(
-                            xRange=[0, len(data)],
-                            yRange=[np.min(data), np.max(data)],
-                            padding=0)
+                            xRange=plot_ranges["xRange"],
+                            yRange=plot_ranges["yRange"],
+                            padding=0.0,
+                            disableAutoRange=True,
+                            )
 
         except:
-            print(traceback.format_exc())
+            # print(traceback.format_exc())
             pass
 
 

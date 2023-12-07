@@ -311,7 +311,7 @@ class _export_images_utils:
                         frame = channel_data["data"][frame_index]
 
                         left_image = False
-                        if channel_layout == "Donor-Acceptor":
+                        if channel_layout.lower() == "donor-acceptor":
                             if channel_ref[-1] == "d":
                                 left_image = True
                         else:

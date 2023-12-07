@@ -333,9 +333,9 @@ class _trace_compute_utils:
 
         return bbox_locs
 
-    def generate_localisation_mask(self, spot_size, spot_shape = "square", plot=False):
+    def generate_localisation_mask(self, spot_size, spot_shape="square", buffer_size=0, bg_width=1, plot=False):
 
-        box_size = spot_size + 2
+        box_size = spot_size + (bg_width * 2) + (buffer_size * 2)
 
         # Create a grid of coordinates
         y, x = np.ogrid[:box_size, :box_size]
@@ -354,20 +354,25 @@ class _trace_compute_utils:
             inner_radius = spot_size // 2
             mask = distance <= inner_radius
 
-            # Slightly larger radius for the ring (background mask)
-            outer_radius = inner_radius + 1
-            background_mask = (distance > inner_radius) & (distance <= outer_radius)
+            # Buffer mask
+            buffer_outer_radius = inner_radius + buffer_size
+            buffer_mask = (distance > inner_radius) & (distance <= buffer_outer_radius)
+
+            # Background mask (outside the buffer zone)
+            background_outer_radius = buffer_outer_radius + bg_width
+            background_mask = (distance > buffer_outer_radius) & (distance <= background_outer_radius)
+
         elif spot_shape.lower() == "square":
             # Create square mask
             half_size = spot_size // 2
             mask = (abs(x - center[0]) <= half_size) & (abs(y - center[1]) <= half_size)
 
             # Create square background mask (one pixel larger on each side)
-            background_mask = (abs(x - center[0]) <= half_size + 1) & (abs(y - center[1]) <= half_size + 1)
-            background_mask = background_mask & ~mask
+            buffer_mask = (abs(x - center[0]) <= half_size + buffer_size) & (abs(y - center[1]) <= half_size + buffer_size)
+            background_mask = (abs(x - center[0]) <= half_size + buffer_size + bg_width) & (abs(y - center[1]) <= half_size + buffer_size + bg_width)
+            background_mask = background_mask & ~buffer_mask
 
         if plot == True:
-
             plt.figure(figsize=(6, 6))
             plt.imshow(mask, cmap='gray', interpolation='none')
             plt.xticks(np.arange(-0.5, box_size, 1), [])
@@ -384,7 +389,7 @@ class _trace_compute_utils:
             plt.title(f"{box_size}x{box_size} Background Mask")
             plt.show()
 
-        return mask, background_mask
+        return mask, buffer_mask, background_mask
 
     def generate_background_overlap_mask(self, locs, spot_mask, spot_background_mask, image_mask_shape):
 
@@ -469,11 +474,14 @@ class _trace_compute_utils:
 
             spot_size = int(self.traces_spot_size.currentText())
             spot_shape = self.traces_spot_shape.currentText()
+            buffer_size = int(self.traces_background_buffer.currentText())
+            bg_width = int(self.traces_background_width.currentText())
 
             localisation_dict = copy.deepcopy(self.localisation_dict["bounding_boxes"])
             locs = localisation_dict["localisations"].copy()
 
-            spot_mask, spot_background_mask = self.generate_localisation_mask(spot_size, spot_shape, plot=False)
+            spot_mask, buffer_mask, spot_background_mask = self.generate_localisation_mask(spot_size, spot_shape,
+                buffer_size, bg_width, plot=False)
 
             spot_bounds = self.generate_spot_bounds(locs, len(spot_mask[0]))
 
@@ -688,6 +696,64 @@ class _trace_compute_utils:
             self.restore_shared_images()
             print(traceback.format_exc())
 
+
+    def visualise_background_masks(self):
+
+        try:
+
+            import cv2
+
+            if "bounding_boxes" in self.localisation_dict.keys():
+                if "fitted" in self.localisation_dict["bounding_boxes"].keys():
+
+                    spot_size = int(self.traces_spot_size.currentText())
+                    spot_shape = self.traces_spot_shape.currentText()
+                    buffer_size = int(self.traces_background_buffer.currentText())
+                    bg_width = int(self.traces_background_width.currentText())
+
+                    localisation_dict = copy.deepcopy(self.localisation_dict["bounding_boxes"])
+                    locs = localisation_dict["localisations"]
+
+                    spot_mask, buffer_mask, bg_mask = self.generate_localisation_mask(spot_size, spot_shape, buffer_size, bg_width)
+
+                    mask_shape = self.dataset_dict[self.active_dataset][self.active_channel]["data"].shape[-2:]
+
+                    background_overlap_mask = self.generate_background_overlap_mask(locs, buffer_mask, bg_mask, mask_shape)
+
+                    spot_bounds = self.generate_spot_bounds(locs, len(bg_mask[0]))
+
+                    bg_mask = bg_mask.astype(np.uint8)
+
+                    mask_shape = self.dataset_dict[self.active_dataset][self.active_channel]["data"].shape[-2:]
+
+                    global_spot_mask = np.zeros(mask_shape, dtype=np.uint16)
+
+                    for loc_index, [x1, x2, y1, y2] in enumerate(spot_bounds):
+                        temp_mask = np.zeros(mask_shape, dtype=np.uint8)
+
+                        x1, y1 = max(0, x1), max(0, y1)
+                        x2, y2 = min(global_spot_mask.shape[1], x2), min(global_spot_mask.shape[0], y2)
+
+                        temp_mask[y1:y2, x1:x2] += bg_mask
+                        global_spot_mask[temp_mask > 0] = loc_index + 1
+
+
+                    binary_spot_mask = global_spot_mask > 0
+                    overlap_mask = binary_spot_mask & background_overlap_mask
+                    inverse_overlap_mask = np.logical_not(overlap_mask)
+
+                    global_spot_mask[inverse_overlap_mask] = 0
+
+                    if "Background Mask" in self.viewer.layers:
+                        self.viewer.layers.remove("Background Mask")
+                    self.viewer.add_labels(global_spot_mask,
+                        opacity=0.4, name="Background Mask")
+
+        except:
+            print(traceback.format_exc())
+
+
+
     def visualise_spot_masks(self):
 
         try:
@@ -698,11 +764,13 @@ class _trace_compute_utils:
 
                     spot_size = int(self.traces_spot_size.currentText())
                     spot_shape = self.traces_spot_shape.currentText()
+                    buffer_size = int(self.traces_background_buffer.currentText())
+                    bg_width = int(self.traces_background_width.currentText())
 
                     localisation_dict = copy.deepcopy(self.localisation_dict["bounding_boxes"])
                     locs = localisation_dict["localisations"]
 
-                    spot_mask, spot_background_mask = self.generate_localisation_mask(spot_size, spot_shape, plot=False)
+                    spot_mask, buffer_mask, spot_background_mask = self.generate_localisation_mask(spot_size, spot_shape, buffer_size, bg_width)
 
                     spot_bounds = self.generate_spot_bounds(locs, len(spot_mask[0]))
 
@@ -726,7 +794,7 @@ class _trace_compute_utils:
                         self.viewer.layers.remove("Spot Mask")
                     self.viewer.add_labels(
                         global_spot_mask,
-                        opacity=0.3,
+                        opacity=0.8,
                         name="Spot Mask")
 
         except:

@@ -160,6 +160,16 @@
            </item>
            <item>
             <property name="text">
+             <string>10</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>50</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
              <string>100</string>
             </property>
            </item>
@@ -825,31 +835,12 @@
            </item>
            <item>
             <layout class="QGridLayout" name="gridLayout_3">
-             <item row="0" column="2">
-              <widget class="QPushButton" name="traces_visualise_masks">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="maximumSize">
-                <size>
-                 <width>150</width>
-                 <height>16777215</height>
-                </size>
-               </property>
-               <property name="text">
-                <string>Visualise Spot Masks</string>
-               </property>
-              </widget>
-             </item>
              <item row="0" column="1">
               <layout class="QFormLayout" name="formLayout_11">
                <item row="0" column="0">
                 <widget class="QLabel" name="label_38">
                  <property name="text">
-                  <string>Spot Size</string>
+                  <string>Mask Size (Pixels)</string>
                  </property>
                 </widget>
                </item>
@@ -900,13 +891,6 @@
                  </item>
                 </widget>
                </item>
-               <item row="1" column="0">
-                <widget class="QLabel" name="label_39">
-                 <property name="text">
-                  <string>Spot Shape</string>
-                 </property>
-                </widget>
-               </item>
                <item row="1" column="1">
                 <widget class="QComboBox" name="traces_spot_shape">
                  <item>
@@ -921,7 +905,114 @@
                  </item>
                 </widget>
                </item>
+               <item row="1" column="0">
+                <widget class="QLabel" name="label_39">
+                 <property name="text">
+                  <string>Mask Shape</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="0">
+                <widget class="QLabel" name="label_49">
+                 <property name="text">
+                  <string>Background Mask Buffer (Pixels)</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="1">
+                <widget class="QComboBox" name="traces_background_buffer">
+                 <property name="currentIndex">
+                  <number>0</number>
+                 </property>
+                 <item>
+                  <property name="text">
+                   <string>0</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>1</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>2</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>3</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>4</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>5</string>
+                  </property>
+                 </item>
+                </widget>
+               </item>
+               <item row="3" column="0">
+                <widget class="QLabel" name="label_50">
+                 <property name="text">
+                  <string>Background Mask Width (Pixels)</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="3" column="1">
+                <widget class="QComboBox" name="traces_background_width">
+                 <item>
+                  <property name="text">
+                   <string>1</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>2</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>3</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>4</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>5</string>
+                  </property>
+                 </item>
+                </widget>
+               </item>
               </layout>
+             </item>
+             <item row="0" column="2">
+              <widget class="QPushButton" name="traces_visualise_masks">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>150</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>Visualise Spot Masks 
+ + Background Masks</string>
+               </property>
+              </widget>
              </item>
             </layout>
            </item>
