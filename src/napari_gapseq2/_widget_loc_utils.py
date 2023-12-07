@@ -173,7 +173,6 @@ class _loc_utils():
                         self.localisation_dict["fiducials"][dataset_name][channel_name] = {}
                     else:
                         loc_dict = self.localisation_dict["fiducials"][dataset_name][channel_name].copy()
-
             else:
 
                 if "bounding_boxes" not in self.localisation_dict.keys():

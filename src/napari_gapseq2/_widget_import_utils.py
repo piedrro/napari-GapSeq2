@@ -481,6 +481,11 @@ class _import_utils:
             self.undrift_dataset_selector.addItems(dataset_names)
             self.undrift_dataset_selector.blockSignals(False)
 
+            self.colo_dataset.blockSignals(True)
+            self.colo_dataset.clear()
+            self.colo_dataset.addItems(dataset_names)
+            self.colo_dataset.blockSignals(False)
+
         except:
             print(traceback.format_exc())
 

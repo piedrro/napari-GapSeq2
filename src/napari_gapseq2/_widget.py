@@ -64,6 +64,7 @@ from napari_gapseq2._widget_trace_compute_utils import _trace_compute_utils
 from napari_gapseq2._widget_plot_utils import _plot_utils, CustomPyQTGraphWidget
 from napari_gapseq2._widget_align_utils import _align_utils
 from napari_gapseq2._widget_export_traces_utils import _export_traces_utils
+from napari_gapseq2._widget_colocalize_utils import _utils_colocalize
 
 from qtpy.QtWidgets import QFileDialog
 import os
@@ -79,7 +80,7 @@ class GapSeqWidget(QWidget,
     _undrift_utils, _picasso_detect_utils,
     _import_utils, _events_utils, _export_images_utils,
     _tranform_utils, _trace_compute_utils, _plot_utils,
-    _align_utils, _loc_utils, _export_traces_utils):
+    _align_utils, _loc_utils, _export_traces_utils, _utils_colocalize):
 
     # your QWidget.__init__ can optionally request the napari viewer instance
     # use a type annotation of 'napari.viewer.Viewer' for any parameter
@@ -218,6 +219,13 @@ class GapSeqWidget(QWidget,
         self.plot_localisation_number = self.findChild(QSlider, 'plot_localisation_number')
         self.plot_localisation_number_label = self.findChild(QLabel, 'plot_localisation_number_label')
 
+        self.colo_dataset = self.findChild(QComboBox, 'colo_dataset')
+        self.colo_channel1 = self.findChild(QComboBox, 'colo_channel1')
+        self.colo_channel2 = self.findChild(QComboBox, 'colo_channel2')
+        self.colo_max_dist = self.findChild(QComboBox, 'colo_max_dist')
+        self.colo_bboxes = self.findChild(QCheckBox, 'colo_bboxes')
+        self.gapseq_colocalize = self.findChild(QPushButton, 'gapseq_colocalize')
+
         self.gapseq_import.clicked.connect(self.gapseq_import_data)
         self.gapseq_import_mode.currentIndexChanged.connect(self.update_import_options)
         self.gapseq_update_dataset_name.clicked.connect(self.update_dataset_name)
@@ -263,6 +271,9 @@ class GapSeqWidget(QWidget,
         self.plot_background_metric.currentIndexChanged.connect(self.initialize_plot)
         self.split_plots.stateChanged.connect(self.initialize_plot)
         self.normalise_plots.stateChanged.connect(self.initialize_plot)
+
+        self.gapseq_colocalize.clicked.connect(self._colocalize_fiducials)
+        self.colo_dataset.currentIndexChanged.connect(self.populate_colocalize_combos)
 
         self.plot_localisation_number.valueChanged.connect(lambda: self.update_slider_label("plot_localisation_number"))
         self.plot_localisation_number.valueChanged.connect(partial(self.plot_traces))
