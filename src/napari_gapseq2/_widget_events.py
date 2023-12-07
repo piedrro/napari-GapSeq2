@@ -37,6 +37,8 @@ class _events_utils:
                             self.viewer.text_overlay.visible = True
                             self.viewer.text_overlay.position = "top_left"
                             self.viewer.text_overlay.text = overlay_string.lstrip("\n")
+                            self.viewer.text_overlay.color = "red"
+                            self.viewer.text_overlay.font_size = 10
                         else:
                             self.viewer.text_overlay.visible = False
 

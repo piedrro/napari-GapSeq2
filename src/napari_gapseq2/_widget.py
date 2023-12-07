@@ -146,14 +146,14 @@ class GapSeqWidget(QWidget,
         self.picasso_vis_opacity = self.findChild(QComboBox, 'picasso_vis_opacity')
         self.picasso_vis_edge_width = self.findChild(QComboBox, 'picasso_vis_edge_width')
 
-        self.picasso_vis_mode.currentIndexChanged.connect(self.draw_fiducials)
-        self.picasso_vis_mode.currentIndexChanged.connect(self.draw_bounding_boxes)
-        self.picasso_vis_size.currentIndexChanged.connect(self.draw_fiducials)
-        self.picasso_vis_size.currentIndexChanged.connect(self.draw_bounding_boxes)
-        self.picasso_vis_opacity.currentIndexChanged.connect(self.draw_fiducials)
-        self.picasso_vis_opacity.currentIndexChanged.connect(self.draw_bounding_boxes)
-        self.picasso_vis_edge_width.currentIndexChanged.connect(self.draw_fiducials)
-        self.picasso_vis_edge_width.currentIndexChanged.connect(self.draw_bounding_boxes)
+        self.picasso_vis_mode.currentIndexChanged.connect(partial(self.draw_fiducials, update_vis=True))
+        self.picasso_vis_mode.currentIndexChanged.connect(partial(self.draw_bounding_boxes, update_vis=True))
+        self.picasso_vis_size.currentIndexChanged.connect(partial(self.draw_fiducials, update_vis=True))
+        self.picasso_vis_size.currentIndexChanged.connect(partial(self.draw_bounding_boxes, update_vis=True))
+        self.picasso_vis_opacity.currentIndexChanged.connect(partial(self.draw_fiducials, update_vis=True))
+        self.picasso_vis_opacity.currentIndexChanged.connect(partial(self.draw_bounding_boxes, update_vis=True))
+        self.picasso_vis_edge_width.currentIndexChanged.connect(partial(self.draw_fiducials, update_vis=True))
+        self.picasso_vis_edge_width.currentIndexChanged.connect(partial(self.draw_bounding_boxes, update_vis=True))
 
         self.cluster_localisations = self.findChild(QPushButton, 'cluster_localisations')
         self.cluster_mode = self.findChild(QComboBox, 'cluster_mode')
@@ -321,7 +321,17 @@ class GapSeqWidget(QWidget,
         return alignment_keypoints, target_keypoints
 
 
-    def draw_bounding_boxes(self):
+    def select_image_layer(self):
+
+        try:
+            if hasattr(self, "image_layer"):
+                self.viewer.layers.selection.select_only(self.image_layer)
+        except:
+            print(traceback.format_exc())
+            pass
+
+
+    def draw_bounding_boxes(self, update_vis=False):
 
         if hasattr(self, "localisation_dict") and hasattr(self, "active_channel"):
 
@@ -367,19 +377,27 @@ class GapSeqWidget(QWidget,
                         self.bbox_layer.mouse_drag_callbacks.append(self._mouse_event)
                         self.bbox_layer.events.visible.connect(self.draw_bounding_boxes)
 
+                        update_vis = True
+
                     else:
+
                         self.viewer.layers["bounding_boxes"].data = localisation_centres
-                        self.viewer.layers["bounding_boxes"].opacity = vis_opacity
-                        self.viewer.layers["bounding_boxes"].symbol = symbol
-                        self.viewer.layers["bounding_boxes"].size = vis_size
-                        self.viewer.layers["bounding_boxes"].edge_width = vis_edge_width
-                        self.viewer.layers["bounding_boxes"].edge_color = "white"
+
+                    if update_vis:
+                        self.bbox_layer.selected_data = list(range(len(self.bbox_layer.data)))
+                        self.bbox_layer.opacity = vis_opacity
+                        self.bbox_layer.symbol = symbol
+                        self.bbox_layer.size = vis_size
+                        self.bbox_layer.edge_width = vis_edge_width
+                        self.bbox_layer.edge_color = "white"
+                        self.bbox_layer.selected_data = []
+                        self.bbox_layer.refresh()
 
                 for layer in layer_names:
                     self.viewer.layers[layer].refresh()
 
 
-    def draw_fiducials(self):
+    def draw_fiducials(self, update_vis=False):
 
         remove_fiducials = True
 
@@ -440,15 +458,21 @@ class GapSeqWidget(QWidget,
                                     self.fiducial_layer.mouse_drag_callbacks.append(self._mouse_event)
                                     self.fiducial_layer.events.visible.connect(self.draw_fiducials)
 
-                                else:
-                                    self.viewer.layers["fiducials"].data = []
+                                    update_vis = True
 
-                                    self.viewer.layers["fiducials"].data = render_locs[active_frame]
-                                    self.viewer.layers["fiducials"].opacity = vis_opacity
-                                    self.viewer.layers["fiducials"].symbol = symbol
-                                    self.viewer.layers["fiducials"].size = vis_size
-                                    self.viewer.layers["fiducials"].edge_width = vis_edge_width
-                                    self.viewer.layers["fiducials"].edge_color = "red"
+                                else:
+                                    self.fiducial_layer.data = render_locs[active_frame]
+
+                                if update_vis:
+                                    self.fiducial_layer.selected_data = list(range(len(self.fiducial_layer.data)))
+                                    self.fiducial_layer.opacity = vis_opacity
+                                    self.fiducial_layer.symbol = symbol
+                                    self.fiducial_layer.size = vis_size
+                                    self.fiducial_layer.edge_width = vis_edge_width
+                                    self.fiducial_layer.edge_color = "red"
+                                    self.fiducial_layer.selected_data = []
+                                    self.fiducial_layer.refresh()
+
 
 
                 if remove_fiducials:
