@@ -63,26 +63,18 @@ class _export_traces_utils:
         try:
             json_dict = self.populate_json_dict(progress_callback)
 
-            # for dataset_name, dataset_data in json_dict["data"].items():
-            #     for loc_index, loc_data in enumerate(dataset_data):
-            #         for channel_name, channel_data in loc_data.items():
-            #             print(channel_name, len(channel_data), channel_data[:10])
-            #         break
-
-
             with open(export_path, "w") as f:
                 json.dump(json_dict, f, cls=npEncoder)
 
-            print(f"Exported traces to {export_path}")
-
         except:
             print(traceback.format_exc())
+            self.export_progressbar.setValue(0)
+            self.gapseq_export_traces.setEnabled(True)
             pass
 
     def export_traces_dat(self, progress_callback=None, export_path=""):
 
         try:
-
             print("Exporting traces to DAT...")
         except:
             print(traceback.format_exc())
@@ -95,6 +87,7 @@ class _export_traces_utils:
             print("Exporting traces to Excel...")
         except:
             print(traceback.format_exc())
+
             pass
 
     def populate_json_dict(self, progress_callback=None):
@@ -256,6 +249,15 @@ class _export_traces_utils:
     def export_traces_cleanup(self, export_path):
 
         print("Traces exported to: {}".format(export_path))
+        self.export_progressbar.setValue(0)
+        self.gapseq_export_traces.setEnabled(True)
+
+    def export_traces_error(self, error_message):
+
+        print(error_message)
+        self.export_progressbar.setValue(0)
+        self.gapseq_export_traces.setEnabled(True)
+
 
     def export_traces(self):
 
@@ -264,6 +266,9 @@ class _export_traces_utils:
             export_path, export_directory = self.get_export_traces_path(dialog=False)
 
             if export_path != "" and os.path.isdir(export_directory):
+
+                self.export_progressbar.setValue(0)
+                self.gapseq_export_traces.setEnabled(False)
 
                 export_mode = self.traces_export_mode.currentText()
 
@@ -274,6 +279,7 @@ class _export_traces_utils:
                         progress_bar=self.export_progressbar))
                     worker.signals.finished.connect(partial(self.export_traces_cleanup,
                         export_path=export_path))
+                    worker.signals.error.connect(self.export_traces_error)
                     self.threadpool.start(worker)
 
                 if export_mode == "DAT":
@@ -283,6 +289,7 @@ class _export_traces_utils:
                         progress_bar=self.export_progressbar))
                     worker.signals.finished.connect(partial(self.export_traces_cleanup,
                         export_path=export_path))
+                    worker.signals.error.connect(self.export_traces_error)
                     self.threadpool.start(worker)
 
                 if export_mode == "Excel":
@@ -292,13 +299,14 @@ class _export_traces_utils:
                         progress_bar=self.export_progressbar))
                     worker.signals.finished.connect(partial(self.export_traces_cleanup,
                         export_path=export_path))
+                    worker.signals.error.connect(self.export_traces_error)
                     self.threadpool.start(worker)
 
         except:
             print(traceback.format_exc())
+            self.export_progressbar.setValue(0)
+            self.gapseq_export_traces.setEnabled(False)
             pass
-
-
 
     def populate_export_combos(self):
 
