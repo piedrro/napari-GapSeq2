@@ -58,8 +58,6 @@ class _export_traces_utils:
 
 
 
-
-
     def export_traces_json(self, progress_callback=None, export_path=""):
 
         try:
@@ -157,9 +155,6 @@ class _export_traces_utils:
                             data = data - background
 
                         data = data.astype(float).tolist()
-
-                        if trace_index < 5 and channel_name == "DA":
-                            print("populate_json_dict", trace_index, channel_name, data[:5])
 
                         json_dict["data"][dataset][trace_index][channel_name] = data
 

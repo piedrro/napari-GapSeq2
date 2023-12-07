@@ -345,9 +345,18 @@ class _events_utils:
                     localisation_data = self.localisation_dict["fiducials"].pop(old_name)
                     self.localisation_dict["fiducials"][new_name] = localisation_data
 
+                    traces_data = self.traces_dict.pop(old_name)
+                    self.traces_dict[new_name] = traces_data
+
+
+
                 self.populate_dataset_combos()
                 self.update_channel_select_buttons()
                 self.update_active_image()
+
+                self.populate_plot_combos()
+                self.populate_export_combos()
+                self.initialize_plot()
 
         except:
             print(traceback.format_exc())

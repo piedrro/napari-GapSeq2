@@ -1444,7 +1444,7 @@
        <item>
         <widget class="QTabWidget" name="tabWidget_2">
          <property name="currentIndex">
-          <number>1</number>
+          <number>0</number>
          </property>
          <widget class="QWidget" name="tab_8">
           <attribute name="title">
@@ -1615,16 +1615,6 @@
                <item>
                 <property name="text">
                  <string>JSON Dataset</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>Excel</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>DAT</string>
                 </property>
                </item>
               </widget>
