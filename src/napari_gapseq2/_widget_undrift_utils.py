@@ -136,7 +136,7 @@ class _undrift_utils:
 
         try:
 
-            dataset_name = self.gapseq_dataset_selector.currentText()
+            dataset_name = self.undrift_dataset_selector.currentText()
             undrift_channel = self.undrift_channel_selector.currentText()
 
             channel_dict = self.dataset_dict[dataset_name][undrift_channel.lower()]

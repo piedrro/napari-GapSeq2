@@ -164,6 +164,7 @@ class GapSeqWidget(QWidget,
         self.picasso_undrift_channel = self.findChild(QComboBox, 'picasso_undrift_channel')
         self.detect_undrift = self.findChild(QPushButton, 'detect_undrift')
         self.apply_undrift = self.findChild(QPushButton, 'apply_undrift')
+        self.undrift_dataset_selector = self.findChild(QComboBox, 'undrift_dataset_selector')
         self.undrift_channel_selector = self.findChild(QComboBox, 'undrift_channel_selector')
         self.undrift_progressbar = self.findChild(QProgressBar, 'undrift_progressbar')
 

@@ -473,6 +473,11 @@ class _import_utils:
             self.traces_export_dataset.addItems(dataset_names)
             self.traces_export_dataset.blockSignals(False)
 
+            self.undrift_dataset_selector.blockSignals(True)
+            self.undrift_dataset_selector.clear()
+            self.undrift_dataset_selector.addItems(dataset_names)
+            self.undrift_dataset_selector.blockSignals(False)
+
         except:
             print(traceback.format_exc())
 

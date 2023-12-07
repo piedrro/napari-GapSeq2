@@ -347,8 +347,11 @@ class _events_utils:
                     localisation_data = self.localisation_dict["fiducials"].pop(old_name)
                     self.localisation_dict["fiducials"][new_name] = localisation_data
 
-                    traces_data = self.traces_dict.pop(old_name)
-                    self.traces_dict[new_name] = traces_data
+                    if hasattr(self, "traces_dict"):
+                        if old_name in self.traces_dict.keys():
+                            print("Updating traces dict")
+                            traces_data = self.traces_dict.pop(old_name)
+                            self.traces_dict[new_name] = traces_data
 
 
 
