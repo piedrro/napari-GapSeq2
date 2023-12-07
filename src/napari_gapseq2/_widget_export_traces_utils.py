@@ -96,7 +96,7 @@ class _export_traces_utils:
 
     def populate_json_dict(self):
 
-        json_dict = {"metadata": {}, "data": {}}
+
 
         try:
 
@@ -124,6 +124,8 @@ class _export_traces_utils:
 
             channel_list = [chan for chan in channel_list if "efficiency" not in chan.lower()]
 
+            json_dict = {"metadata": {}, "data": {}}
+
             for dataset in dataset_list:
 
                 if dataset not in json_dict["data"]:
@@ -131,14 +133,14 @@ class _export_traces_utils:
 
                 for channel in channel_list:
 
-                    channel_dict = self.traces_dict[dataset][channel]
+                    channel_dict = self.traces_dict[dataset][channel].copy()
 
                     n_traces = len(channel_dict.keys())
 
                     if json_dict["data"][dataset] == []:
-                        json_dict["data"][dataset] = [{}]*n_traces
+                        json_dict["data"][dataset] = [{} for _ in range(n_traces)]
 
-                    for trace_index in channel_dict.keys():
+                    for trace_index, trace_dict in channel_dict.items():
 
                         if channel.lower() in ["dd", "da", "ad", "aa"]:
                             channel_name = channel.upper()
@@ -148,8 +150,6 @@ class _export_traces_utils:
                         if channel_name not in json_dict["data"][dataset][trace_index]:
                             json_dict["data"][dataset][trace_index][channel_name] = []
 
-                        trace_dict = self.traces_dict[dataset][channel][trace_index]
-
                         data = trace_dict[metric_key].copy()
 
                         if background_metric_name != "None":
@@ -158,10 +158,14 @@ class _export_traces_utils:
 
                         data = data.astype(float).tolist()
 
+                        if trace_index < 5 and channel_name == "DA":
+                            print("populate_json_dict", trace_index, channel_name, data[:5])
+
                         json_dict["data"][dataset][trace_index][channel_name] = data
 
         except:
             print(traceback.format_exc())
+            json_dict = {}
             pass
 
         return json_dict
