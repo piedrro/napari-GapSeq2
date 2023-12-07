@@ -17,7 +17,6 @@ class npEncoder(json.JSONEncoder):
 class _export_traces_utils:
 
 
-
     def get_export_traces_path(self, dialog=False):
 
         if self.traces_dict != {}:
@@ -56,21 +55,14 @@ class _export_traces_utils:
 
             return export_path, export_directory
 
-
-
     def export_traces_json(self, progress_callback=None, export_path=""):
 
-        try:
-            json_dict = self.populate_json_dict(progress_callback)
+        json_dict = self.populate_json_dict(progress_callback)
 
-            with open(export_path, "w") as f:
-                json.dump(json_dict, f, cls=npEncoder)
+        with open(export_path, "w") as f:
+            json.dump(json_dict, f, cls=npEncoder)
 
-        except:
-            print(traceback.format_exc())
-            self.export_progressbar.setValue(0)
-            self.gapseq_export_traces.setEnabled(True)
-            pass
+        self.traces_export_status = True
 
     def export_traces_dat(self, progress_callback=None, export_path=""):
 
@@ -92,91 +84,83 @@ class _export_traces_utils:
 
     def populate_json_dict(self, progress_callback=None):
 
-        try:
+        dataset_name = self.traces_export_dataset.currentText()
+        channel_name = self.traces_export_channel.currentText()
+        metric_name = self.traces_export_metric.currentText()
+        background_metric_name = self.traces_export_background.currentText()
 
-            dataset_name = self.traces_export_dataset.currentText()
-            channel_name = self.traces_export_channel.currentText()
-            metric_name = self.traces_export_metric.currentText()
-            background_metric_name = self.traces_export_background.currentText()
+        metric_key = self.get_dict_key(self.metric_dict, metric_name)
+        background_metric_key = self.get_dict_key(self.background_metric_dict, background_metric_name)
 
-            metric_key = self.get_dict_key(self.metric_dict, metric_name)
-            background_metric_key = self.get_dict_key(self.background_metric_dict, background_metric_name)
+        if dataset_name == "All Datasets":
+            dataset_list = list(self.traces_dict.keys())
+        else:
+            dataset_list = [dataset_name]
 
-            if dataset_name == "All Datasets":
-                dataset_list = list(self.traces_dict.keys())
-            else:
-                dataset_list = [dataset_name]
+        if channel_name == "All Channels":
+            channel_list = list(self.traces_dict[dataset_list[0]].keys())
+        elif channel_name.lower() == "fret":
+            channel_list = ["donor", "acceptor"]
+        elif channel_name.lower() == "alex":
+            channel_list = ["dd", "da", "ad", "aa"]
+        else:
+            channel_list = [channel_name]
 
-            if channel_name == "All Channels":
-                channel_list = list(self.traces_dict[dataset_list[0]].keys())
-            elif channel_name.lower() == "fret":
-                channel_list = ["donor", "acceptor"]
-            elif channel_name.lower() == "alex":
-                channel_list = ["dd", "da", "ad", "aa"]
-            else:
-                channel_list = [channel_name]
+        if set(["dd", "da", "ad", "aa"]).issubset(channel_list):
+            self.compute_alex_efficiency(dataset_name, metric_key,progress_callback)
+        if set(["donor", "acceptor"]).issubset(channel_list):
+            self.compute_fret_efficiency(dataset_name, metric_key, progress_callback)
 
-            if set(["dd", "da", "ad", "aa"]).issubset(channel_list):
-                self.compute_alex_efficiency(dataset_name, metric_key,progress_callback)
-            if set(["donor", "acceptor"]).issubset(channel_list):
-                self.compute_fret_efficiency(dataset_name, metric_key, progress_callback)
+        json_dict = {"metadata": {}, "data": {}}
 
-            json_dict = {"metadata": {}, "data": {}}
+        n_traces = 0
+        for dataset in dataset_list:
+            for channel in channel_list:
+                n_traces += len(self.traces_dict[dataset][channel].keys())
 
-            n_traces = 0
-            for dataset in dataset_list:
-                for channel in channel_list:
-                    n_traces += len(self.traces_dict[dataset][channel].keys())
+        iter = 0
+        for dataset in dataset_list:
 
-            iter = 0
-            for dataset in dataset_list:
+            if dataset not in json_dict["data"]:
+                json_dict["data"][dataset] = []
 
-                if dataset not in json_dict["data"]:
-                    json_dict["data"][dataset] = []
+            for channel in channel_list:
 
-                for channel in channel_list:
+                channel_dict = self.traces_dict[dataset][channel].copy()
 
-                    channel_dict = self.traces_dict[dataset][channel].copy()
+                n_traces = len(channel_dict.keys())
 
-                    n_traces = len(channel_dict.keys())
+                if json_dict["data"][dataset] == []:
+                    json_dict["data"][dataset] = [{} for _ in range(n_traces)]
 
-                    if json_dict["data"][dataset] == []:
-                        json_dict["data"][dataset] = [{} for _ in range(n_traces)]
+                for trace_index, trace_dict in channel_dict.items():
 
-                    for trace_index, trace_dict in channel_dict.items():
+                    if channel.lower() in ["dd", "da", "ad", "aa"]:
+                        channel_name = channel.upper()
+                    elif channel.lower() == "alex_efficiency":
+                        channel_name = "efficiency"
+                    elif channel.lower() == "fret_efficiency":
+                        channel_name = "efficiency"
+                    else:
+                        channel_name = channel.capitalize()
 
-                        if channel.lower() in ["dd", "da", "ad", "aa"]:
-                            channel_name = channel.upper()
-                        elif channel.lower() == "alex_efficiency":
-                            channel_name = "efficiency"
-                        elif channel.lower() == "fret_efficiency":
-                            channel_name = "efficiency"
-                        else:
-                            channel_name = channel.capitalize()
+                    if channel_name not in json_dict["data"][dataset][trace_index]:
+                        json_dict["data"][dataset][trace_index][channel_name] = []
 
-                        if channel_name not in json_dict["data"][dataset][trace_index]:
-                            json_dict["data"][dataset][trace_index][channel_name] = []
+                    data = trace_dict[metric_key].copy()
 
-                        data = trace_dict[metric_key].copy()
+                    if background_metric_name != "None":
+                        background = trace_dict[background_metric_key].copy()
+                        data = data - background
 
-                        if background_metric_name != "None":
-                            background = trace_dict[background_metric_key].copy()
-                            data = data - background
+                    data = data.astype(float).tolist()
 
-                        data = data.astype(float).tolist()
+                    json_dict["data"][dataset][trace_index][channel_name] = data
 
-                        json_dict["data"][dataset][trace_index][channel_name] = data
+                    iter += 1
 
-                        iter += 1
-
-                        if progress_callback is not None:
-                            progress_callback.emit(iter / n_traces * 100)
-
-
-        except:
-            print(traceback.format_exc())
-            json_dict = {}
-            pass
+                    if progress_callback is not None:
+                        progress_callback.emit(iter / n_traces * 100)
 
         return json_dict
 
@@ -248,16 +232,16 @@ class _export_traces_utils:
 
     def export_traces_cleanup(self, export_path):
 
-        print("Traces exported to: {}".format(export_path))
+        if self.traces_export_status == True:
+            print("Traces exported to: {}".format(export_path))
+
         self.export_progressbar.setValue(0)
         self.gapseq_export_traces.setEnabled(True)
 
     def export_traces_error(self, error_message):
 
-        print(error_message)
         self.export_progressbar.setValue(0)
         self.gapseq_export_traces.setEnabled(True)
-
 
     def export_traces(self):
 
@@ -269,6 +253,7 @@ class _export_traces_utils:
 
                 self.export_progressbar.setValue(0)
                 self.gapseq_export_traces.setEnabled(False)
+                self.traces_export_status = False
 
                 export_mode = self.traces_export_mode.currentText()
 
