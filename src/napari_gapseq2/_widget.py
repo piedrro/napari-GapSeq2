@@ -325,51 +325,58 @@ class GapSeqWidget(QWidget,
 
         if hasattr(self, "localisation_dict") and hasattr(self, "active_channel"):
 
-            layer_names = [layer.name for layer in self.viewer.layers]
+            if hasattr(self, "bbox_layer"):
+                show_bboxes = self.bbox_layer.visible
+            else:
+                show_bboxes = True
 
-            if "localisation_centres" in self.localisation_dict["bounding_boxes"].keys():
+            if show_bboxes:
 
-                localisations = self.localisation_dict["bounding_boxes"]["localisations"]
-                localisation_centres = self.get_localisation_centres(localisations, mode="bounding_boxes")
+                layer_names = [layer.name for layer in self.viewer.layers]
 
-                vis_mode = self.picasso_vis_mode.currentText()
-                vis_size = float(self.picasso_vis_size.currentText())
-                vis_opacity = float(self.picasso_vis_opacity.currentText())
-                vis_edge_width = float(self.picasso_vis_edge_width.currentText())
+                if "localisation_centres" in self.localisation_dict["bounding_boxes"].keys():
 
-                if vis_mode.lower() == "square":
-                    symbol = "square"
-                elif vis_mode.lower() == "disk":
-                    symbol = "disc"
-                elif vis_mode.lower() == "x":
-                    symbol = "cross"
+                    localisations = self.localisation_dict["bounding_boxes"]["localisations"]
+                    localisation_centres = self.get_localisation_centres(localisations, mode="bounding_boxes")
 
+                    vis_mode = self.picasso_vis_mode.currentText()
+                    vis_size = float(self.picasso_vis_size.currentText())
+                    vis_opacity = float(self.picasso_vis_opacity.currentText())
+                    vis_edge_width = float(self.picasso_vis_edge_width.currentText())
 
-                if "bounding_boxes" not in layer_names:
-                    self.bbox_layer = self.viewer.add_points(
-                        localisation_centres,
-                        edge_color="white",
-                        ndim=2,
-                        face_color=[0,0,0,0],
-                        opacity=vis_opacity,
-                        name="bounding_boxes",
-                        symbol=symbol,
-                        size=vis_size,
-                        visible=True,
-                        edge_width=vis_edge_width,)
+                    if vis_mode.lower() == "square":
+                        symbol = "square"
+                    elif vis_mode.lower() == "disk":
+                        symbol = "disc"
+                    elif vis_mode.lower() == "x":
+                        symbol = "cross"
 
-                    self.bbox_layer.mouse_drag_callbacks.append(self._mouse_event)
+                    if "bounding_boxes" not in layer_names:
+                        self.bbox_layer = self.viewer.add_points(
+                            localisation_centres,
+                            edge_color="white",
+                            ndim=2,
+                            face_color=[0,0,0,0],
+                            opacity=vis_opacity,
+                            name="bounding_boxes",
+                            symbol=symbol,
+                            size=vis_size,
+                            visible=True,
+                            edge_width=vis_edge_width,)
 
-                else:
-                    self.viewer.layers["bounding_boxes"].data = localisation_centres
-                    self.viewer.layers["bounding_boxes"].opacity = vis_opacity
-                    self.viewer.layers["bounding_boxes"].symbol = symbol
-                    self.viewer.layers["bounding_boxes"].size = vis_size
-                    self.viewer.layers["bounding_boxes"].edge_width = vis_edge_width
-                    self.viewer.layers["bounding_boxes"].edge_color = "white"
+                        self.bbox_layer.mouse_drag_callbacks.append(self._mouse_event)
+                        self.bbox_layer.events.visible.connect(self.draw_bounding_boxes)
 
-            for layer in layer_names:
-                self.viewer.layers[layer].refresh()
+                    else:
+                        self.viewer.layers["bounding_boxes"].data = localisation_centres
+                        self.viewer.layers["bounding_boxes"].opacity = vis_opacity
+                        self.viewer.layers["bounding_boxes"].symbol = symbol
+                        self.viewer.layers["bounding_boxes"].size = vis_size
+                        self.viewer.layers["bounding_boxes"].edge_width = vis_edge_width
+                        self.viewer.layers["bounding_boxes"].edge_color = "white"
+
+                for layer in layer_names:
+                    self.viewer.layers[layer].refresh()
 
 
     def draw_fiducials(self):
@@ -378,70 +385,78 @@ class GapSeqWidget(QWidget,
 
         if hasattr(self, "localisation_dict") and hasattr(self, "active_channel"):
 
-            layer_names = [layer.name for layer in self.viewer.layers]
+            if hasattr(self, "fiducial_layer"):
+                show_fiducials = self.fiducial_layer.visible
+            else:
+                show_fiducials = True
 
-            active_frame = self.viewer.dims.current_step[0]
+            if show_fiducials:
 
-            dataset_name = self.gapseq_dataset_selector.currentText()
-            image_channel = self.active_channel
+                layer_names = [layer.name for layer in self.viewer.layers]
 
-            if image_channel != "" and dataset_name != "":
+                active_frame = self.viewer.dims.current_step[0]
 
-                if image_channel.lower() in self.localisation_dict["fiducials"][dataset_name].keys():
+                dataset_name = self.gapseq_dataset_selector.currentText()
+                image_channel = self.active_channel
 
-                    localisation_dict = self.localisation_dict["fiducials"][dataset_name][image_channel.lower()]
+                if image_channel != "" and dataset_name != "":
 
-                    if "render_locs" in localisation_dict.keys():
+                    if image_channel.lower() in self.localisation_dict["fiducials"][dataset_name].keys():
 
-                        render_locs = localisation_dict["render_locs"]
+                        localisation_dict = self.localisation_dict["fiducials"][dataset_name][image_channel.lower()]
 
-                        vis_mode = self.picasso_vis_mode.currentText()
-                        vis_size = float(self.picasso_vis_size.currentText())
-                        vis_opacity = float(self.picasso_vis_opacity.currentText())
-                        vis_edge_width = float(self.picasso_vis_edge_width.currentText())
+                        if "render_locs" in localisation_dict.keys():
 
-                        if vis_mode.lower() == "square":
-                            symbol = "square"
-                        elif vis_mode.lower() == "disk":
-                            symbol = "disc"
-                        elif vis_mode.lower() == "x":
-                            symbol = "cross"
+                            render_locs = localisation_dict["render_locs"]
 
-                        if active_frame in render_locs.keys():
+                            vis_mode = self.picasso_vis_mode.currentText()
+                            vis_size = float(self.picasso_vis_size.currentText())
+                            vis_opacity = float(self.picasso_vis_opacity.currentText())
+                            vis_edge_width = float(self.picasso_vis_edge_width.currentText())
 
-                            remove_fiducials = False
+                            if vis_mode.lower() == "square":
+                                symbol = "square"
+                            elif vis_mode.lower() == "disk":
+                                symbol = "disc"
+                            elif vis_mode.lower() == "x":
+                                symbol = "cross"
 
-                            if "fiducials" not in layer_names:
-                                self.fiducial_layer = self.viewer.add_points(
-                                    render_locs[active_frame],
-                                    ndim=2,
-                                    edge_color="red",
-                                    face_color=[0,0,0,0],
-                                    opacity=vis_opacity,
-                                    name="fiducials",
-                                    symbol=symbol,
-                                    size=vis_size,
-                                    edge_width=vis_edge_width, )
+                            if active_frame in render_locs.keys():
 
-                                self.fiducial_layer.mouse_drag_callbacks.append(self._mouse_event)
+                                remove_fiducials = False
 
-                            else:
-                                self.viewer.layers["fiducials"].data = []
+                                if "fiducials" not in layer_names:
+                                    self.fiducial_layer = self.viewer.add_points(
+                                        render_locs[active_frame],
+                                        ndim=2,
+                                        edge_color="red",
+                                        face_color=[0,0,0,0],
+                                        opacity=vis_opacity,
+                                        name="fiducials",
+                                        symbol=symbol,
+                                        size=vis_size,
+                                        edge_width=vis_edge_width, )
 
-                                self.viewer.layers["fiducials"].data = render_locs[active_frame]
-                                self.viewer.layers["fiducials"].opacity = vis_opacity
-                                self.viewer.layers["fiducials"].symbol = symbol
-                                self.viewer.layers["fiducials"].size = vis_size
-                                self.viewer.layers["fiducials"].edge_width = vis_edge_width
-                                self.viewer.layers["fiducials"].edge_color = "red"
+                                    self.fiducial_layer.mouse_drag_callbacks.append(self._mouse_event)
+                                    self.fiducial_layer.events.visible.connect(self.draw_fiducials)
+
+                                else:
+                                    self.viewer.layers["fiducials"].data = []
+
+                                    self.viewer.layers["fiducials"].data = render_locs[active_frame]
+                                    self.viewer.layers["fiducials"].opacity = vis_opacity
+                                    self.viewer.layers["fiducials"].symbol = symbol
+                                    self.viewer.layers["fiducials"].size = vis_size
+                                    self.viewer.layers["fiducials"].edge_width = vis_edge_width
+                                    self.viewer.layers["fiducials"].edge_color = "red"
 
 
-            if remove_fiducials:
-                if "fiducials" in layer_names:
-                    self.viewer.layers["fiducials"].data = []
+                if remove_fiducials:
+                    if "fiducials" in layer_names:
+                        self.viewer.layers["fiducials"].data = []
 
-            for layer in layer_names:
-                self.viewer.layers[layer].refresh()
+                for layer in layer_names:
+                    self.viewer.layers[layer].refresh()
 
 
     def get_localisation_centres(self, locs, mode = "fiducials"):
