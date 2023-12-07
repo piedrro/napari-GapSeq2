@@ -86,14 +86,20 @@ class _tranform_utils:
                     reference_points = [[loc.x, loc.y] for loc in reference_locs]
                     target_points = [[loc.x, loc.y] for loc in target_locs]
 
-                    reference_points, target_points = self.compute_registration_keypoints(reference_points, target_points)
+                    reference_points = np.array(reference_points).astype(np.float32)
+                    target_points = np.array(target_points).astype(np.float32)
 
-                    reference_points = np.array(reference_points)
-                    target_points = np.array(target_points)
+                    bf = cv2.BFMatcher(cv2.NORM_L1, crossCheck=True)
+
+                    matches = bf.match(reference_points, target_points)
+                    matches = sorted(matches, key=lambda x: x.distance)
+
+                    reference_points = np.float32([reference_points[m.queryIdx] for m in matches]).reshape(-1, 2)
+                    target_points = np.float32([target_points[m.trainIdx] for m in matches]).reshape(-1, 2)
 
                     self.transform_matrix, _ = cv2.findHomography(target_points, reference_points, cv2.RANSAC)
 
-                    print(f"Transform matrix: {self.transform_matrix}")
+                    print(f"Transform Matrix\n: {self.transform_matrix}")
 
                     if self.save_tform.isChecked():
                         self.save_transform_matrix()
