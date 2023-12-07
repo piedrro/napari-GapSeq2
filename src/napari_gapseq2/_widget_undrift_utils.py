@@ -98,6 +98,8 @@ class _undrift_utils:
 
             except:
                 print(traceback.format_exc())
+                self.apply_undrift.setEnabled(True)
+                self.undrift_progressbar.setValue(0)
                 self.dataset_dict[dataset_name][channel_name]["data"] = image
 
 
@@ -120,8 +122,13 @@ class _undrift_utils:
 
             self.draw_fiducials()
 
+            self.apply_undrift.setEnabled(True)
+            self.undrift_progressbar.setValue(0)
+
         except:
             print(traceback.format_exc())
+            self.apply_undrift.setEnabled(True)
+            self.undrift_progressbar.setValue(0)
             pass
 
 
@@ -137,6 +144,9 @@ class _undrift_utils:
             if "drift" in channel_dict.keys():
                 drift = channel_dict["drift"]
 
+                self.apply_undrift.setEnabled(False)
+                self.undrift_progressbar.setValue(0)
+
                 worker = Worker(self._gapseq_undrift_images, drift=drift)
                 worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.undrift_progressbar))
                 worker.signals.finished.connect(self._gapseq_undrift_images_cleanup)
@@ -144,6 +154,8 @@ class _undrift_utils:
 
         except:
             print(traceback.format_exc())
+            self.apply_undrift.setEnabled(True)
+            self.undrift_progressbar.setValue(0)
             pass
 
     def undrift_localisations(self):
@@ -247,7 +259,7 @@ class _undrift_utils:
                 undrift_locs,
                 picasso_info,
                 segmentation=segmentation,
-                display=True,
+                display=False,
                 segmentation_callback=segmentation_callback,
                 rcc_callback=undrift_callback,
             )

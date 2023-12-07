@@ -466,6 +466,13 @@ class _import_utils:
             self.align_reference_dataset.addItems(dataset_names)
             self.align_reference_dataset.blockSignals(False)
 
+            self.traces_export_dataset.blockSignals(True)
+            self.traces_export_dataset.clear()
+            if len(dataset_names) > 1:
+                dataset_names.insert(0, "All Datasets")
+            self.traces_export_dataset.addItems(dataset_names)
+            self.traces_export_dataset.blockSignals(False)
+
         except:
             print(traceback.format_exc())
 
@@ -496,6 +503,7 @@ class _import_utils:
         self.update_channel_select_buttons()
         self.update_active_image()
         self.update_export_options()
+        self.populate_export_combos()
 
         self.update_align_reference_channel()
 

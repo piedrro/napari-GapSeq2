@@ -423,7 +423,7 @@ class _picasso_detect_utils:
                      "Min. Net Gradient": min_net_gradient, "Pixelsize": 130, "ROI": None, }]
 
             from picasso.io import save_locs
-            save_locs(path, locs, info)
+            # save_locs(path, locs, info)
 
         except:
             print(traceback.format_exc())

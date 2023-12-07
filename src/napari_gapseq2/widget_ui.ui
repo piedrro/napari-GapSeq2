@@ -1160,7 +1160,7 @@
                <item row="0" column="1">
                 <widget class="QComboBox" name="traces_spot_size">
                  <property name="currentIndex">
-                  <number>2</number>
+                  <number>0</number>
                  </property>
                  <item>
                   <property name="text">
@@ -1442,34 +1442,211 @@
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_11">
        <item>
-        <layout class="QFormLayout" name="formLayout_5">
-         <item row="0" column="0">
-          <widget class="QLabel" name="label_16">
-           <property name="text">
-            <string>Export Dataset</string>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="1">
-          <widget class="QComboBox" name="export_dataset"/>
-         </item>
-         <item row="1" column="0">
-          <widget class="QLabel" name="label_44">
-           <property name="text">
-            <string>Export Channel(s)</string>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="1">
-          <widget class="QComboBox" name="export_channel"/>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <widget class="QPushButton" name="gapseq_export_data">
-         <property name="text">
-          <string>Export Data</string>
+        <widget class="QTabWidget" name="tabWidget_2">
+         <property name="currentIndex">
+          <number>1</number>
          </property>
+         <widget class="QWidget" name="tab_8">
+          <attribute name="title">
+           <string>Export Images</string>
+          </attribute>
+          <layout class="QVBoxLayout" name="verticalLayout_8">
+           <item>
+            <layout class="QFormLayout" name="formLayout_5">
+             <item row="0" column="0">
+              <widget class="QLabel" name="label_16">
+               <property name="text">
+                <string>Export Dataset</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QComboBox" name="export_dataset"/>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="label_44">
+               <property name="text">
+                <string>Export Channel(s)</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QComboBox" name="export_channel"/>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QPushButton" name="gapseq_export_data">
+             <property name="text">
+              <string>Export Data</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="tab_9">
+          <attribute name="title">
+           <string>Export Traces</string>
+          </attribute>
+          <layout class="QVBoxLayout" name="verticalLayout_12">
+           <item>
+            <layout class="QFormLayout" name="formLayout_13">
+             <item row="1" column="0">
+              <widget class="QLabel" name="label_45">
+               <property name="text">
+                <string>Data Selection</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QComboBox" name="traces_export_dataset">
+               <item>
+                <property name="text">
+                 <string>All Images</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="QLabel" name="label_63">
+               <property name="text">
+                <string>Channel</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="1">
+              <widget class="QComboBox" name="traces_export_channel">
+               <item>
+                <property name="text">
+                 <string>Donor</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>Acceptor</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>FRET Data</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>FRET Efficiency</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>FRET Data + FRET Efficiency</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>ALEX Data</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>ALEX Efficiency</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>ALEX Data + ALEX Efficiency</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+             <item row="3" column="0">
+              <widget class="QLabel" name="label_48">
+               <property name="text">
+                <string>Metric</string>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="1">
+              <widget class="QComboBox" name="traces_export_metric">
+               <item>
+                <property name="text">
+                 <string>Bounding Box Mean</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>Bouding Box Standard Deviation</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>Bounding Box Sum</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+             <item row="4" column="0">
+              <widget class="QLabel" name="label_47">
+               <property name="text">
+                <string>Background Metric</string>
+               </property>
+              </widget>
+             </item>
+             <item row="4" column="1">
+              <widget class="QComboBox" name="traces_export_background">
+               <item>
+                <property name="text">
+                 <string>None</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>Local Background Subtraction</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>Global Background Subtraction</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QComboBox" name="traces_export_mode">
+               <item>
+                <property name="text">
+                 <string>JSON Dataset</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>Excel</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>DAT</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+             <item row="0" column="0">
+              <widget class="QLabel" name="label_36">
+               <property name="text">
+                <string>Export Mode</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QPushButton" name="gapseq_export_traces">
+             <property name="text">
+              <string>Export Traces</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
         </widget>
        </item>
        <item>

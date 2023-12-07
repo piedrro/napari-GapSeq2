@@ -287,6 +287,7 @@ class _trace_compute_utils:
         self.compute_traces.setEnabled(True)
 
         self.populate_plot_combos()
+        self.populate_export_combos()
         self.initialize_plot()
 
     def _get_bbox_localisations(self, n_frames):

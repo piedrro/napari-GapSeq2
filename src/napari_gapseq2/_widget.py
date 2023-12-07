@@ -58,11 +58,12 @@ from napari_gapseq2._widget_picasso_detect import _picasso_detect_utils
 from napari_gapseq2._widget_loc_utils import _loc_utils, picasso_loc_utils
 from napari_gapseq2._widget_import_utils import _import_utils
 from napari_gapseq2._widget_events import _events_utils
-from napari_gapseq2._widget_export_utils import _export_utils
+from napari_gapseq2._widget_export_images_utils import _export_images_utils
 from napari_gapseq2._widget_transform_utils import _tranform_utils
 from napari_gapseq2._widget_trace_compute_utils import _trace_compute_utils
 from napari_gapseq2._widget_plot_utils import _plot_utils, CustomPyQTGraphWidget
 from napari_gapseq2._widget_align_utils import _align_utils
+from napari_gapseq2._widget_export_traces_utils import _export_traces_utils
 
 from qtpy.QtWidgets import QFileDialog
 import os
@@ -76,9 +77,9 @@ if TYPE_CHECKING:
 
 class GapSeqWidget(QWidget,
     _undrift_utils, _picasso_detect_utils,
-    _import_utils, _events_utils, _export_utils,
+    _import_utils, _events_utils, _export_images_utils,
     _tranform_utils, _trace_compute_utils, _plot_utils,
-    _align_utils, _loc_utils):
+    _align_utils, _loc_utils, _export_traces_utils):
 
     # your QWidget.__init__ can optionally request the napari viewer instance
     # use a type annotation of 'napari.viewer.Viewer' for any parameter
@@ -124,7 +125,6 @@ class GapSeqWidget(QWidget,
         self.gapseq_show_da = self.findChild(QPushButton, 'gapseq_show_da')
         self.gapseq_show_aa = self.findChild(QPushButton, 'gapseq_show_aa')
         self.gapseq_show_ad = self.findChild(QPushButton, 'gapseq_show_ad')
-
 
         self.import_alex_data = self.findChild(QPushButton, 'import_alex_data')
         self.channel_selector = self.findChild(QComboBox, 'channel_selector')
@@ -188,6 +188,13 @@ class GapSeqWidget(QWidget,
         self.export_dataset = self.findChild(QComboBox, 'export_dataset')
         self.export_channel = self.findChild(QComboBox, 'export_channel')
         self.gapseq_export_data = self.findChild(QPushButton, 'gapseq_export_data')
+
+        self.traces_export_mode = self.findChild(QComboBox, 'traces_export_mode')
+        self.traces_export_dataset = self.findChild(QComboBox, 'traces_export_dataset')
+        self.traces_export_channel = self.findChild(QComboBox, 'traces_export_channel')
+        self.traces_export_metric = self.findChild(QComboBox, 'traces_export_metric')
+        self.traces_export_background = self.findChild(QComboBox, 'traces_export_background')
+        self.gapseq_export_traces = self.findChild(QPushButton, 'gapseq_export_traces')
         self.export_progressbar = self.findChild(QProgressBar, 'export_progressbar')
 
         self.traces_spot_size = self.findChild(QComboBox, "traces_spot_size")
@@ -233,6 +240,9 @@ class GapSeqWidget(QWidget,
 
         self.gapseq_export_data.clicked.connect(self.export_data)
         self.export_dataset.currentIndexChanged.connect(self.update_export_options)
+
+        self.gapseq_export_traces.clicked.connect(self.export_traces)
+        self.traces_export_dataset.currentIndexChanged.connect(self.populate_export_combos)
 
         self.viewer.dims.events.current_step.connect(self.draw_fiducials)
 

@@ -8,7 +8,7 @@ from qtpy.QtWidgets import QFileDialog
 from napari_gapseq2._widget_utils_worker import Worker
 from functools import partial
 
-class _export_utils:
+class _export_images_utils:
 
     def update_export_options(self):
 
