@@ -186,43 +186,13 @@ class _undrift_utils:
                         if frame not in render_locs.keys():
                             render_locs[frame] = []
 
-                        render_locs[frame].append([loc.x, loc.y])
+                        render_locs[frame].append([loc.y, loc.x])
 
                     localisation_centres = self.get_localisation_centres(locs)
 
                     self.localisation_dict["fiducials"][dataset_name][channel_name.lower()]["localisations"] = locs
                     self.localisation_dict["fiducials"][dataset_name][channel_name.lower()]["localisation_centres"] = localisation_centres
                     self.localisation_dict["fiducials"][dataset_name][channel_name.lower()]["render_locs"] = render_locs
-
-
-            # if self.drift is not None:
-            #
-            #     localisations = self.image_dict[undrift_channel][undrift_mode]["localisations"].copy()
-            #
-            #     n_frames = len(np.unique([loc.frame for loc in localisations]))
-            #
-            #     new_localisations = []
-            #
-            #     frame_0_locs = [loc for loc in localisations if loc.frame == 0]
-            #
-            #     for frame in range(n_frames):
-            #
-            #         frame_locs = copy.deepcopy(frame_0_locs)
-            #
-            #         for loc in frame_locs:
-            #
-            #             loc.frame = frame
-            #             loc.x = loc.x + self.drift[frame][0]
-            #             loc.y = loc.y + self.drift[frame][1]
-            #
-            #         new_localisations.extend(frame_locs)
-            #
-            #     new_localisations = np.rec.fromrecords(new_localisations, dtype=localisations.dtype)
-            #
-            #     new_localisation_centres = self.get_localisation_centres(new_localisations)
-            #
-            #     self.image_dict[undrift_channel][undrift_mode]["localisations"] = new_localisations
-            #     self.image_dict[undrift_channel][undrift_mode]["localisation_centres"] = new_localisation_centres
 
         except:
             print(traceback.format_exc())
