@@ -187,7 +187,7 @@ class _plot_utils:
                 efficiency = acceptor / ((gamma_correction * donor) + acceptor)
                 efficiency = efficiency.tolist()
 
-                dataset_dict["fret_efficiency"][trace_index] = efficiency
+                dataset_dict["fret_efficiency"][trace_index][metric_key] = efficiency
 
                 if progress_callback is not None:
                     progress = int(100 * trace_index / n_traces)
@@ -203,7 +203,6 @@ class _plot_utils:
             progress_callback=None, gamma_correction=1):
 
         try:
-
 
             dataset_dict = self.traces_dict[dataset_name].copy()
 
@@ -221,7 +220,7 @@ class _plot_utils:
                 gamma_correction = 1
 
                 efficiency = da / ((gamma_correction * dd) + da)
-                efficiency = efficiency.tolist()
+                efficiency = np.array(efficiency)
 
                 dataset_dict["alex_efficiency"][trace_index][metric_key] = efficiency
 

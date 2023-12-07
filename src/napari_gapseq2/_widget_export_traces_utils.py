@@ -61,7 +61,14 @@ class _export_traces_utils:
     def export_traces_json(self, progress_callback=None, export_path=""):
 
         try:
-            json_dict = self.populate_json_dict()
+            json_dict = self.populate_json_dict(progress_callback)
+
+            # for dataset_name, dataset_data in json_dict["data"].items():
+            #     for loc_index, loc_data in enumerate(dataset_data):
+            #         for channel_name, channel_data in loc_data.items():
+            #             print(channel_name, len(channel_data), channel_data[:10])
+            #         break
+
 
             with open(export_path, "w") as f:
                 json.dump(json_dict, f, cls=npEncoder)
@@ -90,11 +97,7 @@ class _export_traces_utils:
             print(traceback.format_exc())
             pass
 
-
-
-    def populate_json_dict(self):
-
-
+    def populate_json_dict(self, progress_callback=None):
 
         try:
 
@@ -120,10 +123,19 @@ class _export_traces_utils:
             else:
                 channel_list = [channel_name]
 
-            channel_list = [chan for chan in channel_list if "efficiency" not in chan.lower()]
+            if set(["dd", "da", "ad", "aa"]).issubset(channel_list):
+                self.compute_alex_efficiency(dataset_name, metric_key,progress_callback)
+            if set(["donor", "acceptor"]).issubset(channel_list):
+                self.compute_fret_efficiency(dataset_name, metric_key, progress_callback)
 
             json_dict = {"metadata": {}, "data": {}}
 
+            n_traces = 0
+            for dataset in dataset_list:
+                for channel in channel_list:
+                    n_traces += len(self.traces_dict[dataset][channel].keys())
+
+            iter = 0
             for dataset in dataset_list:
 
                 if dataset not in json_dict["data"]:
@@ -142,6 +154,10 @@ class _export_traces_utils:
 
                         if channel.lower() in ["dd", "da", "ad", "aa"]:
                             channel_name = channel.upper()
+                        elif channel.lower() == "alex_efficiency":
+                            channel_name = "efficiency"
+                        elif channel.lower() == "fret_efficiency":
+                            channel_name = "efficiency"
                         else:
                             channel_name = channel.capitalize()
 
@@ -158,16 +174,18 @@ class _export_traces_utils:
 
                         json_dict["data"][dataset][trace_index][channel_name] = data
 
+                        iter += 1
+
+                        if progress_callback is not None:
+                            progress_callback.emit(iter / n_traces * 100)
+
+
         except:
             print(traceback.format_exc())
             json_dict = {}
             pass
 
         return json_dict
-
-
-
-
 
     def populate_export_dict(self):
 
@@ -235,12 +253,13 @@ class _export_traces_utils:
 
         return export_dict
 
+    def export_traces_cleanup(self, export_path):
+
+        print("Traces exported to: {}".format(export_path))
 
     def export_traces(self):
 
         try:
-
-            self.populate_export_combos()
 
             export_path, export_directory = self.get_export_traces_path(dialog=False)
 
@@ -253,6 +272,8 @@ class _export_traces_utils:
                     worker = Worker(self.export_traces_json, export_path=export_path)
                     worker.signals.progress.connect(partial(self.gapseq_progress,
                         progress_bar=self.export_progressbar))
+                    worker.signals.finished.connect(partial(self.export_traces_cleanup,
+                        export_path=export_path))
                     self.threadpool.start(worker)
 
                 if export_mode == "DAT":
@@ -260,6 +281,8 @@ class _export_traces_utils:
                     worker = Worker(self.export_traces_dat, export_path=export_path)
                     worker.signals.progress.connect(partial(self.gapseq_progress,
                         progress_bar=self.export_progressbar))
+                    worker.signals.finished.connect(partial(self.export_traces_cleanup,
+                        export_path=export_path))
                     self.threadpool.start(worker)
 
                 if export_mode == "Excel":
@@ -267,6 +290,8 @@ class _export_traces_utils:
                     worker = Worker(self.export_traces_excel, export_path=export_path)
                     worker.signals.progress.connect(partial(self.gapseq_progress,
                         progress_bar=self.export_progressbar))
+                    worker.signals.finished.connect(partial(self.export_traces_cleanup,
+                        export_path=export_path))
                     self.threadpool.start(worker)
 
         except:
