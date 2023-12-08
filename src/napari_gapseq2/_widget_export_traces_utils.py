@@ -87,10 +87,10 @@ class _export_traces_utils:
         dataset_name = self.traces_export_dataset.currentText()
         channel_name = self.traces_export_channel.currentText()
         metric_name = self.traces_export_metric.currentText()
-        background_metric_name = self.traces_export_background.currentText()
+        subtract_background = self.export_subtract_backgroround.isChecked()
 
         metric_key = self.get_dict_key(self.metric_dict, metric_name)
-        background_metric_key = self.get_dict_key(self.background_metric_dict, background_metric_name)
+        background_metric_key = metric_key + "_bg"
 
         if dataset_name == "All Datasets":
             dataset_list = list(self.traces_dict.keys())
@@ -110,9 +110,9 @@ class _export_traces_utils:
         n_pixels = spot_size ** 2
 
         if set(["dd", "da", "ad", "aa"]).issubset(channel_list):
-            self.compute_alex_efficiency(dataset_name, metric_key, background_metric_key, n_pixels, progress_callback)
+            self.compute_alex_efficiency(dataset_name, metric_key, subtract_background, progress_callback)
         if set(["donor", "acceptor"]).issubset(channel_list):
-            self.compute_fret_efficiency(dataset_name, metric_key, background_metric_key, n_pixels, progress_callback)
+            self.compute_fret_efficiency(dataset_name, metric_key, subtract_background, progress_callback)
 
         json_dict = {"metadata": {}, "data": {}}
 
@@ -152,10 +152,9 @@ class _export_traces_utils:
 
                     data = trace_dict[metric_key].copy()
 
-                    if "efficiency" not in channel:
-                        if background_metric_name != "None":
-                            background = trace_dict[background_metric_key].copy()
-                            data = data - background
+                    if "efficiency" not in channel and subtract_background == True:
+                        background = trace_dict[background_metric_key].copy()
+                        data = data - background
 
                     data = data.astype(float).tolist()
 
@@ -175,10 +174,10 @@ class _export_traces_utils:
             dataset_name = self.traces_export_dataset.currentText()
             channel_name = self.traces_export_channel.currentText()
             metric_name = self.traces_export_metric.currentText()
-            background_metric_name = self.traces_export_background.currentText()
+            subtract_background = self.export_subtract_backgroround.isChecked()
 
             metric_key = self.get_dict_key(self.metric_dict, metric_name)
-            background_metric_key = self.get_dict_key(self.background_metric_dict, background_metric_name)
+            background_metric_key = metric_key + "_bg"
 
             if dataset_name == "All Datasets":
                 dataset_list = list(self.traces_dict.keys())
@@ -218,7 +217,7 @@ class _export_traces_utils:
 
                         data = np.array(trace_dict[metric_key].copy())
 
-                        if background_metric_name != "None":
+                        if "efficiency" not in channel and subtract_background == True:
                             background = np.array(trace_dict[background_metric_key].copy())
                             data = data - background
 
@@ -366,21 +365,15 @@ class _export_traces_utils:
                             metric_names = traces_channel_dict[0].keys()
 
                             self.traces_export_metric.blockSignals(True)
-                            self.traces_export_background.blockSignals(True)
 
                             self.traces_export_metric.clear()
-                            self.traces_export_background.clear()
 
-                            self.traces_export_background.addItem("None")
 
                             for metric in metric_names:
                                 if metric in self.metric_dict.keys():
                                     self.traces_export_metric.addItem(self.metric_dict[metric])
-                                if metric in self.background_metric_dict.keys():
-                                    self.traces_export_background.addItem(self.background_metric_dict[metric])
 
                             self.traces_export_metric.blockSignals(False)
-                            self.traces_export_background.blockSignals(False)
 
         except:
             print(traceback.format_exc())

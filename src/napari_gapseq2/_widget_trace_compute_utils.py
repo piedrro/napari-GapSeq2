@@ -4,7 +4,7 @@ import traceback
 from napari_gapseq2._widget_utils_worker import Worker
 from functools import partial
 import matplotlib.pyplot as plt
-from qtpy.QtWidgets import QFileDialog,QComboBox
+from qtpy.QtWidgets import QFileDialog,QComboBox, QCheckBox
 from multiprocessing import Process, shared_memory, Pool
 import multiprocessing
 from picasso.gaussmle import gaussmle
@@ -181,6 +181,9 @@ def extract_spot_metrics(dat):
         # Load data from shared memory
         shared_mem = dat["shared_mem"]
         np_array = np.ndarray(dat["shape"], dtype=dat["dtype"], buffer=shared_mem.buf)
+        spot_size = dat["spot_size"]
+
+        n_pixels = spot_size**2
 
         [x1,x2,y1,y2] = dat["spot_bound"]  #
         spot_mask = dat["spot_mask"]
@@ -221,21 +224,34 @@ def extract_spot_metrics(dat):
         spot_metrics["spot_size"] = [dat["spot_size"]]*len(spot_values)
 
         # metrics
-        spot_metrics["spot_mean"] = np.nanmean(spot_values,axis=(1,2)).data
-        spot_metrics["spot_sum"] = np.nansum(spot_values,axis=(1,2)).data
-        spot_metrics["spot_max"] = np.nanmax(spot_values,axis=(1,2)).data
-        spot_metrics["spot_std"] = np.nanstd(spot_values,axis=(1,2)).data
-        spot_metrics["bg_mean"] = np.nanmean(spot_background,axis=(1,2)).data
-        spot_metrics["bg_sum"] = np.nansum(spot_background,axis=(1,2)).data
-        spot_metrics["bg_max"] = np.nanmax(spot_background,axis=(1,2)).data
-        spot_metrics["bg_std"] = np.nanstd(spot_background,axis=(1,2)).data
-        spot_metrics["snr_mean"] = spot_metrics["spot_mean"] / spot_metrics["bg_mean"]
-        spot_metrics["snr_sum"] = spot_metrics["spot_sum"] / spot_metrics["bg_sum"]
-        spot_metrics["snr_max"] = spot_metrics["spot_max"] / spot_metrics["bg_max"]
-        spot_metrics["snr_std"] = spot_metrics["spot_std"] / spot_metrics["bg_std"]
+        spot_mean = np.nanmean(spot_values,axis=(1,2)).data
+        spot_median = np.nanmedian(spot_values,axis=(1,2)).data
+        spot_sum = np.nansum(spot_values,axis=(1,2)).data
+        spot_max = np.nanmax(spot_values,axis=(1,2)).data
+        spot_std = np.nanstd(spot_values,axis=(1,2)).data
+
+        spot_mean_bg = np.nanmean(spot_background,axis=(1,2)).data
+        spot_median_bg = np.nanmedian(spot_background,axis=(1,2)).data
+        spot_sum_bg = spot_mean_bg*n_pixels
+        spot_max_bg = np.nanmax(spot_background,axis=(1,2)).data
+        spot_std_bg = np.nanstd(spot_background,axis=(1,2)).data
+
+        # populate spot metrics dict
+        spot_metrics["spot_mean"] = spot_mean
+        spot_metrics["spot_median"] = spot_median
+        spot_metrics["spot_sum"] = spot_sum
+        spot_metrics["spot_max"] = spot_max
+        spot_metrics["spot_std"] = spot_std
+
+        spot_metrics["spot_mean_bg"] = spot_mean_bg
+        spot_metrics["spot_median_bg"] = spot_median_bg
+        spot_metrics["spot_sum_bg"] = spot_sum_bg
+        spot_metrics["spot_max_bg"] = spot_max_bg
+        spot_metrics["spot_std_bg"] = spot_std_bg
 
         n_frames = len(spot_values)
 
+        # populate spot metrics dataframe
         reshaped_spot_metrics = []
         for i in range(n_frames):
             new_dict = {key: spot_metrics[key][i] for key in spot_metrics}
@@ -503,6 +519,11 @@ class _trace_compute_utils:
                     compute_task = {**compute_task, **image_dict}
                     compute_jobs.append(compute_task)
 
+            # print(f"Computing {len(compute_jobs)} spot metrics")
+            #
+            # extract_spot_metrics(compute_jobs[0])
+            # self.compute_traces.setEnabled(True)
+
             cpu_count = int(multiprocessing.cpu_count() * 0.75)
             timeout_duration = 10  # Timeout in seconds
 
@@ -751,8 +772,6 @@ class _trace_compute_utils:
 
         except:
             print(traceback.format_exc())
-
-
 
     def visualise_spot_masks(self):
 

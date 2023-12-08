@@ -1,7 +1,7 @@
 from PyQt5.QtGui import QCursor
 from PyQt5.QtCore import Qt
 from qtpy.QtWidgets import QSlider
-from PyQt5.QtWidgets import QVBoxLayout, QWidget
+from PyQt5.QtWidgets import QVBoxLayout, QWidget, QCheckBox
 import numpy as np
 import pyqtgraph as pg
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -117,44 +117,16 @@ class _plot_utils:
                             self.updating_plot_combos = True
 
                             self.plot_metric.blockSignals(True)
-                            self.plot_background_metric.blockSignals(True)
 
                             self.plot_metric.clear()
-                            self.plot_background_metric.clear()
-
-                            self.plot_background_metric.clear()
-                            self.plot_background_metric.addItem("None")
 
                             metric_names = channel_dict[0].keys()
-
-                            self.metric_dict = {
-                                "spot_mean": "Mean",
-                                "spot_sum": "Sum",
-                                "spot_max": "Maximum",
-                                "spot_std": "std",
-                                "snr_mean": "Mean SNR",
-                                "snr_std": "std SNR",
-                                "snr_max": "Maximum SNR",
-                                "snr_sum": "Sum SNR",
-                                "spot_photons": "Picasso Photons",
-                            }
-
-                            self.background_metric_dict = {
-                                "bg_mean": "Local Mean",
-                                "bg_sum": "Local Sum",
-                                "bg_std": "Local std",
-                                "bg_max": "Local Maximum",
-                                "spot_bg": "Picasso Background",
-                            }
 
                             for metric in metric_names:
                                 if metric in self.metric_dict.keys():
                                     self.plot_metric.addItem(self.metric_dict[metric])
-                                if metric in self.background_metric_dict.keys():
-                                    self.plot_background_metric.addItem(self.background_metric_dict[metric])
 
                             self.plot_metric.blockSignals(False)
-                            self.plot_background_metric.blockSignals(False)
 
                             self.updating_plot_combos = False
 
@@ -174,12 +146,13 @@ class _plot_utils:
 
         return dict_key
 
-    def compute_fret_efficiency(self,  dataset_name, metric_key,background_metric_key,n_pixels,
+    def compute_fret_efficiency(self,  dataset_name, metric_key, subtract_background=False,
             progress_callback=None, gamma_correction=1):
 
         try:
 
             dataset_dict = self.traces_dict[dataset_name].copy()
+            background_metric_key = metric_key + "_bg"
 
             n_traces = len(dataset_dict["donor"])
 
@@ -188,9 +161,10 @@ class _plot_utils:
                 donor = dataset_dict["donor"][trace_index][metric_key]
                 acceptor = dataset_dict["acceptor"][trace_index][metric_key]
 
-                if background_metric_key in self.background_metric_dict.keys():
+                if subtract_background:
                     donor_bg = dataset_dict["donor"][trace_index][background_metric_key].copy()
                     acceptor_bg = dataset_dict["acceptor"][trace_index][background_metric_key].copy()
+
                     donor = donor - donor_bg
                     acceptor = acceptor - acceptor_bg
 
@@ -209,12 +183,13 @@ class _plot_utils:
             print(traceback.format_exc())
             pass
 
-    def compute_alex_efficiency(self, dataset_name, metric_key,background_metric_key,n_pixels,
+    def compute_alex_efficiency(self, dataset_name, metric_key, subtract_background=False,
             progress_callback=None, gamma_correction=1):
 
         try:
 
             dataset_dict = self.traces_dict[dataset_name].copy()
+            background_metric_key = metric_key + "_bg"
 
             n_traces = len(dataset_dict["dd"])
 
@@ -228,36 +203,17 @@ class _plot_utils:
                 dd = copy.deepcopy(dataset_dict["dd"][trace_index][metric_key])
                 da = copy.deepcopy(dataset_dict["da"][trace_index][metric_key])
 
-                # if trace_index == 0:
-                #     print("dd",metric_key, dd[:5])
-                #     print("da",metric_key, da[:5])
-                #     eff = da / ((gamma_correction * dd) + da)
-                #     print("efficiency",metric_key, eff[:5])
-
                 gamma_correction = 1
 
-                if background_metric_key == None:
-
-                    efficiency = da / ((gamma_correction * dd) + da)
-                    efficiency = np.array(efficiency)
-
-                elif "sum" not in background_metric_key.lower():
-
-                    dd_bg = dataset_dict["dd"][trace_index][background_metric_key].copy()
-                    da_bg = dataset_dict["da"][trace_index][background_metric_key].copy()
-                    dd = dd - dd_bg
-                    da = da - da_bg
+                if subtract_background == False:
 
                     efficiency = da / ((gamma_correction * dd) + da)
                     efficiency = np.array(efficiency)
 
                 else:
 
-                    dd_bg = dataset_dict["dd"][trace_index]["bg_mean"].copy()
-                    da_bg = dataset_dict["da"][trace_index]["bg_mean"].copy()
-
-                    dd_bg = dd_bg * n_pixels
-                    da_bg = da_bg * n_pixels
+                    dd_bg = dataset_dict["dd"][trace_index][background_metric_key].copy()
+                    da_bg = dataset_dict["da"][trace_index][background_metric_key].copy()
 
                     dd = dd - dd_bg
                     da = da - da_bg
@@ -281,10 +237,10 @@ class _plot_utils:
             dataset_name = self.plot_data.currentText()
             channel_name = self.plot_channel.currentText()
             metric_name = self.plot_metric.currentText()
-            background_metric_name = self.plot_background_metric.currentText()
+            subtract_background = self.subtract_background.isChecked()
 
             metric_key = self.get_dict_key(self.metric_dict, metric_name)
-            background_metric_key = self.get_dict_key(self.background_metric_dict, background_metric_name)
+            background_metric_key = metric_key + "_bg"
 
             if dataset_name == "All Datasets":
                 plot_datasets = self.traces_dict.keys()
@@ -315,10 +271,11 @@ class _plot_utils:
 
             if channel_name == "ALEX Efficiency":
                 self.compute_alex_efficiency(dataset_name, metric_key,
-                    background_metric_key, n_pixels, progress_callback)
+                    subtract_background, progress_callback)
+
             elif channel_name == "FRET Efficiency":
-                self.compute_fret_efficiency(dataset_name, metric_key,
-                    background_metric_key, n_pixels, progress_callback)
+                self.compute_fret_efficiency( dataset_name, metric_key,
+                    subtract_background, progress_callback)
 
             iter = 0
 
@@ -333,12 +290,9 @@ class _plot_utils:
                         data = np.array(trace_dict[metric_key].copy())
 
                         if "efficiency" not in channel:
-                            if background_metric_name != "None":
+                            if subtract_background:
                                 background = np.array(trace_dict[background_metric_key].copy())
                                 data = data - background
-
-                        # if trace_index == 0:
-                        #     print(metric_key, background_metric_key, data[:5])
 
                         if channel in ["dd", "da", "ad", "aa"]:
                             label = f"{channel.upper()} [{metric_name}]"
@@ -363,18 +317,10 @@ class _plot_utils:
                             progress = int((iter/n_iterations) * 100)
                             progress_callback.emit(progress)
 
-            # print(f"plot_dict keys: {plot_dict.keys()}")
-            #
-            # for dataset_name in plot_dict.keys():
-            #     print(dataset_name,
-            #         len(plot_dict[dataset_name]),
-            #         plot_dict[dataset_name][0]["labels"],
-            #         len(plot_dict[dataset_name][0]["data"][0]))
-
             self.plot_dict = plot_dict
 
         except:
-            print(channel)
+            # print(channel)
             print(traceback.format_exc())
             pass
 
@@ -388,9 +334,8 @@ class _plot_utils:
                     dataset_name = self.plot_data.currentText()
                     channel_name = self.plot_channel.currentText()
                     metric_name = self.plot_metric.currentText()
-                    background_metric_name = self.plot_background_metric.currentText()
 
-                    if dataset_name != "" and channel_name != "" and metric_name != "" and background_metric_name != "":
+                    if dataset_name != "" and channel_name != "" and metric_name != "":
 
                         if self.updating_plot_combos == False:
 
@@ -398,7 +343,6 @@ class _plot_utils:
                             self.plot_data.setEnabled(False)
                             self.plot_channel.setEnabled(False)
                             self.plot_metric.setEnabled(False)
-                            self.plot_background_metric.setEnabled(False)
                             self.split_plots.setEnabled(False)
                             self.normalise_plots.setEnabled(False)
 
@@ -410,7 +354,6 @@ class _plot_utils:
                             self.plot_data.setEnabled(True)
                             self.plot_channel.setEnabled(True)
                             self.plot_metric.setEnabled(True)
-                            self.plot_background_metric.setEnabled(True)
                             self.split_plots.setEnabled(True)
                             self.normalise_plots.setEnabled(True)
 

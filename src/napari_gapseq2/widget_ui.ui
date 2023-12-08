@@ -1059,7 +1059,7 @@
        <item>
         <widget class="QTabWidget" name="traces_tab_widget">
          <property name="currentIndex">
-          <number>1</number>
+          <number>0</number>
          </property>
          <widget class="QWidget" name="compute_tab_2">
           <attribute name="title">
@@ -1355,31 +1355,28 @@
              <item row="2" column="1">
               <widget class="QComboBox" name="plot_metric"/>
              </item>
-             <item row="3" column="0">
-              <widget class="QLabel" name="label_42">
-               <property name="text">
-                <string>Plot Background Metric</string>
-               </property>
-              </widget>
-             </item>
-             <item row="3" column="1">
-              <widget class="QComboBox" name="plot_background_metric"/>
-             </item>
             </layout>
            </item>
            <item>
             <layout class="QGridLayout" name="gridLayout_18">
-             <item row="0" column="1">
+             <item row="0" column="2">
               <widget class="QCheckBox" name="normalise_plots">
                <property name="text">
                 <string>Normalise Data [0-&gt;1]</string>
                </property>
               </widget>
              </item>
-             <item row="0" column="0">
+             <item row="0" column="1">
               <widget class="QCheckBox" name="split_plots">
                <property name="text">
                 <string>Split Plots With Multiple Lines</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="0">
+              <widget class="QCheckBox" name="subtract_background">
+               <property name="text">
+                <string>Subtract Background</string>
                </property>
               </widget>
              </item>
@@ -1477,7 +1474,7 @@
        <item>
         <widget class="QTabWidget" name="tabWidget_2">
          <property name="currentIndex">
-          <number>1</number>
+          <number>0</number>
          </property>
          <widget class="QWidget" name="tab_8">
           <attribute name="title">
@@ -1524,6 +1521,22 @@
           <layout class="QVBoxLayout" name="verticalLayout_12">
            <item>
             <layout class="QFormLayout" name="formLayout_13">
+             <item row="0" column="0">
+              <widget class="QLabel" name="label_36">
+               <property name="text">
+                <string>Export Mode</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QComboBox" name="traces_export_mode">
+               <item>
+                <property name="text">
+                 <string>JSON Dataset</string>
+                </property>
+               </item>
+              </widget>
+             </item>
              <item row="1" column="0">
               <widget class="QLabel" name="label_45">
                <property name="text">
@@ -1617,49 +1630,14 @@
                </item>
               </widget>
              </item>
-             <item row="4" column="0">
-              <widget class="QLabel" name="label_47">
-               <property name="text">
-                <string>Background Metric</string>
-               </property>
-              </widget>
-             </item>
-             <item row="4" column="1">
-              <widget class="QComboBox" name="traces_export_background">
-               <item>
-                <property name="text">
-                 <string>None</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>Local Background Subtraction</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>Global Background Subtraction</string>
-                </property>
-               </item>
-              </widget>
-             </item>
-             <item row="0" column="1">
-              <widget class="QComboBox" name="traces_export_mode">
-               <item>
-                <property name="text">
-                 <string>JSON Dataset</string>
-                </property>
-               </item>
-              </widget>
-             </item>
-             <item row="0" column="0">
-              <widget class="QLabel" name="label_36">
-               <property name="text">
-                <string>Export Mode</string>
-               </property>
-              </widget>
-             </item>
             </layout>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="export_subtract_backgroround">
+             <property name="text">
+              <string>Subtract Background</string>
+             </property>
+            </widget>
            </item>
            <item>
             <widget class="QPushButton" name="gapseq_export_traces">

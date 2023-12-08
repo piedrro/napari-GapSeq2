@@ -195,7 +195,7 @@ class GapSeqWidget(QWidget,
         self.traces_export_dataset = self.findChild(QComboBox, 'traces_export_dataset')
         self.traces_export_channel = self.findChild(QComboBox, 'traces_export_channel')
         self.traces_export_metric = self.findChild(QComboBox, 'traces_export_metric')
-        self.traces_export_background = self.findChild(QComboBox, 'traces_export_background')
+        self.export_subtract_backgroround = self.findChild(QCheckBox, 'export_subtract_backgroround')
         self.gapseq_export_traces = self.findChild(QPushButton, 'gapseq_export_traces')
         self.export_progressbar = self.findChild(QProgressBar, 'export_progressbar')
 
@@ -212,7 +212,7 @@ class GapSeqWidget(QWidget,
         self.plot_data = self.findChild(QComboBox, 'plot_data')
         self.plot_channel = self.findChild(QComboBox, 'plot_channel')
         self.plot_metric = self.findChild(QComboBox, 'plot_metric')
-        self.plot_background_metric = self.findChild(QComboBox, 'plot_background_metric')
+        self.subtract_background = self.findChild(QCheckBox, 'subtract_background')
         self.split_plots = self.findChild(QCheckBox, 'split_plots')
         self.normalise_plots = self.findChild(QCheckBox, 'normalise_plots')
         self.plot_compute_progress = self.findChild(QProgressBar, 'plot_compute_progress')
@@ -269,9 +269,9 @@ class GapSeqWidget(QWidget,
         self.plot_data.currentIndexChanged.connect(self.initialize_plot)
         self.plot_channel.currentIndexChanged.connect(self.initialize_plot)
         self.plot_metric.currentIndexChanged.connect(self.initialize_plot)
-        self.plot_background_metric.currentIndexChanged.connect(self.initialize_plot)
         self.split_plots.stateChanged.connect(self.initialize_plot)
         self.normalise_plots.stateChanged.connect(self.initialize_plot)
+        self.subtract_background.stateChanged.connect(self.initialize_plot)
 
         self.gapseq_colocalize.clicked.connect(self.gapseq_colocalize_fiducials)
 
@@ -292,7 +292,7 @@ class GapSeqWidget(QWidget,
 
         self.update_import_options()
 
-        self.metric_dict = {"spot_mean": "Mean", "spot_sum": "Sum", "spot_max": "Maximum",
+        self.metric_dict = {"spot_mean": "Mean", "spot_median": "Median", "spot_sum": "Sum", "spot_max": "Maximum",
                             "spot_std": "std", "snr_mean": "Mean SNR", "snr_std": "std SNR",
                             "snr_max": "Maximum SNR", "snr_sum": "Sum SNR", "spot_photons": "Picasso Photons", }
 
