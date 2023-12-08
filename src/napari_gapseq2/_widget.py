@@ -224,6 +224,7 @@ class GapSeqWidget(QWidget,
         self.colo_channel2 = self.findChild(QComboBox, 'colo_channel2')
         self.colo_max_dist = self.findChild(QComboBox, 'colo_max_dist')
         self.colo_bboxes = self.findChild(QCheckBox, 'colo_bboxes')
+        self.colo_fiducials = self.findChild(QCheckBox, 'colo_fiducials')
         self.gapseq_colocalize = self.findChild(QPushButton, 'gapseq_colocalize')
 
         self.gapseq_import.clicked.connect(self.gapseq_import_data)
@@ -272,8 +273,7 @@ class GapSeqWidget(QWidget,
         self.split_plots.stateChanged.connect(self.initialize_plot)
         self.normalise_plots.stateChanged.connect(self.initialize_plot)
 
-        self.gapseq_colocalize.clicked.connect(self._colocalize_fiducials)
-        self.colo_dataset.currentIndexChanged.connect(self.populate_colocalize_combos)
+        self.gapseq_colocalize.clicked.connect(self.gapseq_colocalize_fiducials)
 
         self.plot_localisation_number.valueChanged.connect(lambda: self.update_slider_label("plot_localisation_number"))
         self.plot_localisation_number.valueChanged.connect(partial(self.plot_traces))

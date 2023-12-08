@@ -1,16 +1,57 @@
 import traceback
 import numpy as np
 import cv2
+from napari_gapseq2._widget_utils_worker import Worker
+import time
+from functools import partial
+
 
 class _utils_colocalize:
 
 
-    def populate_colocalize_combos(self):
 
-        print(True)
+    def filter_locs_by_matches(self, locs, coords, matches):
+
+        try:
+
+            locs = locs.copy()
+            coords = coords.copy()
+            matches = matches.copy()
+
+            coords = np.float32([coords[m.queryIdx] for m in matches]).reshape(-1, 2)
+
+            filtered_locs = []
+            filtered_render_locs = {}
+
+            for loc in locs:
+                coord = [loc.x, loc.y]
+                frame = loc.frame
+                if coord in coords.tolist():
+                    filtered_locs.append(loc)
+
+                    if frame not in filtered_render_locs.keys():
+                        filtered_render_locs[frame] = []
+
+                    filtered_render_locs[frame].append([loc.y, loc.x])
+
+            filtered_locs = np.rec.fromrecords(filtered_locs, dtype=locs.dtype)
+            filtered_loc_centers = self.get_localisation_centres(filtered_locs)
 
 
-    def _colocalize_fiducials(self):
+        except:
+            print(traceback.format_exc())
+            filtered_locs = None
+            filtered_render_locs = None
+            filtered_loc_centers = None
+            pass
+
+        return filtered_locs, filtered_render_locs, filtered_loc_centers
+
+
+
+
+
+    def _gapseq_colocalize_fiducials(self, progress_callback=None):
 
         try:
 
@@ -54,6 +95,7 @@ class _utils_colocalize:
                     filter_ch1_render_locs[frame].append([loc.y, loc.x])
 
             filtered_ch1_locs = np.rec.fromrecords(filtered_ch1_locs, dtype=ch1_locs.dtype)
+            filtered_ch1_loc_centers = self.get_localisation_centres(filtered_ch1_locs)
 
             filtered_ch2_locs = []
             filter_ch2_render_locs = {}
@@ -70,26 +112,108 @@ class _utils_colocalize:
                     filter_ch2_render_locs[frame].append([loc.y, loc.x])
 
             filtered_ch2_locs = np.rec.fromrecords(filtered_ch2_locs, dtype=ch2_locs.dtype)
-
-            filtered_ch1_loc_centers = self.get_localisation_centres(filtered_ch1_locs)
             filtered_ch2_loc_centers = self.get_localisation_centres(filtered_ch2_locs)
 
-            self.localisation_dict["fiducials"][dataset][channel1.lower()]["localisations"] = filtered_ch1_locs
-            self.localisation_dict["fiducials"][dataset][channel1.lower()]["localisation_centres"] = filtered_ch1_loc_centers
-            self.localisation_dict["fiducials"][dataset][channel1.lower()]["render_locs"] = filter_ch1_render_locs
+            colo_locs = []
+            colo_render_locs = {}
 
-            self.localisation_dict["fiducials"][dataset][channel2.lower()]["localisations"] = filtered_ch2_locs
-            self.localisation_dict["fiducials"][dataset][channel2.lower()]["localisation_centres"] = filtered_ch2_loc_centers
-            self.localisation_dict["fiducials"][dataset][channel2.lower()]["render_locs"] = filter_ch2_render_locs
+            for loc1, loc2 in zip(filtered_ch1_locs, filtered_ch2_locs):
+                locX = (loc1.x + loc2.x) / 2
+                locY = (loc1.y + loc2.y) / 2
+                coord = [locX, locY]
+                frame = loc1.frame
 
-            self.draw_fiducials()
+                colo_loc = loc1.copy()
+                colo_loc.x = locX
+                colo_loc.y = locY
 
-            if self.colo_bboxes.isChecked():
+                colo_locs.append(colo_loc)
 
-                self.localisation_dict["bounding_boxes"]["localisations"] = filtered_ch1_locs
-                self.localisation_dict["bounding_boxes"]["localisation_centres"] = filtered_ch1_loc_centers
-                self.draw_bounding_boxes()
+                if frame not in colo_render_locs.keys():
+                    colo_render_locs[frame] = []
+
+                colo_render_locs[frame].append([locY, locX])
+
+            colo_locs = np.rec.fromrecords(colo_locs, dtype=filtered_ch1_locs.dtype)
+            colo_loc_centers = self.get_localisation_centres(colo_locs)
+
+            result_dict = {"localisations": colo_locs,
+                           "localisation_centres": colo_loc_centers,
+                           "render_locs": colo_render_locs}
+
+            print(f"Found {len(colo_locs)} colocalisations between {channel1} and {channel2}")
+
+        except:
+            print(traceback.format_exc())
+            ch1_result_dict = None
+            ch2_result_dict = None
+            result_dict = None
+            pass
+
+        return result_dict
+
+    def _gapseq_colocalize_fiducials_cleanup(self, colo_locs):
+
+        try:
+
+            if colo_locs is not None:
+
+                dataset = self.colo_dataset.currentText()
+                channel1 = self.colo_channel1.currentText()
+                channel2 = self.colo_channel2.currentText()
+
+                if self.colo_fiducials.isChecked():
+
+                    self.localisation_dict["fiducials"][dataset][channel1.lower()]["localisations"] = colo_locs["localisations"]
+                    self.localisation_dict["fiducials"][dataset][channel1.lower()]["localisation_centres"] = colo_locs["localisation_centres"]
+                    self.localisation_dict["fiducials"][dataset][channel1.lower()]["render_locs"] = colo_locs["render_locs"]
+
+                    self.localisation_dict["fiducials"][dataset][channel2.lower()]["localisations"] = colo_locs["localisations"]
+                    self.localisation_dict["fiducials"][dataset][channel2.lower()]["localisation_centres"] = colo_locs["localisation_centres"]
+                    self.localisation_dict["fiducials"][dataset][channel2.lower()]["render_locs"] = colo_locs["render_locs"]
+
+                    self.draw_fiducials()
+
+                if self.colo_bboxes.isChecked():
+
+                    self.localisation_dict["bounding_boxes"]["localisations"] = colo_locs["localisations"]
+                    self.localisation_dict["bounding_boxes"]["localisation_centres"] = colo_locs["localisation_centres"]
+
+                    self.draw_bounding_boxes()
 
         except:
             print(traceback.format_exc())
             pass
+
+
+
+
+    def gapseq_colocalize_fiducials(self):
+
+        try:
+
+            dataset = self.colo_dataset.currentText()
+            channel1 = self.colo_channel1.currentText()
+            channel2 = self.colo_channel2.currentText()
+
+            ch1_loc_dict, ch1_n_locs = self.get_loc_dict(dataset, channel1.lower())
+            ch2_loc_dict, ch2_n_locs = self.get_loc_dict(dataset, channel2.lower())
+
+            if channel1 == channel2:
+                print("Channels must be different for colocalisation")
+
+            elif ch1_n_locs == 0 or ch2_n_locs == 0:
+
+                print("No localisations found in one or both channels.")
+
+            else:
+
+                worker = Worker(self._gapseq_colocalize_fiducials)
+                worker.signals.result.connect(self._gapseq_colocalize_fiducials_cleanup)
+                self.threadpool.start(worker)
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
