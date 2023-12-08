@@ -118,13 +118,7 @@ def extract_picasso_spot_metrics(dat):
         frame_dict = dat["frame_dict"][frame_index]
         box_size = dat["box_size"]
         locs = dat["locs"]
-        spot_bounds = dat["loc_bounds"]
         loc_centers = dat["loc_centers"]
-
-        spot_X1 = [bound[0] for bound in spot_bounds]
-        spot_X2 = [bound[1] for bound in spot_bounds]
-        spot_Y1 = [bound[2] for bound in spot_bounds]
-        spot_Y2 = [bound[3] for bound in spot_bounds]
 
         spot_cx = [center[0] for center in loc_centers]
         spot_cy = [center[1] for center in loc_centers]
@@ -144,11 +138,6 @@ def extract_picasso_spot_metrics(dat):
         spot_metrics["channel"] = dat["channel"]
         spot_metrics["frame_index"] = dat["frame_index"]
         spot_metrics["spot_index"] = np.arange(len(locs))
-        spot_metrics["spot_bounds"] = spot_bounds
-        spot_metrics["spot_x1"] = spot_X1
-        spot_metrics["spot_x2"] = spot_X2
-        spot_metrics["spot_y1"] = spot_Y1
-        spot_metrics["spot_y2"] = spot_Y2
         spot_metrics["spot_cx"] = spot_cx
         spot_metrics["spot_cy"] = spot_cy
         spot_metrics["spot_center"] = loc_centers
@@ -157,7 +146,7 @@ def extract_picasso_spot_metrics(dat):
         spot_metrics["box_size"] = dat["box_size"]
 
         try:
-            thetas, CRLBs, likelihoods, iterations = gaussmle(spot_data, eps=0.01, max_it=100, method="sigma")
+            thetas, CRLBs, likelihoods, iterations = gaussmle(spot_data, eps=0.001, max_it=100, method="sigma")
             fitted_locs = get_loc_from_fit(locs, thetas, CRLBs, likelihoods, iterations, box_size)
 
             spot_photons = fitted_locs.photons
@@ -233,7 +222,6 @@ def extract_spot_metrics(dat):
         spot_loc = dat["spot_loc"]
         spot_x = spot_loc.x
         spot_y = spot_loc.y
-        coords = [spot_loc.x, spot_loc.y]
 
         # Perform preprocessing steps and overwrite original image
         spot_values = np_array[:, y1:y2, x1:x2].copy()
@@ -250,14 +238,8 @@ def extract_spot_metrics(dat):
         spot_metrics["channel"] = [dat["channel"]]*len(spot_values)
         spot_metrics["frame_index"] = np.arange(len(spot_values)).tolist()
         spot_metrics["spot_index"] = [dat["spot_index"]]*len(spot_values)
-        spot_metrics["spot_bounds"] = [dat["spot_bound"]]*len(spot_values)
-        spot_metrics["spot_x1"] = [x1]*len(spot_values)
-        spot_metrics["spot_x2"] = [x2]*len(spot_values)
-        spot_metrics["spot_y1"] = [y1]*len(spot_values)
-        spot_metrics["spot_y2"] = [y2]*len(spot_values)
         spot_metrics["spot_cx"] = [spot_cx]*len(spot_values)
         spot_metrics["spot_cy"] = [spot_cy]*len(spot_values)
-        spot_metrics["spot_center"] = [spot_center]*len(spot_values)
         spot_metrics["spot_x"] = [spot_x]*len(spot_values)
         spot_metrics["spot_y"] = [spot_y]*len(spot_values)
         spot_metrics["spot_size"] = [dat["spot_size"]]*len(spot_values)
@@ -610,9 +592,6 @@ class _trace_compute_utils:
             spot_bounds = self.generate_spot_bounds(locs, len(spot_mask[0]))
             spot_centers = self.get_localisation_centres(locs, mode="bounding_boxes")
 
-            # print("spot_bounds", spot_bounds)
-            print("spot_centers", spot_centers)
-
             compute_jobs = []
 
             for image_dict in self.shared_images:
@@ -632,11 +611,6 @@ class _trace_compute_utils:
                                     }
                     compute_task = {**compute_task, **image_dict}
                     compute_jobs.append(compute_task)
-
-            # print(f"Computing {len(compute_jobs)} spot metrics")
-            #
-            # extract_spot_metrics(compute_jobs[0])
-            # self.compute_traces.setEnabled(True)
 
             cpu_count = int(multiprocessing.cpu_count() * 0.9)
             timeout_duration = 10  # Timeout in seconds
@@ -683,15 +657,6 @@ class _trace_compute_utils:
             loc_bounds = self.generate_spot_bounds(locs, box_size)
             loc_centers = self.get_localisation_centres(locs, mode="bounding_boxes")
 
-            # print("loc_bounds", loc_bounds)
-            print("loc_centers", loc_centers)
-
-            # spot_locs = []
-            # for loc in locs:
-            #     spot_loc = [loc.copy()]
-            #     spot_loc = np.rec.fromrecords(spot_loc, dtype=loc.dtype)
-            #     spot_locs.append(spot_loc)
-
             compute_jobs = []
 
             for image_dict in self.shared_frames:
@@ -709,11 +674,6 @@ class _trace_compute_utils:
 
                     compute_task = {**compute_task, **image_dict}
                     compute_jobs.append(compute_task)
-
-            print(f"Computing {len(compute_jobs)} spot metrics")
-
-            extract_picasso_spot_metrics(compute_jobs[0])
-            self.compute_traces.setEnabled(True)
 
             cpu_count = int(multiprocessing.cpu_count() * 0.9)
             timeout_duration = 10  # Timeout in seconds
@@ -761,19 +721,11 @@ class _trace_compute_utils:
                 spot_metrics = pd.concat(spot_metrics)
                 spot_metrics.sort_values(by=["dataset", "channel", "spot_index", "frame_index"], inplace=True)
 
-                # spot_metrics.sort_values(by=["spot_cx","spot_cy"], inplace=True)
-                # unique_tuples = set(tuple(x) for x in spot_metrics['spot_center'])
-                # print(unique_tuples)
-
             # format picasso spot metrics into dataframe and merge with spot metrics
             if picasso_spot_metrics is not None:
 
                 picasso_spot_metrics = pd.concat(picasso_spot_metrics)
                 picasso_spot_metrics.sort_values(by=["dataset", "channel", "spot_index", "frame_index"], inplace=True)
-
-                # picasso_spot_metrics.sort_values(by=["spot_cx","spot_cy"], inplace=True)
-                # unique_tuples = set(tuple(x) for x in picasso_spot_metrics['spot_center'])
-                # print(unique_tuples)
 
                 merge_keys = ["dataset", "channel", "spot_index","frame_index", "spot_cx","spot_cy"]
                 spot_metrics = pd.merge(spot_metrics, picasso_spot_metrics, on=merge_keys, how='left')
@@ -846,8 +798,8 @@ class _trace_compute_utils:
 
                         worker = Worker(self._gapseq_compute_traces)
                         worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.compute_traces_progressbar))
-                        # worker.signals.finished.connect(self._gapseq_compute_traces_cleanup)
-                        # worker.signals.error.connect(self._gapseq_compute_traces_cleanup)
+                        worker.signals.finished.connect(self._gapseq_compute_traces_cleanup)
+                        worker.signals.error.connect(self._gapseq_compute_traces_cleanup)
                         self.threadpool.start(worker)
 
         except:

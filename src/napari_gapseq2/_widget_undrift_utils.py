@@ -229,7 +229,7 @@ class _undrift_utils:
                 undrift_locs,
                 picasso_info,
                 segmentation=segmentation,
-                display=False,
+                display=True,
                 segmentation_callback=segmentation_callback,
                 rcc_callback=undrift_callback,
             )

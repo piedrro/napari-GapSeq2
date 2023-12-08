@@ -287,6 +287,8 @@ class _plot_utils:
                     channel_dict = self.traces_dict[dataset_name][channel].copy()
                     for trace_index, trace_dict in channel_dict.items():
 
+                        # coords = [trace_dict["spot_cx"], trace_dict["spot_cy"]]
+
                         data = np.array(trace_dict[metric_key].copy())
 
                         if "efficiency" not in channel:
@@ -310,6 +312,7 @@ class _plot_utils:
 
                         plot_dict[dataset_name][trace_index]["labels"].append(label)
                         plot_dict[dataset_name][trace_index]["data"].append(data)
+                        # plot_dict[dataset_name][trace_index]["coords"] = coords
 
                         iter += 1
 
@@ -514,6 +517,10 @@ class _plot_utils:
                     plot_lines = grid["plot_lines"]
                     plot_lines_labels = grid["plot_lines_labels"]
                     title_plot = grid["title_plot"]
+
+                    # coords = self.plot_dict[plot_dataset][0]["coords"]
+                    #
+                    # print(coords)
 
                     plot_details = f"{plot_dataset} [#:{localisation_number}]"
 
