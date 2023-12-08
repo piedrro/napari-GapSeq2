@@ -113,55 +113,83 @@ def extract_picasso_spot_metrics(dat):
 
     try:
 
+
+        frame_index = dat["frame_index"]
+        frame_dict = dat["frame_dict"][frame_index]
+        box_size = dat["box_size"]
+        locs = dat["locs"]
+        spot_bounds = dat["loc_bounds"]
+        loc_centers = dat["loc_centers"]
+
+        spot_X1 = [bound[0] for bound in spot_bounds]
+        spot_X2 = [bound[1] for bound in spot_bounds]
+        spot_Y1 = [bound[2] for bound in spot_bounds]
+        spot_Y2 = [bound[3] for bound in spot_bounds]
+
+        spot_cx = [center[0] for center in loc_centers]
+        spot_cy = [center[1] for center in loc_centers]
+
         # Load data from shared memory
-        shared_mem = dat["shared_mem"]
-        np_array = np.ndarray(dat["shape"], dtype=dat["dtype"], buffer=shared_mem.buf)
+        shared_mem = frame_dict["shared_mem"]
+        image = np.ndarray(frame_dict["shape"], dtype=frame_dict["dtype"], buffer=shared_mem.buf)
 
-        [x1,x2,y1,y2] = dat["loc_bound"]
-        spot_data = [np_array[dat["frame_index"], y1:y2, x1:x2].copy()]
-        spot_loc = dat["spot_loc"]
-        spot_x = spot_loc[0].x
-        spot_y = spot_loc[0].y
+        camera_info = {"baseline": 100.0, "gain": 1, "sensitivity": 1.0, "qe": 0.9, }
 
-        try:
-            thetas, CRLBs, likelihoods, iterations = gaussmle(spot_data, eps=0.001, max_it=100, method="sigma")
-            loc = locs_from_fits(spot_loc, thetas, CRLBs, likelihoods, iterations, dat["box_size"])
-        except:
-            loc = None
+        image = np.expand_dims(image, axis=0)
+
+        spot_data = localize.get_spots(image, locs, box_size, camera_info)
 
         # metadata
         spot_metrics["dataset"] = dat["dataset"]
         spot_metrics["channel"] = dat["channel"]
         spot_metrics["frame_index"] = dat["frame_index"]
-        spot_metrics["spot_index"] = dat["loc_index"]
-        spot_metrics["spot_x"] = spot_x
-        spot_metrics["spot_y"] = spot_y
+        spot_metrics["spot_index"] = np.arange(len(locs))
+        spot_metrics["spot_bounds"] = spot_bounds
+        spot_metrics["spot_x1"] = spot_X1
+        spot_metrics["spot_x2"] = spot_X2
+        spot_metrics["spot_y1"] = spot_Y1
+        spot_metrics["spot_y2"] = spot_Y2
+        spot_metrics["spot_cx"] = spot_cx
+        spot_metrics["spot_cy"] = spot_cy
+        spot_metrics["spot_center"] = loc_centers
+        spot_metrics["spot_x"] = locs.x
+        spot_metrics["spot_y"] = locs.y
         spot_metrics["box_size"] = dat["box_size"]
 
-        # picasso metrics
-        if type(loc) != type(None):
+        try:
+            thetas, CRLBs, likelihoods, iterations = gaussmle(spot_data, eps=0.01, max_it=100, method="sigma")
+            fitted_locs = get_loc_from_fit(locs, thetas, CRLBs, likelihoods, iterations, box_size)
 
-            spot_metrics["spot_photons"] = loc[0].photons
-            spot_metrics["spot_bg"] = loc[0].bg
-            spot_metrics["spot_sx"] = loc[0].sx
-            spot_metrics["spot_sy"] = loc[0].sy
-            spot_metrics["spot_lpx"] = loc[0].lpx
-            spot_metrics["spot_lpy"] = loc[0].lpy
-            spot_metrics["spot_net_gradient"] = loc[0].net_gradient
-            spot_metrics["spot_likelihood"] = loc[0].likelihood
-            spot_metrics["spot_iterations"] = loc[0].iterations
-        else:
-            spot_metrics["spot_photons"] = np.nan
-            spot_metrics["spot_bg"] = np.nan
-            spot_metrics["spot_sx"] = np.nan
-            spot_metrics["spot_sy"] = np.nan
-            spot_metrics["spot_lpx"] = np.nan
-            spot_metrics["spot_lpy"] = np.nan
-            spot_metrics["spot_net_gradient"] = np.nan
-            spot_metrics["spot_likelihood"] = np.nan
-            spot_metrics["spot_iterations"] = np.nan
+            spot_photons = fitted_locs.photons
+            spot_photons_bg = fitted_locs.bg
+            spot_sx = fitted_locs.sx
+            spot_sy = fitted_locs.sy
+            spot_lpx = fitted_locs.lpx
+            spot_lpy = fitted_locs.lpy
+            spot_net_gradient = fitted_locs.net_gradient
+            spot_likelihood = fitted_locs.likelihood
 
-        spot_metrics = pd.Series(spot_metrics)
+        except:
+
+            spot_photons = np.zeros(len(locs))
+            spot_photons_bg = np.zeros(len(locs))
+            spot_sx = np.zeros(len(locs))
+            spot_sy = np.zeros(len(locs))
+            spot_lpx = np.zeros(len(locs))
+            spot_lpy = np.zeros(len(locs))
+            spot_net_gradient = np.zeros(len(locs))
+            spot_likelihood = np.zeros(len(locs))
+
+        spot_metrics["spot_photons"] = spot_photons
+        spot_metrics["spot_photons_bg"] = spot_photons_bg
+        spot_metrics["spot_sx"] = spot_sx
+        spot_metrics["spot_sy"] = spot_sy
+        spot_metrics["spot_lpx"] = spot_lpx
+        spot_metrics["spot_lpy"] = spot_lpy
+        spot_metrics["spot_net_gradient"] = spot_net_gradient
+        spot_metrics["spot_likelihood"] = spot_likelihood
+
+        spot_metrics = pd.DataFrame(spot_metrics)
 
     except:
         print(traceback.format_exc())
@@ -182,6 +210,9 @@ def extract_spot_metrics(dat):
         shared_mem = dat["shared_mem"]
         np_array = np.ndarray(dat["shape"], dtype=dat["dtype"], buffer=shared_mem.buf)
         spot_size = dat["spot_size"]
+        spot_center = dat["spot_center"]
+
+        spot_cx, spot_cy = spot_center
 
         n_pixels = spot_size**2
 
@@ -219,6 +250,14 @@ def extract_spot_metrics(dat):
         spot_metrics["channel"] = [dat["channel"]]*len(spot_values)
         spot_metrics["frame_index"] = np.arange(len(spot_values)).tolist()
         spot_metrics["spot_index"] = [dat["spot_index"]]*len(spot_values)
+        spot_metrics["spot_bounds"] = [dat["spot_bound"]]*len(spot_values)
+        spot_metrics["spot_x1"] = [x1]*len(spot_values)
+        spot_metrics["spot_x2"] = [x2]*len(spot_values)
+        spot_metrics["spot_y1"] = [y1]*len(spot_values)
+        spot_metrics["spot_y2"] = [y2]*len(spot_values)
+        spot_metrics["spot_cx"] = [spot_cx]*len(spot_values)
+        spot_metrics["spot_cy"] = [spot_cy]*len(spot_values)
+        spot_metrics["spot_center"] = [spot_center]*len(spot_values)
         spot_metrics["spot_x"] = [spot_x]*len(spot_values)
         spot_metrics["spot_y"] = [spot_y]*len(spot_values)
         spot_metrics["spot_size"] = [dat["spot_size"]]*len(spot_values)
@@ -440,6 +479,7 @@ class _trace_compute_utils:
 
         for dataset_name, dataset_dict in self.dataset_dict.items():
             for channel_name, channel_dict in dataset_dict.items():
+
                 image = channel_dict.pop("data")
 
                 shared_mem = shared_memory.SharedMemory(create=True, size=image.nbytes)
@@ -450,12 +490,12 @@ class _trace_compute_utils:
                 n_frames = image.shape[0]
 
                 self.shared_images.append({"dataset": dataset_name,
-                                      "channel": channel_name,
-                                      "n_frames": n_frames,
-                                      "shape": image.shape,
-                                      "dtype": image.dtype,
-                                      "shared_mem": shared_mem,
-                                      "shared_memory_name": shared_memory_name})
+                                           "channel": channel_name,
+                                           "n_frames": n_frames,
+                                           "shape": image.shape,
+                                           "dtype": image.dtype,
+                                           "shared_mem": shared_mem,
+                                           "shared_memory_name": shared_memory_name})
 
         return self.shared_images
 
@@ -464,14 +504,82 @@ class _trace_compute_utils:
         if hasattr(self, "shared_images"):
 
             for dat in self.shared_images:
-
                 try:
-
                     shared_mem = dat["shared_mem"]
 
                     np_array = np.ndarray(dat["shape"], dtype=dat["dtype"], buffer=shared_mem.buf)
 
                     self.dataset_dict[dat["dataset"]][dat["channel"]]["data"] = np_array.copy()
+
+                    shared_mem.close()
+                    shared_mem.unlink()
+
+                except:
+                    print(traceback.format_exc())
+                    pass
+
+    def create_shared_frames(self):
+
+        self.shared_frames = []
+
+        for dataset_name, dataset_dict in self.dataset_dict.items():
+            for channel_name, channel_dict in dataset_dict.items():
+
+                image = channel_dict.pop("data")
+
+                image_dict = {"dataset": dataset_name,
+                              "channel": channel_name,
+                              "n_frames": image.shape[0],
+                              "shape": image.shape,
+                              "dtype": image.dtype,
+                              "frame_dict":{},
+                              }
+
+                for frame_index, frame in enumerate(image):
+
+                    if frame_index not in image_dict["frame_dict"]:
+                        image_dict["frame_dict"][frame_index] = {}
+
+                    shared_mem = shared_memory.SharedMemory(create=True, size=frame.nbytes)
+                    shared_frame = np.ndarray(frame.shape, dtype=frame.dtype, buffer=shared_mem.buf)
+                    shared_frame[:] = frame[:]
+
+                    image_dict["frame_dict"][frame_index] = {"frame_index": frame_index,
+                                                                "shared_mem": shared_mem,
+                                                                "shape": frame.shape,
+                                                                "dtype": frame.dtype,
+                                                                }
+
+                self.shared_frames.append(image_dict)
+
+        return self.shared_frames
+
+    def restore_shared_frames(self):
+
+        if hasattr(self, "shared_frames"):
+
+            for image_dict in self.shared_frames:
+
+                try:
+
+                    frame_dict = image_dict["frame_dict"]
+
+                    image = []
+
+                    for frame_index, frame_dict in frame_dict.items():
+
+                        shared_mem = frame_dict["shared_mem"]
+
+                        frame = np.ndarray(frame_dict["shape"], dtype=frame_dict["dtype"], buffer=shared_mem.buf)
+
+                        image.append(frame.copy())
+
+                        shared_mem.close()
+                        shared_mem.unlink()
+
+                    image = np.stack(image, axis=0)
+
+                    self.dataset_dict[image_dict["dataset"]][image_dict["channel"]]["data"] = image
 
                     shared_mem.close()
                     shared_mem.unlink()
@@ -500,6 +608,10 @@ class _trace_compute_utils:
                 buffer_size, bg_width, plot=False)
 
             spot_bounds = self.generate_spot_bounds(locs, len(spot_mask[0]))
+            spot_centers = self.get_localisation_centres(locs, mode="bounding_boxes")
+
+            # print("spot_bounds", spot_bounds)
+            print("spot_centers", spot_centers)
 
             compute_jobs = []
 
@@ -508,14 +620,16 @@ class _trace_compute_utils:
 
                 background_overlap_mask = self.generate_background_overlap_mask(locs, spot_mask, spot_background_mask, mask_shape)
 
-                for spot_index, (spot_loc, spot_bound) in enumerate(zip(locs, spot_bounds)):
+                for spot_index, (spot_loc, spot_bound, spot_center) in enumerate(zip(locs, spot_bounds, spot_centers)):
                     compute_task = {"spot_index": spot_index,
                                     "spot_size": spot_size,
                                     "spot_mask": spot_mask,
                                     "spot_background_mask": spot_background_mask,
                                     "background_overlap_mask": background_overlap_mask,
                                     "spot_loc": spot_loc,
-                                    "spot_bound": spot_bound, }
+                                    "spot_bound": spot_bound,
+                                    "spot_center": spot_center,
+                                    }
                     compute_task = {**compute_task, **image_dict}
                     compute_jobs.append(compute_task)
 
@@ -524,7 +638,7 @@ class _trace_compute_utils:
             # extract_spot_metrics(compute_jobs[0])
             # self.compute_traces.setEnabled(True)
 
-            cpu_count = int(multiprocessing.cpu_count() * 0.75)
+            cpu_count = int(multiprocessing.cpu_count() * 0.9)
             timeout_duration = 10  # Timeout in seconds
 
             with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
@@ -562,37 +676,46 @@ class _trace_compute_utils:
 
         try:
             localisation_dict = copy.deepcopy(self.localisation_dict["bounding_boxes"])
-
             locs = localisation_dict["localisations"].copy()
+
             box_size = localisation_dict["box_size"]
 
-            loc_bounds = self.generate_spot_bounds(localisation_dict["localisations"], box_size)
+            loc_bounds = self.generate_spot_bounds(locs, box_size)
+            loc_centers = self.get_localisation_centres(locs, mode="bounding_boxes")
 
-            spot_locs = []
-            for loc in locs:
-                spot_loc = [loc.copy()]
-                spot_loc = np.rec.fromrecords(spot_loc, dtype=loc.dtype)
-                spot_locs.append(spot_loc)
+            # print("loc_bounds", loc_bounds)
+            print("loc_centers", loc_centers)
 
+            # spot_locs = []
+            # for loc in locs:
+            #     spot_loc = [loc.copy()]
+            #     spot_loc = np.rec.fromrecords(spot_loc, dtype=loc.dtype)
+            #     spot_locs.append(spot_loc)
 
             compute_jobs = []
 
-            for image_dict in self.shared_images:
+            for image_dict in self.shared_frames:
+
                 n_frames = image_dict["n_frames"]
+
                 for frame_index in range(n_frames):
-                    for loc_index, (spot_loc, loc_bound) in enumerate(zip(spot_locs, loc_bounds)):
 
-                        compute_task = {"image_dict": image_dict,
-                                        "frame_index": frame_index,
-                                        "loc_index": loc_index,
-                                        "spot_loc": spot_loc,
-                                        "loc_bound": loc_bound,
-                                        "box_size": box_size,
-                                        }
-                        compute_task = {**compute_task, **image_dict}
-                        compute_jobs.append(compute_task)
+                    compute_task = {"frame_index": frame_index,
+                                    "locs": locs,
+                                    "loc_bounds": loc_bounds,
+                                    "loc_centers": loc_centers,
+                                    "box_size": box_size,
+                                    }
 
-            cpu_count = int(multiprocessing.cpu_count() * 0.75)
+                    compute_task = {**compute_task, **image_dict}
+                    compute_jobs.append(compute_task)
+
+            print(f"Computing {len(compute_jobs)} spot metrics")
+
+            extract_picasso_spot_metrics(compute_jobs[0])
+            self.compute_traces.setEnabled(True)
+
+            cpu_count = int(multiprocessing.cpu_count() * 0.9)
             timeout_duration = 10  # Timeout in seconds
 
             with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
@@ -638,13 +761,21 @@ class _trace_compute_utils:
                 spot_metrics = pd.concat(spot_metrics)
                 spot_metrics.sort_values(by=["dataset", "channel", "spot_index", "frame_index"], inplace=True)
 
+                # spot_metrics.sort_values(by=["spot_cx","spot_cy"], inplace=True)
+                # unique_tuples = set(tuple(x) for x in spot_metrics['spot_center'])
+                # print(unique_tuples)
+
             # format picasso spot metrics into dataframe and merge with spot metrics
             if picasso_spot_metrics is not None:
 
-                picasso_spot_metrics = pd.DataFrame(picasso_spot_metrics)
+                picasso_spot_metrics = pd.concat(picasso_spot_metrics)
                 picasso_spot_metrics.sort_values(by=["dataset", "channel", "spot_index", "frame_index"], inplace=True)
 
-                merge_keys = ["dataset", "channel", "spot_index","frame_index","spot_x", "spot_y"]
+                # picasso_spot_metrics.sort_values(by=["spot_cx","spot_cy"], inplace=True)
+                # unique_tuples = set(tuple(x) for x in picasso_spot_metrics['spot_center'])
+                # print(unique_tuples)
+
+                merge_keys = ["dataset", "channel", "spot_index","frame_index", "spot_cx","spot_cy"]
                 spot_metrics = pd.merge(spot_metrics, picasso_spot_metrics, on=merge_keys, how='left')
 
             # populate traces dict
@@ -677,21 +808,28 @@ class _trace_compute_utils:
 
             self.spot_metrics = self.extract_spot_metrics_wrapper(progress_callback)
 
+            self.restore_shared_images()
+
             if self.compute_with_picasso.isChecked():
+
+                self.shared_frames = self.create_shared_frames()
+
                 self.picasso_spot_metrics = self.extract_picasso_spot_metrics_wrapper(progress_callback)
+
+                self.restore_shared_frames()
             else:
                 self.picasso_spot_metrics = None
 
-            self.restore_shared_images()
-
             self.populatate_traces_dict(self.spot_metrics, self.picasso_spot_metrics)
+
+            self.compute_traces.setEnabled(True)
 
         except:
             self.compute_traces.setEnabled(True)
             self.restore_shared_images()
+            self.restore_shared_frames()
             print(traceback.format_exc())
             pass
-
 
     def gapseq_compute_traces(self):
 
@@ -708,8 +846,8 @@ class _trace_compute_utils:
 
                         worker = Worker(self._gapseq_compute_traces)
                         worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.compute_traces_progressbar))
-                        worker.signals.finished.connect(self._gapseq_compute_traces_cleanup)
-                        worker.signals.error.connect(self._gapseq_compute_traces_cleanup)
+                        # worker.signals.finished.connect(self._gapseq_compute_traces_cleanup)
+                        # worker.signals.error.connect(self._gapseq_compute_traces_cleanup)
                         self.threadpool.start(worker)
 
         except:
@@ -722,10 +860,12 @@ class _trace_compute_utils:
 
         try:
 
+            # self.compute_traces.setEnabled(True)
+
             import cv2
 
             if "bounding_boxes" in self.localisation_dict.keys():
-                if "fitted" in self.localisation_dict["bounding_boxes"].keys():
+                if "localisations" in self.localisation_dict["bounding_boxes"].keys():
 
                     spot_size = int(self.traces_spot_size.currentText())
                     spot_shape = self.traces_spot_shape.currentText()
