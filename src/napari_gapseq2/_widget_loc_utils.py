@@ -324,7 +324,7 @@ class _loc_utils():
                         loc_dict["render_locs"] = render_locs
 
                         self.update_loc_dict(active_dataset, active_channel, "fiducials", loc_dict)
-                        self.draw_fiducials()
+                        self.draw_fiducials(update_vis=True)
 
                     else:
 
@@ -339,7 +339,7 @@ class _loc_utils():
                         loc_dict["render_locs"] = render_locs
 
                         self.update_loc_dict(active_dataset, active_channel, "fiducials", loc_dict)
-                        self.draw_fiducials()
+                        self.draw_fiducials(update_vis=True)
 
                 else:
                     x, y = position
@@ -361,7 +361,7 @@ class _loc_utils():
                     loc_dict["box_size"] = box_size
 
                     self.update_loc_dict(active_dataset, active_channel, "fiducials", loc_dict)
-                    self.draw_fiducials()
+                    self.draw_fiducials(update_vis=True)
 
             else:
 

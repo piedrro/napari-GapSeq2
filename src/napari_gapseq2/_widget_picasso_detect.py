@@ -81,7 +81,7 @@ class _picasso_detect_utils:
             self.localisation_dict["fiducials"][dataset][channel.lower()]["localisation_centres"] = cluster_loc_centers
             self.localisation_dict["fiducials"][dataset][channel.lower()]["render_locs"] = render_locs
 
-            self.draw_fiducials()
+            self.draw_fiducials(update_vis=True)
 
 
         except:
@@ -187,7 +187,7 @@ class _picasso_detect_utils:
             self.picasso_detect.setEnabled(True)
             self.picasso_fit.setEnabled(True)
 
-            self.draw_fiducials()
+            self.draw_fiducials(update_vis=True)
             self.draw_bounding_boxes()
 
             self.gapseq_dataset_selector.blockSignals(True)

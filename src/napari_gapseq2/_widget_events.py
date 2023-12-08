@@ -107,7 +107,7 @@ class _events_utils:
 
                 self.viewer.layers[dataset_name].contrast_limits = contrast_range
 
-            self.draw_fiducials()
+            self.draw_fiducials(update_vis=True)
             self.update_overlay_text()
 
         except:

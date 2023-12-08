@@ -172,7 +172,7 @@ class _utils_colocalize:
                     self.localisation_dict["fiducials"][dataset][channel2.lower()]["localisation_centres"] = colo_locs["localisation_centres"]
                     self.localisation_dict["fiducials"][dataset][channel2.lower()]["render_locs"] = colo_locs["render_locs"]
 
-                    self.draw_fiducials()
+                    self.draw_fiducials(update_vis=True)
 
                 if self.colo_bboxes.isChecked():
 

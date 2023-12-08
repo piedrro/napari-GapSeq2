@@ -120,7 +120,7 @@ class _undrift_utils:
 
             self.undrift_localisations()
 
-            self.draw_fiducials()
+            self.draw_fiducials(update_vis=True)
 
             self.apply_undrift.setEnabled(True)
             self.undrift_progressbar.setValue(0)
