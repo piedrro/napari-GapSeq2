@@ -502,6 +502,39 @@ class _plot_utils:
 
         return self.plot_grid
 
+
+    def get_loc_coords(self, localisation_number):
+
+        try:
+
+            if hasattr(self, "image_layer"):
+
+                localisations = self.localisation_dict["bounding_boxes"]["localisations"]
+                box_size = self.localisation_dict["bounding_boxes"]["box_size"]
+                image_shape = self.image_layer.data.shape
+
+                loc = localisations[localisation_number]
+
+                locX, locY = loc.x, loc.y
+
+                centre = (0, locY, locX)
+
+                x1 = locX - box_size
+                x2 = locX + box_size
+                y1 = locY - box_size
+                y2 = locY + box_size
+
+                zoom = min((image_shape[0] / (y2 - y1)), (image_shape[1] / (x2 - x1))) / 2
+
+                self.viewer.camera.center = centre
+                self.viewer.camera.zoom = zoom
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
+
     def plot_traces(self, update=False):
 
         try:
@@ -509,6 +542,9 @@ class _plot_utils:
             if self.plot_grid != {}:
 
                 localisation_number = self.plot_localisation_number.value()
+
+                if self.focus_on_bbox.isChecked() == True:
+                    self.get_loc_coords(localisation_number)
 
                 for plot_index, grid in enumerate(self.plot_grid.values()):
 
@@ -557,7 +593,7 @@ class _plot_utils:
                             )
 
         except:
-            # print(traceback.format_exc())
+            print(traceback.format_exc())
             pass
 
 

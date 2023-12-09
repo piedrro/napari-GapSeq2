@@ -224,6 +224,7 @@ class GapSeqWidget(QWidget,
         self.subtract_background = self.findChild(QCheckBox, 'subtract_background')
         self.split_plots = self.findChild(QCheckBox, 'split_plots')
         self.normalise_plots = self.findChild(QCheckBox, 'normalise_plots')
+        self.focus_on_bbox = self.findChild(QCheckBox, 'focus_on_bbox')
         self.plot_compute_progress = self.findChild(QProgressBar, 'plot_compute_progress')
         self.plot_localisation_number = self.findChild(QSlider, 'plot_localisation_number')
         self.plot_localisation_number_label = self.findChild(QLabel, 'plot_localisation_number_label')
@@ -281,6 +282,7 @@ class GapSeqWidget(QWidget,
         self.split_plots.stateChanged.connect(self.initialize_plot)
         self.normalise_plots.stateChanged.connect(self.initialize_plot)
         self.subtract_background.stateChanged.connect(self.initialize_plot)
+        self.focus_on_bbox.stateChanged.connect(self.initialize_plot)
 
         self.gapseq_colocalize.clicked.connect(self.gapseq_colocalize_fiducials)
 

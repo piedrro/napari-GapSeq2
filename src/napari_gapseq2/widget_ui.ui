@@ -1398,16 +1398,6 @@
                    <string>3</string>
                   </property>
                  </item>
-                 <item>
-                  <property name="text">
-                   <string>4</string>
-                  </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string>5</string>
-                  </property>
-                 </item>
                 </widget>
                </item>
               </layout>
@@ -1531,10 +1521,17 @@
            </item>
            <item>
             <layout class="QGridLayout" name="gridLayout_18">
+             <item row="0" column="0">
+              <widget class="QCheckBox" name="subtract_background">
+               <property name="text">
+                <string>Subtract Background</string>
+               </property>
+              </widget>
+             </item>
              <item row="0" column="2">
               <widget class="QCheckBox" name="normalise_plots">
                <property name="text">
-                <string>Normalise Data [0-&gt;1]</string>
+                <string>Normalise Data</string>
                </property>
               </widget>
              </item>
@@ -1545,10 +1542,10 @@
                </property>
               </widget>
              </item>
-             <item row="0" column="0">
-              <widget class="QCheckBox" name="subtract_background">
+             <item row="0" column="3">
+              <widget class="QCheckBox" name="focus_on_bbox">
                <property name="text">
-                <string>Subtract Background</string>
+                <string>Focus on BBOX</string>
                </property>
               </widget>
              </item>
