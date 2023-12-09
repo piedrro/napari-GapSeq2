@@ -52,7 +52,7 @@ from scipy.spatial import procrustes
 from scipy.spatial import distance
 import cv2
 
-from napari_gapseq2._widget_utils_compute import Worker, WorkerSignals
+from napari_gapseq2._widget_utils_compute import Worker, WorkerSignals, _utils_compute
 from napari_gapseq2._widget_undrift_utils import _undrift_utils
 from napari_gapseq2._widget_picasso_detect import _picasso_detect_utils
 from napari_gapseq2._widget_loc_utils import _loc_utils, picasso_loc_utils
@@ -65,6 +65,7 @@ from napari_gapseq2._widget_plot_utils import _plot_utils, CustomPyQTGraphWidget
 from napari_gapseq2._widget_align_utils import _align_utils
 from napari_gapseq2._widget_export_traces_utils import _export_traces_utils
 from napari_gapseq2._widget_colocalize_utils import _utils_colocalize
+from napari_gapseq2._widget_temporal_filtering import _utils_temporal_filtering
 
 from qtpy.QtWidgets import QFileDialog
 import os
@@ -80,7 +81,8 @@ class GapSeqWidget(QWidget,
     _undrift_utils, _picasso_detect_utils,
     _import_utils, _events_utils, _export_images_utils,
     _tranform_utils, _trace_compute_utils, _plot_utils,
-    _align_utils, _loc_utils, _export_traces_utils, _utils_colocalize):
+    _align_utils, _loc_utils, _export_traces_utils,
+    _utils_colocalize, _utils_temporal_filtering, _utils_compute):
 
     # your QWidget.__init__ can optionally request the napari viewer instance
     # use a type annotation of 'napari.viewer.Viewer' for any parameter
@@ -168,6 +170,13 @@ class GapSeqWidget(QWidget,
         self.undrift_dataset_selector = self.findChild(QComboBox, 'undrift_dataset_selector')
         self.undrift_channel_selector = self.findChild(QComboBox, 'undrift_channel_selector')
         self.undrift_progressbar = self.findChild(QProgressBar, 'undrift_progressbar')
+
+        self.filtering_datasets = self.findChild(QComboBox, 'filtering_datasets')
+        self.filtering_channels = self.findChild(QComboBox, 'filtering_channels')
+        self.filtering_mode = self.findChild(QComboBox, 'filtering_mode')
+        self.filtering_filter_size = self.findChild(QComboBox, 'filtering_filter_size')
+        self.filtering_start = self.findChild(QPushButton, 'filtering_start')
+        self.filtering_progressbar = self.findChild(QProgressBar, 'filtering_progressbar')
 
         self.align_reference_dataset = self.findChild(QComboBox, 'align_reference_dataset')
         self.align_reference_channel = self.findChild(QComboBox, 'align_reference_channel')
@@ -277,6 +286,9 @@ class GapSeqWidget(QWidget,
 
         self.plot_localisation_number.valueChanged.connect(lambda: self.update_slider_label("plot_localisation_number"))
         self.plot_localisation_number.valueChanged.connect(partial(self.plot_traces))
+
+        self.filtering_start.clicked.connect(self.gapseq_temporal_filtering)
+        self.filtering_datasets.currentIndexChanged.connect(self.update_filtering_channels)
 
         self.dataset_dict = {}
         self.localisation_dict = {"bounding_boxes": {}, "fiducials": {}}

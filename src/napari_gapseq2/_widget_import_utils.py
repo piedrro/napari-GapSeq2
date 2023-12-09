@@ -469,12 +469,6 @@ class _import_utils:
             self.align_reference_dataset.addItems(dataset_names)
             self.align_reference_dataset.blockSignals(False)
 
-            self.traces_export_dataset.blockSignals(True)
-            self.traces_export_dataset.clear()
-            if len(dataset_names) > 1:
-                dataset_names.insert(0, "All Datasets")
-            self.traces_export_dataset.addItems(dataset_names)
-            self.traces_export_dataset.blockSignals(False)
 
             self.undrift_dataset_selector.blockSignals(True)
             self.undrift_dataset_selector.clear()
@@ -485,6 +479,20 @@ class _import_utils:
             self.colo_dataset.clear()
             self.colo_dataset.addItems(dataset_names)
             self.colo_dataset.blockSignals(False)
+
+            if len(dataset_names) > 1:
+                dataset_names.insert(0, "All Datasets")
+
+            self.traces_export_dataset.blockSignals(True)
+            self.traces_export_dataset.clear()
+            self.traces_export_dataset.addItems(dataset_names)
+            self.traces_export_dataset.blockSignals(False)
+
+            self.filtering_datasets.blockSignals(True)
+            self.filtering_datasets.clear()
+            self.filtering_datasets.addItems(dataset_names)
+            self.filtering_datasets.blockSignals(False)
+
 
         except:
             print(traceback.format_exc())
@@ -517,6 +525,7 @@ class _import_utils:
         self.update_active_image()
         self.update_export_options()
         self.populate_export_combos()
+        self.update_filtering_channels()
 
         self.update_align_reference_channel()
 

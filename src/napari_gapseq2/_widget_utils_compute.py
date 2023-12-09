@@ -9,12 +9,24 @@ import numpy as np
 
 class _utils_compute:
 
-    def create_shared_images(self):
+    def create_shared_images(self, dataset_list = None, channel_list = None):
+
+        if dataset_list is None:
+            dataset_list = list(self.dataset_dict.keys())
+        else:
+            dataset_list = [dataset for dataset in dataset_list if dataset in self.dataset_dict.keys()]
+
+        if channel_list is None:
+            channel_list = list(self.dataset_dict[dataset_list[0]].keys())
+        else:
+            channel_list = [channel for channel in channel_list if channel in self.dataset_dict[dataset_list[0]].keys()]
 
         self.shared_images = []
 
-        for dataset_name, dataset_dict in self.dataset_dict.items():
-            for channel_name, channel_dict in dataset_dict.items():
+        for dataset_name in dataset_list:
+            for channel_name in channel_list:
+
+                channel_dict = self.dataset_dict[dataset_name][channel_name]
 
                 image = channel_dict.pop("data")
 

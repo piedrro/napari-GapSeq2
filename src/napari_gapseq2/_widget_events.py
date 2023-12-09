@@ -86,26 +86,29 @@ class _events_utils:
                 self.active_dataset = dataset_name
                 self.active_channel = channel
 
-                image = self.dataset_dict[dataset_name][channel]["data"]
+                if "data" in self.dataset_dict[dataset_name][channel].keys():
 
-                contrast_range = [np.min(image), np.max(image)]
+                    image = self.dataset_dict[dataset_name][channel]["data"]
 
-                if hasattr(self, "image_layer") == False:
+                    contrast_range = [np.min(image), np.max(image)]
 
-                    self.image_layer = self.viewer.add_image(image,
-                        name=dataset_name,
-                        colormap="gray",
-                        blending="additive",
-                        visible=True)
+                    if hasattr(self, "image_layer") == False:
 
-                    self.image_layer.mouse_drag_callbacks.append(self._mouse_event)
+                        self.image_layer = self.viewer.add_image(image,
+                            name=dataset_name,
+                            colormap="gray",
+                            blending="additive",
+                            visible=True)
+
+                        self.image_layer.mouse_drag_callbacks.append(self._mouse_event)
 
 
-                else:
-                    self.image_layer.data = image
-                    self.image_layer.name = dataset_name
+                    else:
+                        self.image_layer.data = image
+                        self.image_layer.name = dataset_name
+                        self.image_layer.refresh()
 
-                self.viewer.layers[dataset_name].contrast_limits = contrast_range
+                    self.viewer.layers[dataset_name].contrast_limits = contrast_range
 
             self.draw_fiducials(update_vis=True)
             self.update_overlay_text()
