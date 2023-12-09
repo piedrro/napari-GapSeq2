@@ -7,100 +7,103 @@ import multiprocessing
 from multiprocessing import Process, shared_memory, Pool
 import copy
 from functools import partial
+import concurrent.futures
+
+
+
 
 def undrift_image(dat):
 
     undrifted_data = [None, None]
 
     try:
+
+        drift = dat["drift"]
+        frame_index = dat["frame_index"]
+
         # Access the shared memory
         shared_mem = shared_memory.SharedMemory(name=dat["shared_memory_name"])
         np_array = np.ndarray(dat["shape"], dtype=dat["dtype"], buffer=shared_mem.buf)
 
         # Perform preprocessing steps and overwrite original image
-        img = np_array[dat["drift_index"]]
+        img = np_array[frame_index]
 
-        drift = dat["drift"]
         drift = [-drift[1], -drift[0]]
 
         img = scipy.ndimage.shift(img, drift, mode='constant', cval=0.0)
 
         # overwrite the shared memory block
-        np_array[dat["drift_index"]] = img
+        np_array[frame_index] = img
 
         # Ensure to close shared memory in child processes
         shared_mem.close()
-
-        undrifted_data = [dat["drift_index"], img]
 
     except:
         print(traceback.format_exc())
         pass
 
-    return dat["drift_index"]
+    return frame_index
 
 
 class _undrift_utils:
 
     def _gapseq_undrift_images(self, progress_callback=None, drift=None):
 
-        dataset_name = self.gapseq_dataset_selector.currentText()
+        try:
 
-        total_frames = [len(self.dataset_dict[dataset_name][channel]["data"]) for channel in self.dataset_dict[dataset_name].keys()]
-        total_frames = np.sum(total_frames)
+            dataset_name = self.gapseq_dataset_selector.currentText()
+            channel_names = list(self.dataset_dict[dataset_name].keys())
 
-        iter = []
+            self.shared_images = self.create_shared_images(channel_list = channel_names)
 
-        for channel_name, channel_data in self.dataset_dict[dataset_name].items():
+            compute_jobs = []
 
-            try:
+            for image_dict in self.shared_images:
 
-                drift_list = channel_data["drift"]
+                n_frames = image_dict['shape'][0]
 
-                image = channel_data["data"]
-                image = copy.deepcopy(image)
+                for frame_index in range(n_frames):
 
-                shared_mem = shared_memory.SharedMemory(create=True, size=image.nbytes)
-                shared_memory_name = shared_mem.name
-                shared_image = np.ndarray(image.shape, dtype=image.dtype, buffer=shared_mem.buf)
-                shared_image[:] = image[:]
+                    compute_job = {"frame_index": frame_index,
+                                   "shared_memory_name": image_dict['shared_memory_name'],
+                                   "shape": image_dict['shape'],
+                                   "dtype": image_dict['dtype'],
+                                   "drift_index": frame_index,
+                                   "drift": drift[frame_index]}
 
-                undrift_jobs = []
+                    compute_jobs.append(compute_job)
 
-                for drift_index, drift in enumerate(drift_list):
+            cpu_count = int(multiprocessing.cpu_count() * 0.9)
+            timeout_duration = 10  # Timeout in seconds
 
-                    drift = list(drift)
+            with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
+                # Submit all jobs and store the future objects
+                futures = {executor.submit(undrift_image, job): job for job in compute_jobs}
 
-                    undrift_jobs.append({"drift_index": drift_index,
-                                         "drift": drift,
-                                         "shared_memory_name": shared_memory_name,
-                                         "shape": image.shape,
-                                         "dtype": image.dtype})
+                iter = 0
+                for future in concurrent.futures.as_completed(futures):
+                    job = futures[future]
+                    try:
+                        result = future.result(timeout=timeout_duration)  # Process result here
+                    except concurrent.futures.TimeoutError:
+                        # print(f"Task {job} timed out after {timeout_duration} seconds.")
+                        pass
+                    except Exception as e:
+                        # print(f"Error occurred in task {job}: {e}")  # Handle other exceptions
+                        pass
 
-                cpu_count = int(multiprocessing.cpu_count()*0.75)
+                    # Update progress
+                    iter += 1
+                    progress = int((iter / len(compute_jobs)) * 100)
+                    progress_callback.emit(progress)  # Emit the signal
 
-                def callback(*args, offset=0):
-                    iter.append(1)
-                    progress = int((len(iter) / total_frames) * 100)
-                    if progress_callback != None:
-                        progress_callback.emit(progress - offset)
-                    return
+            self.restore_shared_images()
 
-                with Pool(cpu_count) as p:
-                    imported_data = [p.apply_async(undrift_image, args=(i,), callback=callback) for i in undrift_jobs]
-                    imported_data = [p.get() for p in imported_data]
-                    p.close()
-
-                self.dataset_dict[dataset_name][channel_name]["data"] = shared_image.copy()
-
-                shared_mem.close()
-                shared_mem.unlink()
-
-            except:
-                print(traceback.format_exc())
-                self.apply_undrift.setEnabled(True)
-                self.undrift_progressbar.setValue(0)
-                self.dataset_dict[dataset_name][channel_name]["data"] = image
+        except:
+            self.restore_shared_images()
+            self.apply_undrift.setEnabled(True)
+            self.undrift_progressbar.setValue(0)
+            pass
 
 
     def _gapseq_undrift_images_cleanup(self):
@@ -130,7 +133,6 @@ class _undrift_utils:
             self.apply_undrift.setEnabled(True)
             self.undrift_progressbar.setValue(0)
             pass
-
 
     def gapseq_undrift_images(self):
 
@@ -198,14 +200,12 @@ class _undrift_utils:
             print(traceback.format_exc())
             pass
 
-
     def _picasso_undrift_cleanup(self):
 
         self.undrift_progressbar.setValue(0)
         self.detect_undrift.setEnabled(True)
         self.apply_undrift.setEnabled(True)
         self.undrift_channel_selector.setEnabled(True)
-
 
     def _picasso_undrift(self, progress_callback, undrift_locs, picasso_info, segmentation=20):
 
