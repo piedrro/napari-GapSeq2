@@ -52,7 +52,7 @@ from scipy.spatial import procrustes
 from scipy.spatial import distance
 import cv2
 
-from napari_gapseq2._widget_utils_worker import Worker, WorkerSignals
+from napari_gapseq2._widget_utils_compute import Worker, WorkerSignals
 from napari_gapseq2._widget_undrift_utils import _undrift_utils
 from napari_gapseq2._widget_picasso_detect import _picasso_detect_utils
 from napari_gapseq2._widget_loc_utils import _loc_utils, picasso_loc_utils

@@ -1,7 +1,7 @@
 import traceback
 import os
 from qtpy.QtWidgets import QFileDialog
-from napari_gapseq2._widget_utils_worker import Worker
+from napari_gapseq2._widget_utils_compute import Worker
 from functools import partial
 import numpy as np
 import json

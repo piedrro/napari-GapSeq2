@@ -1,7 +1,7 @@
 import copy
 import numpy as np
 import traceback
-from napari_gapseq2._widget_utils_worker import Worker
+from napari_gapseq2._widget_utils_compute import Worker
 from functools import partial
 import matplotlib.pyplot as plt
 from qtpy.QtWidgets import QFileDialog,QComboBox, QCheckBox
@@ -455,120 +455,7 @@ class _trace_compute_utils:
 
         return global_background_mask
 
-    def create_shared_images(self):
 
-        self.shared_images = []
-
-        for dataset_name, dataset_dict in self.dataset_dict.items():
-            for channel_name, channel_dict in dataset_dict.items():
-
-                image = channel_dict.pop("data")
-
-                shared_mem = shared_memory.SharedMemory(create=True, size=image.nbytes)
-                shared_memory_name = shared_mem.name
-                shared_image = np.ndarray(image.shape, dtype=image.dtype, buffer=shared_mem.buf)
-                shared_image[:] = image[:]
-
-                n_frames = image.shape[0]
-
-                self.shared_images.append({"dataset": dataset_name,
-                                           "channel": channel_name,
-                                           "n_frames": n_frames,
-                                           "shape": image.shape,
-                                           "dtype": image.dtype,
-                                           "shared_mem": shared_mem,
-                                           "shared_memory_name": shared_memory_name})
-
-        return self.shared_images
-
-    def restore_shared_images(self):
-
-        if hasattr(self, "shared_images"):
-
-            for dat in self.shared_images:
-                try:
-                    shared_mem = dat["shared_mem"]
-
-                    np_array = np.ndarray(dat["shape"], dtype=dat["dtype"], buffer=shared_mem.buf)
-
-                    self.dataset_dict[dat["dataset"]][dat["channel"]]["data"] = np_array.copy()
-
-                    shared_mem.close()
-                    shared_mem.unlink()
-
-                except:
-                    print(traceback.format_exc())
-                    pass
-
-    def create_shared_frames(self):
-
-        self.shared_frames = []
-
-        for dataset_name, dataset_dict in self.dataset_dict.items():
-            for channel_name, channel_dict in dataset_dict.items():
-
-                image = channel_dict.pop("data")
-
-                image_dict = {"dataset": dataset_name,
-                              "channel": channel_name,
-                              "n_frames": image.shape[0],
-                              "shape": image.shape,
-                              "dtype": image.dtype,
-                              "frame_dict":{},
-                              }
-
-                for frame_index, frame in enumerate(image):
-
-                    if frame_index not in image_dict["frame_dict"]:
-                        image_dict["frame_dict"][frame_index] = {}
-
-                    shared_mem = shared_memory.SharedMemory(create=True, size=frame.nbytes)
-                    shared_frame = np.ndarray(frame.shape, dtype=frame.dtype, buffer=shared_mem.buf)
-                    shared_frame[:] = frame[:]
-
-                    image_dict["frame_dict"][frame_index] = {"frame_index": frame_index,
-                                                                "shared_mem": shared_mem,
-                                                                "shape": frame.shape,
-                                                                "dtype": frame.dtype,
-                                                                }
-
-                self.shared_frames.append(image_dict)
-
-        return self.shared_frames
-
-    def restore_shared_frames(self):
-
-        if hasattr(self, "shared_frames"):
-
-            for image_dict in self.shared_frames:
-
-                try:
-
-                    frame_dict = image_dict["frame_dict"]
-
-                    image = []
-
-                    for frame_index, frame_dict in frame_dict.items():
-
-                        shared_mem = frame_dict["shared_mem"]
-
-                        frame = np.ndarray(frame_dict["shape"], dtype=frame_dict["dtype"], buffer=shared_mem.buf)
-
-                        image.append(frame.copy())
-
-                        shared_mem.close()
-                        shared_mem.unlink()
-
-                    image = np.stack(image, axis=0)
-
-                    self.dataset_dict[image_dict["dataset"]][image_dict["channel"]]["data"] = image
-
-                    shared_mem.close()
-                    shared_mem.unlink()
-
-                except:
-                    print(traceback.format_exc())
-                    pass
 
     def extract_spot_metrics_wrapper(self, progress_callback):
 
@@ -811,8 +698,6 @@ class _trace_compute_utils:
     def visualise_background_masks(self):
 
         try:
-
-            # self.compute_traces.setEnabled(True)
 
             import cv2
 

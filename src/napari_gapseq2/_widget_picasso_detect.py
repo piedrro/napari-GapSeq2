@@ -1,7 +1,7 @@
 import copy
 import numpy as np
 import traceback
-from napari_gapseq2._widget_utils_worker import Worker
+from napari_gapseq2._widget_utils_compute import Worker
 import time
 from functools import partial
 from sklearn.cluster import DBSCAN
@@ -202,7 +202,6 @@ class _picasso_detect_utils:
             self.picasso_fit.setEnabled(True)
             pass
 
-
     def _fit_localisations_cleanup(self):
 
         try:
@@ -239,7 +238,6 @@ class _picasso_detect_utils:
             self.picasso_detect.setEnabled(True)
             self.picasso_fit.setEnabled(True)
             pass
-
 
     def _fit_localisations(self, progress_callback, detected_locs, min_net_gradient, box_size, camera_info, dataset_name, image_channel, frame_mode, detect_mode):
 
@@ -281,31 +279,24 @@ class _picasso_detect_utils:
 
                     self.fitted_locs = gausslq.locs_from_fits(detected_locs, theta, box_size, em)
 
-                    self.fitted_locs = self.filter_localisations(self.fitted_locs)
-
                     if frame_mode.lower() == "active":
                         for loc in self.fitted_locs:
                             loc.frame = self.viewer.dims.current_step[0]
 
-                    n_localisations = len(self.fitted_locs)
-
+                    n_frames = np.unique(self.fitted_locs.frame)
                     self.fitted_render_locs = {}
 
-                    for loc_index, loc in enumerate(self.fitted_locs):
-                        frame = loc.frame
-
-                        locX = loc.x
-                        locY = loc.y
+                    for frame in n_frames:
+                        frame_locs = self.fitted_locs[self.fitted_locs['frame'] == frame].copy()
+                        frame_coords = np.vstack((frame_locs.y, frame_locs.x)).T.tolist()
 
                         if frame not in self.fitted_render_locs.keys():
                             self.fitted_render_locs[frame] = []
 
-                        self.fitted_render_locs[frame].append([locY, locX])
+                        self.fitted_render_locs[frame] = frame_coords
 
-                        progress = (loc_index/ n_localisations) * 100
+                        progress = (frame / n_frames) * 100
                         progress_callback.emit(progress)
-
-                print(f"Picasso fitted {len(self.fitted_locs)} spots")
 
         except:
             print(traceback.format_exc())
@@ -338,27 +329,24 @@ class _picasso_detect_utils:
 
             self.detected_locs = localize.identifications_from_futures(futures)
 
-            self.detected_locs = self.filter_localisations(self.detected_locs)
-
             if frame_mode.lower() == "active":
                 for loc in self.detected_locs:
                     loc.frame = self.viewer.dims.current_step[0]
 
-            n_localisations = len(self.detected_locs)
+
+            n_frames = np.unique(self.detected_locs.frame)
             self.detected_render_locs = {}
 
-            for loc_index, loc in enumerate(self.detected_locs):
-                frame = loc.frame
-
-                locX = loc.x
-                locY = loc.y
+            for frame in n_frames:
+                frame_locs = self.detected_locs[self.detected_locs['frame'] == frame].copy()
+                frame_coords = np.vstack((frame_locs.y, frame_locs.x)).T.tolist()
 
                 if frame not in self.detected_render_locs.keys():
                     self.detected_render_locs[frame] = []
 
-                self.detected_render_locs[frame].append([locY, locX])
+                self.detected_render_locs[frame] = frame_coords
 
-                progress = (loc_index / n_localisations) * 100
+                progress = (frame / n_frames) * 100
                 progress_callback.emit(progress)
 
         except:
@@ -371,18 +359,31 @@ class _picasso_detect_utils:
     def generate_roi(self):
 
         border_width = self.picasso_roi_border_width.text()
+        window_cropping = self.picasso_window_cropping.isChecked()
 
         roi = None
 
         try:
+
             generate_roi = False
-            if type(border_width) == str:
-                border_width = int(border_width)
-                if border_width > 0:
-                    generate_roi = True
-            elif type(border_width) == int:
-                if border_width > 0:
-                    generate_roi = True
+
+            if window_cropping:
+                layers_names = [layer.name for layer in self.viewer.layers if layer.name not in ["bounding_boxes", "fiducials"]]
+
+                crop = self.viewer.layers[layers_names[0]].corner_pixels[:, -2:]
+                [[y1, x1], [y2, x2]] = crop
+
+                generate_roi = True
+
+            else:
+
+                if type(border_width) == str:
+                    border_width = int(border_width)
+                    if border_width > 0:
+                        generate_roi = True
+                elif type(border_width) == int:
+                    if border_width > 0:
+                        generate_roi = True
 
             if generate_roi:
 
@@ -393,8 +394,25 @@ class _picasso_detect_utils:
 
                 frame_shape = image_shape[1:]
 
-                roi = [[int(border_width), int(border_width)],
-                       [int(frame_shape[0] - border_width), int(frame_shape[1] - border_width)]]
+                if window_cropping:
+
+                    border_width = int(border_width)
+
+                    if x1 < border_width:
+                        x1 = border_width
+                    if y1 < border_width:
+                        y1 = border_width
+                    if x2 > frame_shape[1] - border_width:
+                        x2 = frame_shape[1] - border_width
+                    if y2 > frame_shape[0] - border_width:
+                        y2 = frame_shape[0] - border_width
+
+                    roi = [[y1, x1], [y2, x2]]
+
+                else:
+
+                    roi = [[int(border_width), int(border_width)],
+                           [int(frame_shape[0] - border_width), int(frame_shape[1] - border_width)]]
 
         except:
             print(traceback.format_exc())
@@ -430,8 +448,6 @@ class _picasso_detect_utils:
         except:
             print(traceback.format_exc())
             pass
-
-
 
     def gapseq_picasso_detect(self):
 

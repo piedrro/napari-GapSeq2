@@ -10,7 +10,7 @@ import traceback
 from functools import partial
 import uuid
 import copy
-from napari_gapseq2._widget_utils_worker import Worker
+from napari_gapseq2._widget_utils_compute import Worker
 
 class _plot_utils:
 

@@ -6,7 +6,7 @@ import multiprocessing
 from multiprocessing import Pool, cpu_count, shared_memory
 import os
 from functools import partial
-from napari_gapseq2._widget_utils_worker import Worker
+from napari_gapseq2._widget_utils_compute import Worker
 from qtpy.QtWidgets import QFileDialog
 import math
 import json

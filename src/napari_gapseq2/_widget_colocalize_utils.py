@@ -1,7 +1,7 @@
 import traceback
 import numpy as np
 import cv2
-from napari_gapseq2._widget_utils_worker import Worker
+from napari_gapseq2._widget_utils_compute import Worker
 import time
 from functools import partial
 

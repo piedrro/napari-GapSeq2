@@ -5,7 +5,7 @@ from PIL import Image
 from qtpy.QtWidgets import QFileDialog
 import multiprocessing
 from multiprocessing import Pool, cpu_count, shared_memory
-from napari_gapseq2._widget_utils_worker import Worker
+from napari_gapseq2._widget_utils_compute import Worker
 from functools import partial
 from PyQt5.QtWidgets import QApplication, QPushButton, QWidget, QVBoxLayout, QShortcut
 from PyQt5.QtGui import QKeySequence

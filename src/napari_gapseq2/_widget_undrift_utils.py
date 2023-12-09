@@ -1,7 +1,7 @@
 import traceback
 import numpy as np
 import copy
-from napari_gapseq2._widget_utils_worker import Worker
+from napari_gapseq2._widget_utils_compute import Worker
 import scipy.ndimage
 import multiprocessing
 from multiprocessing import Process, shared_memory, Pool
@@ -229,7 +229,7 @@ class _undrift_utils:
                 undrift_locs,
                 picasso_info,
                 segmentation=segmentation,
-                display=True,
+                display=False,
                 segmentation_callback=segmentation_callback,
                 rcc_callback=undrift_callback,
             )

@@ -5,7 +5,7 @@ import tifffile
 import os
 import psutil
 from qtpy.QtWidgets import QFileDialog
-from napari_gapseq2._widget_utils_worker import Worker
+from napari_gapseq2._widget_utils_compute import Worker
 from functools import partial
 
 class _export_images_utils:
