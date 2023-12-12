@@ -35,7 +35,7 @@ from magicgui.widgets import CheckBox, Container, create_widget
 from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget
 from skimage.util import img_as_float
 from qtpy.QtCore import QObject, QRunnable, QThreadPool
-from qtpy.QtWidgets import (QWidget,QVBoxLayout,QTabWidget,QFrame, QSizePolicy, QSlider, QComboBox,QLineEdit, QProgressBar, QLabel, QCheckBox)
+from qtpy.QtWidgets import (QWidget,QVBoxLayout,QTabWidget,QFrame, QSizePolicy, QSlider, QComboBox,QLineEdit, QProgressBar, QLabel, QCheckBox, QGridLayout)
 from PIL import Image
 from tqdm import tqdm
 import numpy as np
@@ -118,6 +118,9 @@ class GapSeqWidget(QWidget,
         self.gapseq_alex_first_frame_label = self.findChild(QLabel, 'gapseq_alex_first_frame_label')
         self.gapseq_import = self.findChild(QPushButton, 'gapseq_import')
         self.gapseq_import_progressbar = self.findChild(QProgressBar, 'gapseq_import_progressbar')
+        self.gapseq_append = self.findChild(QCheckBox, 'gapseq_append')
+        self.gapseq_append_dataset = self.findChild(QComboBox, 'gapseq_append_dataset')
+        self.gapseq_append_dataset_label = self.findChild(QLabel, 'gapseq_append_dataset_label')
 
         self.gapseq_old_dataset_name = self.findChild(QComboBox, 'gapseq_old_dataset_name')
         self.gapseq_new_dataset_name = self.findChild(QLineEdit, 'gapseq_new_dataset_name')
@@ -215,6 +218,7 @@ class GapSeqWidget(QWidget,
         self.compute_with_picasso = self.findChild(QCheckBox, "compute_with_picasso")
         self.traces_visualise_masks = self.findChild(QPushButton, 'traces_visualise_masks')
         self.traces_visualise_bg_masks = self.findChild(QPushButton, 'traces_visualise_bg_masks')
+        self.traces_channel_selection_layout = self.findChild(QGridLayout, 'traces_channel_selection_layout')
         self.compute_traces = self.findChild(QPushButton, 'compute_traces')
         self.compute_traces_progressbar = self.findChild(QProgressBar, 'compute_traces_progressbar')
 
@@ -292,6 +296,8 @@ class GapSeqWidget(QWidget,
         self.filtering_start.clicked.connect(self.gapseq_temporal_filtering)
         self.filtering_datasets.currentIndexChanged.connect(self.update_filtering_channels)
 
+        self.gapseq_append.stateChanged.connect(self.update_import_append_options)
+
         self.dataset_dict = {}
         self.localisation_dict = {"bounding_boxes": {}, "fiducials": {}}
         self.traces_dict = {}
@@ -305,6 +311,7 @@ class GapSeqWidget(QWidget,
         self.transform_matrix = None
 
         self.update_import_options()
+        self.update_import_append_options()
 
         self.metric_dict = {"spot_mean": "Mean", "spot_median": "Median", "spot_sum": "Sum", "spot_max": "Maximum",
                             "spot_std": "std", "snr_mean": "Mean SNR", "snr_std": "std SNR",

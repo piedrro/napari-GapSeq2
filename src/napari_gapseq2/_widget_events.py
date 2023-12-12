@@ -259,6 +259,27 @@ class _events_utils:
             print(traceback.format_exc())
             pass
 
+    def update_import_append_options(self):
+
+        try:
+
+            if self.gapseq_append.isChecked():
+                self.gapseq_append_dataset.setEnabled(True)
+                self.gapseq_append_dataset_label.setEnabled(True)
+                self.gapseq_append_dataset.setVisible(True)
+                self.gapseq_append_dataset_label.setVisible(True)
+            else:
+                self.gapseq_append_dataset.setEnabled(False)
+                self.gapseq_append_dataset_label.setEnabled(False)
+                self.gapseq_append_dataset.setVisible(False)
+                self.gapseq_append_dataset_label.setVisible(False)
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
+
 
     def update_import_options(self):
 

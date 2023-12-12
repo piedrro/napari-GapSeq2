@@ -11,6 +11,8 @@ from functools import partial
 import uuid
 import copy
 from napari_gapseq2._widget_utils_compute import Worker
+from qtpy.QtWidgets import QCheckBox, QGridLayout
+
 
 class _plot_utils:
 
@@ -239,6 +241,8 @@ class _plot_utils:
             metric_name = self.plot_metric.currentText()
             subtract_background = self.subtract_background.isChecked()
 
+            self.plot_show_dict = {}
+
             metric_key = self.get_dict_key(self.metric_dict, metric_name)
             background_metric_key = metric_key + "_bg"
 
@@ -287,8 +291,6 @@ class _plot_utils:
                     channel_dict = self.traces_dict[dataset_name][channel].copy()
                     for trace_index, trace_dict in channel_dict.items():
 
-                        # coords = [trace_dict["spot_cx"], trace_dict["spot_cy"]]
-
                         data = np.array(trace_dict[metric_key].copy())
 
                         if "efficiency" not in channel:
@@ -308,11 +310,14 @@ class _plot_utils:
                         if dataset_name not in plot_dict.keys():
                             plot_dict[dataset_name] = {}
                         if trace_index not in plot_dict[dataset_name].keys():
-                            plot_dict[dataset_name][trace_index] = {"labels": [], "data": []}
+                            plot_dict[dataset_name][trace_index] = {"labels": [], "data": [], "channels": []}
 
                         plot_dict[dataset_name][trace_index]["labels"].append(label)
                         plot_dict[dataset_name][trace_index]["data"].append(data)
-                        # plot_dict[dataset_name][trace_index]["coords"] = coords
+                        plot_dict[dataset_name][trace_index]["channels"].append(channel)
+
+                        if label not in self.plot_show_dict.keys():
+                            self.plot_show_dict[label] = True
 
                         iter += 1
 
@@ -350,6 +355,7 @@ class _plot_utils:
                             self.normalise_plots.setEnabled(False)
 
                             self.populate_plot_dict()
+                            self.create_plot_checkboxes()
                             self.update_plot_layout()
                             self.plot_traces()
 
@@ -363,6 +369,80 @@ class _plot_utils:
         except:
             print(traceback.format_exc())
             pass
+
+
+    def create_plot_checkboxes(self):
+
+        try:
+
+            grid_layout = self.traces_channel_selection_layout
+
+            channel_list = []
+            label_list = []
+
+            for dataset_name, dataset_dict in self.plot_dict.items():
+                for label in dataset_dict[0]["labels"]:
+                    label_list.append(label)
+                for channel in dataset_dict[0]["channels"]:
+                    channel_list.append(channel)
+
+
+            for i in range(grid_layout.count()):
+                item = grid_layout.itemAt(i)
+                checkbox = item.widget()
+                if isinstance(checkbox, QCheckBox):
+                    label = checkbox.text()
+                    checkbox.deleteLater()
+                    checkbox.hide()
+
+            self.repaint()
+            self.gapseq_ui.repaint()
+
+
+            if len(channel_list) > 1:
+                for col_index, (channel, label) in enumerate(zip(channel_list,label_list)):
+                    check_box_name = f"plot_show_{channel}"
+                    check_box_label = f"Show: {label}"
+
+                    setattr(self, check_box_name, QCheckBox(check_box_label))
+                    check_box = getattr(self, check_box_name)
+
+                    check_box.blockSignals(True)
+                    check_box.setChecked(True)
+                    check_box.blockSignals(False)
+
+                    check_box.stateChanged.connect(self.plot_checkbox_event)
+
+                    self.traces_channel_selection_layout.addWidget(check_box, 0, col_index)
+
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
+    def plot_checkbox_event(self, event):
+
+        try:
+
+            grid_layout = self.traces_channel_selection_layout
+
+            for i in range(grid_layout.count()):
+                item = grid_layout.itemAt(i)
+                widget = item.widget()
+                if isinstance(widget, QCheckBox):
+                    label = widget.text()
+                    state = widget.isChecked()
+
+                    self.plot_show_dict[label.replace("Show: ","")] = state
+
+            self.update_plot_layout()
+            self.plot_traces()
+
+        except:
+            print(traceback.format_exc())
+            pass
+
 
     def update_plot_layout(self):
 
@@ -382,119 +462,126 @@ class _plot_utils:
             for plot_index, (dataset_name, dataset_dict) in enumerate(self.plot_dict.items()):
 
                 plot_labels = dataset_dict[0]["labels"]
-                n_plot_lines = len(plot_labels)
-                n_traces.append(len(dataset_dict))
 
-                sub_plots = []
+                plot_labels = [label for label in plot_labels if self.plot_show_dict[label] == True]
 
-                if plot_mode == "FRET Data + FRET Efficiency" and split==False:
+                if len(plot_labels) > 0:
 
-                    layout = pg.GraphicsLayout()
-                    self.graph_canvas.addItem(layout, row=plot_index, col=0)
+                    n_plot_lines = len(plot_labels)
+                    n_traces.append(len(dataset_dict))
 
-                    for line_index in range(2):
+                    sub_plots = []
+
+                    if plot_mode == "FRET Data + FRET Efficiency" and split==False:
+
+                        layout = pg.GraphicsLayout()
+                        self.graph_canvas.addItem(layout, row=plot_index, col=0)
+
+                        for line_index in range(2):
+                            p = CustomPlot()
+
+                            layout.addItem(p, row=line_index, col=0)
+
+                            if self.plot_settings.plot_showy.isChecked() == False:
+                                p.hideAxis('left')
+
+                            if self.plot_settings.plot_showx.isChecked() == False:
+                                p.hideAxis('bottom')
+                            elif line_index != 1:
+                                p.hideAxis('bottom')
+
+                            sub_plots.append(p)
+
+                        for j in range(1, len(sub_plots)):
+                            sub_plots[j].setXLink(sub_plots[0])
+
+                        efficiency_plot = True
+
+                    elif split == True and n_plot_lines > 1:
+
+                        layout = pg.GraphicsLayout()
+                        self.graph_canvas.addItem(layout, row=plot_index, col=0)
+
+                        for line_index in range(n_plot_lines):
+                            p = CustomPlot()
+
+                            layout.addItem(p, row=line_index, col=0)
+
+                            if line_index != n_plot_lines - 1:
+                                p.hideAxis('bottom')
+
+                            sub_plots.append(p)
+
+                        for j in range(1, len(sub_plots)):
+                            sub_plots[j].setXLink(sub_plots[0])
+
+                    else:
+                        layout = self.graph_canvas
+
                         p = CustomPlot()
 
-                        layout.addItem(p, row=line_index, col=0)
+                        p.hideAxis('top')
+                        p.hideAxis('right')
 
-                        if self.plot_settings.plot_showy.isChecked() == False:
-                            p.hideAxis('left')
+                        layout.addItem(p, row=plot_index, col=0)
 
-                        if self.plot_settings.plot_showx.isChecked() == False:
-                            p.hideAxis('bottom')
-                        elif line_index != 1:
-                            p.hideAxis('bottom')
+                        for line_index in enumerate(plot_labels):
+                            sub_plots.append(p)
 
-                        sub_plots.append(p)
+                    plot_lines = []
+                    plot_lines_labels = []
 
-                    for j in range(1, len(sub_plots)):
-                        sub_plots[j].setXLink(sub_plots[0])
+                    for axes_index, plot in enumerate(sub_plots):
 
-                    efficiency_plot = True
+                        line_label = plot_labels[axes_index]
+                        line_format = pg.mkPen(color=100 + axes_index * 100, width=2)
+                        plot_line = plot.plot(np.zeros(10), pen=line_format, name=line_label)
+                        plot.enableAutoRange()
+                        plot.autoRange()
 
-                elif split == True and n_plot_lines > 1:
+                        legend = plot.legend
+                        legend.anchor(itemPos=(1, 0), parentPos=(1, 0), offset=(-10, 10))
 
-                    layout = pg.GraphicsLayout()
-                    self.graph_canvas.addItem(layout, row=plot_index, col=0)
+                        plot_details = f"{dataset_name}"
 
-                    for line_index in range(n_plot_lines):
-                        p = CustomPlot()
+                        if axes_index == 0:
+                            plot.setTitle(plot_details)
+                            title_plot = plot
 
-                        layout.addItem(p, row=line_index, col=0)
+                        plotmeta = plot.metadata
+                        plotmeta[axes_index] = {"plot_dataset": dataset_name, "line_label": line_label}
 
-                        if line_index != n_plot_lines - 1:
-                            p.hideAxis('bottom')
+                        plot_lines.append(plot_line)
+                        plot_lines_labels.append(line_label)
 
-                        sub_plots.append(p)
+                        self.plot_grid[plot_index] = {
+                            "sub_axes": sub_plots,
+                            "title_plot": title_plot,
+                            "plot_lines": plot_lines,
+                            "plot_dataset": dataset_name,
+                            "plot_index": plot_index,
+                            "n_plot_lines": len(plot_lines),
+                            "split": split,
+                            "plot_lines_labels": plot_lines_labels,
+                            "efficiency_plot": efficiency_plot,
+                            }
 
-                    for j in range(1, len(sub_plots)):
-                        sub_plots[j].setXLink(sub_plots[0])
+            if len(n_traces) > 0:
 
-                else:
-                    layout = self.graph_canvas
+                n_traces = max(n_traces)
+                self.plot_localisation_number = self.findChild(QSlider, 'plot_localisation_number')
+                self.plot_localisation_number.setMaximum(n_traces-1)
 
-                    p = CustomPlot()
-
-                    p.hideAxis('top')
-                    p.hideAxis('right')
-
-                    layout.addItem(p, row=plot_index, col=0)
-
-                    for line_index in enumerate(plot_labels):
-                        sub_plots.append(p)
-
-                plot_lines = []
-                plot_lines_labels = []
-
-                for axes_index, plot in enumerate(sub_plots):
-
-                    line_label = plot_labels[axes_index]
-                    line_format = pg.mkPen(color=100 + axes_index * 100, width=2)
-                    plot_line = plot.plot(np.zeros(10), pen=line_format, name=line_label)
-                    plot.enableAutoRange()
-                    plot.autoRange()
-
-                    legend = plot.legend
-                    legend.anchor(itemPos=(1, 0), parentPos=(1, 0), offset=(-10, 10))
-
-                    plot_details = f"{dataset_name}"
-
-                    if axes_index == 0:
-                        plot.setTitle(plot_details)
-                        title_plot = plot
-
-                    plotmeta = plot.metadata
-                    plotmeta[axes_index] = {"plot_dataset": dataset_name, "line_label": line_label}
-
-                    plot_lines.append(plot_line)
-                    plot_lines_labels.append(line_label)
-
-                    self.plot_grid[plot_index] = {
-                        "sub_axes": sub_plots,
-                        "title_plot": title_plot,
-                        "plot_lines": plot_lines,
-                        "plot_dataset": dataset_name,
-                        "plot_index": plot_index,
-                        "n_plot_lines": len(plot_lines),
-                        "split": split,
-                        "plot_lines_labels": plot_lines_labels,
-                        "efficiency_plot": efficiency_plot,
-                        }
-
-            n_traces = max(n_traces)
-            self.plot_localisation_number = self.findChild(QSlider, 'plot_localisation_number')
-            self.plot_localisation_number.setMaximum(n_traces-1)
-
-            plot_list = []
-            for plot_index, grid in enumerate(self.plot_grid.values()):
-                sub_axes = grid["sub_axes"]
-                sub_plots = []
-                for plot in sub_axes:
-                    sub_plots.append(plot)
-                    plot_list.append(plot)
-            for i in range(1, len(plot_list)):
-                plot_list[i].setXLink(plot_list[0])
-            plot.getViewBox().sigXRangeChanged.connect(lambda: auto_scale_y(plot_list))
+                plot_list = []
+                for plot_index, grid in enumerate(self.plot_grid.values()):
+                    sub_axes = grid["sub_axes"]
+                    sub_plots = []
+                    for plot in sub_axes:
+                        sub_plots.append(plot)
+                        plot_list.append(plot)
+                for i in range(1, len(plot_list)):
+                    plot_list[i].setXLink(plot_list[0])
+                plot.getViewBox().sigXRangeChanged.connect(lambda: auto_scale_y(plot_list))
 
         except:
             print(traceback.format_exc())
@@ -524,7 +611,7 @@ class _plot_utils:
                 y1 = locY - box_size
                 y2 = locY + box_size
 
-                zoom = min((image_shape[0] / (y2 - y1)), (image_shape[1] / (x2 - x1))) / 2
+                zoom = min((image_shape[0] / (y2 - y1)), (image_shape[1] / (x2 - x1)))*2
 
                 self.viewer.camera.center = centre
                 self.viewer.camera.zoom = zoom
@@ -585,12 +672,9 @@ class _plot_utils:
 
 
                     for line_index, (plot, line, plot_label) in enumerate(zip(sub_axes, plot_lines, plot_lines_labels)):
-                        plot.setRange(
-                            xRange=plot_ranges["xRange"],
-                            yRange=plot_ranges["yRange"],
-                            padding=0.0,
-                            disableAutoRange=True,
-                            )
+
+                        plot.setXRange(min=plot_ranges["xRange"][0],max=plot_ranges["xRange"][1])
+                        plot.enableAutoRange(axis="y")
 
         except:
             print(traceback.format_exc())
@@ -682,6 +766,18 @@ class CustomPlot(pg.PlotItem):
 
     def getMetadata(self):
         return self.metadata
+
+    def enableAutoRange(self, axis='both'):
+        """
+        Enables automatic ranging for the specified axis.
+        :param axis: 'x', 'y', or 'both' to specify which axis to auto-range.
+        """
+        if axis == 'x':
+            super().enableAutoRange(axis=pg.ViewBox.XAxis)
+        elif axis == 'y':
+            super().enableAutoRange(axis=pg.ViewBox.YAxis)
+        else:
+            super().enableAutoRange(axis=pg.ViewBox.XYAxes)
 
 
 class CustomPyQTGraphWidget(pg.GraphicsLayoutWidget):

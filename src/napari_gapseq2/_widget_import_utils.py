@@ -39,6 +39,7 @@ def import_image_data(dat):
             img_frame = img.copy()
 
         img_frame = np.array(img_frame)
+        image_frame = img_frame.astype(dat["dtype"])
 
         if len(channels) == 1:
             img_frames = [img_frame]
@@ -118,7 +119,10 @@ class _import_utils:
 
                 file_name = os.path.basename(path)
 
-                dataset_name = file_name
+                if self.gapseq_append.isChecked():
+                    dataset_name = self.gapseq_append_dataset.currentText()
+                else:
+                    dataset_name = file_name
 
                 if dataset_name not in shared_images.keys():
                     shared_images[dataset_name] = {}
@@ -357,6 +361,7 @@ class _import_utils:
                 for channel_name, shared_mem in dataset_images.items():
 
                     image = np.ndarray(image_shape, dtype=dtype, buffer=shared_mem.buf).copy()
+                    image = image.astype(np.uint16)
 
                     shared_mem.close()
                     shared_mem.unlink()
@@ -396,7 +401,11 @@ class _import_utils:
                     image_dict[channel_name]["FRET"] = fret
                     image_dict[channel_name]["import_mode"] = import_mode
 
-                self.dataset_dict[dataset_name] = image_dict
+                if dataset_name not in self.dataset_dict.keys():
+                    self.dataset_dict[dataset_name] = image_dict
+                else:
+                    for channel_name, channel_dict in image_dict.items():
+                        self.dataset_dict[dataset_name][channel_name] = channel_dict
 
         except:
             pass
@@ -480,6 +489,11 @@ class _import_utils:
             self.colo_dataset.addItems(dataset_names)
             self.colo_dataset.blockSignals(False)
 
+            self.gapseq_append_dataset.blockSignals(True)
+            self.gapseq_append_dataset.clear()
+            self.gapseq_append_dataset.addItems(dataset_names)
+            self.gapseq_append_dataset.blockSignals(False)
+
             if len(dataset_names) > 1:
                 dataset_names.insert(0, "All Datasets")
 
@@ -536,20 +550,26 @@ class _import_utils:
 
         try:
 
-            desktop = os.path.expanduser("~/Desktop")
-            paths = QFileDialog.getOpenFileNames(self, 'Open file', desktop, "Image files (*.tif *.tiff)")[0]
+            append_dataset = self.gapseq_append_dataset.currentText()
 
-            paths = [path for path in paths if path != ""]
+            if self.gapseq_append.isChecked() and append_dataset not in self.dataset_dict.keys():
+                print("Please select a dataset to append to")
+            else:
 
-            if paths != []:
+                desktop = os.path.expanduser("~/Desktop")
+                paths = QFileDialog.getOpenFileNames(self, 'Open file', desktop, "Image files (*.tif *.tiff)")[0]
 
-                self.gapseq_import.setEnabled(False)
+                paths = [path for path in paths if path != ""]
 
-                worker = Worker(self._gapseq_import_data, paths=paths)
-                worker.signals.progress.connect(partial(self.gapseq_progress,
-                    progress_bar=self.gapseq_import_progressbar))
-                worker.signals.finished.connect(self._gapseq_import_data_cleanup)
-                self.threadpool.start(worker)
+                if paths != []:
+
+                    self.gapseq_import.setEnabled(False)
+
+                    worker = Worker(self._gapseq_import_data, paths=paths)
+                    worker.signals.progress.connect(partial(self.gapseq_progress,
+                        progress_bar=self.gapseq_import_progressbar))
+                    worker.signals.finished.connect(self._gapseq_import_data_cleanup)
+                    self.threadpool.start(worker)
 
         except:
             self.gapseq_import.setEnabled(True)

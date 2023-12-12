@@ -195,7 +195,24 @@
            </item>
           </widget>
          </item>
+         <item row="4" column="1">
+          <widget class="QComboBox" name="gapseq_append_dataset"/>
+         </item>
+         <item row="4" column="0">
+          <widget class="QLabel" name="gapseq_append_dataset_label">
+           <property name="text">
+            <string>Append Channels to Dataset:</string>
+           </property>
+          </widget>
+         </item>
         </layout>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="gapseq_append">
+         <property name="text">
+          <string>Append Channel(s) To Exisiting Dataset</string>
+         </property>
+        </widget>
        </item>
        <item>
         <widget class="QPushButton" name="gapseq_import">
