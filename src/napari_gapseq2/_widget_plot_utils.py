@@ -12,7 +12,7 @@ import uuid
 import copy
 from napari_gapseq2._widget_utils_compute import Worker
 from qtpy.QtWidgets import QCheckBox, QGridLayout
-
+import re
 
 class _plot_utils:
 
@@ -71,9 +71,11 @@ class _plot_utils:
                         if set(channel_names).issubset(["da", "dd", "aa", "ad"]):
                             self.plot_channel.addItem("ALEX Data")
                             self.plot_channel.addItem("ALEX Efficiency")
+                            self.plot_channel.addItem("ALEX Data + Efficiency")
                         if set(channel_names).issubset(["donor", "acceptor"]):
                             self.plot_channel.addItem("FRET Data")
                             self.plot_channel.addItem("FRET Efficiency")
+                            self.plot_channel.addItem("FRET Data + Efficiency")
 
                         for channel in channel_names:
                             if channel in ["da", "dd", "aa", "ad"]:
@@ -84,8 +86,6 @@ class _plot_utils:
                         self.plot_channel.blockSignals(False)
 
                         self.updating_plot_combos = False
-
-
 
         except:
             print(traceback.format_exc())
@@ -101,9 +101,9 @@ class _plot_utils:
                     dataset_name = self.plot_data.currentText()
                     channel_name = self.plot_channel.currentText()
 
-                    if channel_name in ["ALEX Data","ALEX Efficiency"]:
+                    if channel_name in ["ALEX Data","ALEX Efficiency", "ALEX Data + Efficiency"]:
                         channel_key = "dd"
-                    elif channel_name in ["FRET Data","FRET Efficiency"]:
+                    elif channel_name in ["FRET Data","FRET Efficiency", "FRET Data + Efficiency"]:
                         channel_key = "donor"
                     else:
                         channel_key = channel_name.lower()
@@ -257,16 +257,21 @@ class _plot_utils:
             elif channel_name == "ALEX Efficiency":
                 plot_channels = ["alex_efficiency"]
                 iteration_channel = "aa"
+            elif channel_name == "ALEX Data + Efficiency":
+                plot_channels = ["dd", "da", "ad", "aa", "alex_efficiency"]
+                iteration_channel = "aa"
             elif channel_name == "FRET Data":
                 plot_channels = ["donor", "acceptor"]
                 iteration_channel = "donor"
             elif channel_name == "FRET Efficiency":
                 plot_channels = ["fret_efficiency"]
                 iteration_channel = "donor"
+            elif channel_name == "FRET Data + Efficiency":
+                plot_channels = ["donor", "acceptor", "fret_efficiency"]
+                iteration_channel = "donor"
             else:
                 plot_channels = [channel_name.lower()]
                 iteration_channel = channel_name.lower()
-
 
             n_traces = len(self.traces_dict[dataset_name][iteration_channel])
             n_iterations = len(plot_datasets) * len(plot_channels) * n_traces
@@ -444,6 +449,11 @@ class _plot_utils:
             pass
 
 
+
+    def check_efficiency_graph(self, input_string):
+        pattern = r"FRET Data \+ Efficiency|ALEX Data \+ Efficiency"
+        return re.search(pattern, input_string) is not None
+
     def update_plot_layout(self):
 
         try:
@@ -472,7 +482,7 @@ class _plot_utils:
 
                     sub_plots = []
 
-                    if plot_mode == "FRET Data + FRET Efficiency" and split==False:
+                    if "Efficiency" in str(plot_labels) and split == False and n_plot_lines > 1:
 
                         layout = pg.GraphicsLayout()
                         self.graph_canvas.addItem(layout, row=plot_index, col=0)
@@ -482,12 +492,7 @@ class _plot_utils:
 
                             layout.addItem(p, row=line_index, col=0)
 
-                            if self.plot_settings.plot_showy.isChecked() == False:
-                                p.hideAxis('left')
-
-                            if self.plot_settings.plot_showx.isChecked() == False:
-                                p.hideAxis('bottom')
-                            elif line_index != 1:
+                            if line_index != 1:
                                 p.hideAxis('bottom')
 
                             sub_plots.append(p)
@@ -496,6 +501,11 @@ class _plot_utils:
                             sub_plots[j].setXLink(sub_plots[0])
 
                         efficiency_plot = True
+
+                        top_plot = sub_plots[0]
+                        bottom_plot = sub_plots[1]
+
+                        sub_plots = [top_plot]*(n_plot_lines-1) + [bottom_plot]
 
                     elif split == True and n_plot_lines > 1:
 

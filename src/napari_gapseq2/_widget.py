@@ -96,17 +96,17 @@ class GapSeqWidget(QWidget,
         self.setLayout(QVBoxLayout())
         self.form = Ui_Frame()
         self.gapseq_ui = QFrame()
+        self.gapseq_ui.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding)
+        self.gapseq_ui.setMinimumSize(450, 500)
+
         self.form.setupUi(self.gapseq_ui)
         self.layout().addWidget(self.gapseq_ui)
 
         #create pyqt graph container
         self.graph_container = self.findChild(QWidget, "graph_container")
         self.graph_container.setLayout(QVBoxLayout())
-        self.graph_container.setMinimumWidth(10)
-        self.graph_container.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
 
         self.graph_canvas = CustomPyQTGraphWidget(self)
-        self.graph_canvas.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
         self.graph_container.layout().addWidget(self.graph_canvas)
 
         # register controls

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>566</width>
-    <height>725</height>
+    <width>518</width>
+    <height>625</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,15 +17,15 @@
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="sizePolicy">
-      <sizepolicy hsizetype="MinimumExpanding" vsizetype="Expanding">
+      <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
      <property name="minimumSize">
       <size>
-       <width>400</width>
-       <height>600</height>
+       <width>300</width>
+       <height>500</height>
       </size>
      </property>
      <property name="currentIndex">
@@ -1538,13 +1538,6 @@
            </item>
            <item>
             <layout class="QGridLayout" name="gridLayout_18">
-             <item row="0" column="0">
-              <widget class="QCheckBox" name="subtract_background">
-               <property name="text">
-                <string>Subtract Background</string>
-               </property>
-              </widget>
-             </item>
              <item row="0" column="2">
               <widget class="QCheckBox" name="normalise_plots">
                <property name="text">
@@ -1563,6 +1556,13 @@
               <widget class="QCheckBox" name="focus_on_bbox">
                <property name="text">
                 <string>Focus on BBOX</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="0">
+              <widget class="QCheckBox" name="subtract_background">
+               <property name="text">
+                <string>Subtract Background</string>
                </property>
               </widget>
              </item>
@@ -1590,7 +1590,7 @@
            <item>
             <widget class="QWidget" name="graph_container" native="true">
              <property name="sizePolicy">
-              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Expanding">
+              <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
                <horstretch>0</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
