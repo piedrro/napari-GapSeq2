@@ -391,34 +391,41 @@ class _plot_utils:
                 for channel in dataset_dict[0]["channels"]:
                     channel_list.append(channel)
 
+            check_box_label_list = [f"Show: {label}" for label in label_list]
+            check_box_name_list = [f"plot_show_{channel}" for channel in channel_list]
 
             for i in range(grid_layout.count()):
                 item = grid_layout.itemAt(i)
-                checkbox = item.widget()
-                if isinstance(checkbox, QCheckBox):
-                    label = checkbox.text()
-                    checkbox.deleteLater()
-                    checkbox.hide()
+                if item is not None:
+                    checkbox = item.widget()
+                    if isinstance(checkbox, QCheckBox):
+                        checkbox.hide()
 
             self.repaint()
             self.gapseq_ui.repaint()
-
 
             if len(channel_list) > 1:
                 for col_index, (channel, label) in enumerate(zip(channel_list,label_list)):
                     check_box_name = f"plot_show_{channel}"
                     check_box_label = f"Show: {label}"
 
-                    setattr(self, check_box_name, QCheckBox(check_box_label))
-                    check_box = getattr(self, check_box_name)
+                    if hasattr(self, check_box_name):
+                        check_box = getattr(self, check_box_name)
+                        checked = check_box.isChecked()
+                        check_box.show()
 
-                    check_box.blockSignals(True)
-                    check_box.setChecked(True)
-                    check_box.blockSignals(False)
+                    else:
+                        setattr(self, check_box_name, QCheckBox(check_box_label))
+                        check_box = getattr(self, check_box_name)
 
-                    check_box.stateChanged.connect(self.plot_checkbox_event)
+                        check_box.blockSignals(True)
+                        check_box.setChecked(checked)
+                        check_box.blockSignals(False)
 
-                    self.traces_channel_selection_layout.addWidget(check_box, 0, col_index)
+                        check_box.stateChanged.connect(self.plot_checkbox_event)
+
+                        self.traces_channel_selection_layout.addWidget(check_box, 0, col_index)
+
 
 
         except:
@@ -447,7 +454,6 @@ class _plot_utils:
         except:
             print(traceback.format_exc())
             pass
-
 
 
     def check_efficiency_graph(self, input_string):
@@ -649,24 +655,15 @@ class _plot_utils:
                     sub_axes = grid["sub_axes"]
                     plot_lines = grid["plot_lines"]
                     plot_lines_labels = grid["plot_lines_labels"]
-                    title_plot = grid["title_plot"]
-
-                    # coords = self.plot_dict[plot_dataset][0]["coords"]
-                    #
-                    # print(coords)
-
-                    plot_details = f"{plot_dataset} [#:{localisation_number}]"
 
                     plot_ranges = {"xRange": [0, 100], "yRange": [0, 100]}
                     for line_index, (plot, line, plot_label) in enumerate(zip(sub_axes, plot_lines, plot_lines_labels)):
 
-                        legend = plot.legend
-                        data = self.plot_dict[plot_dataset][localisation_number]["data"][line_index]
+                        data_index = self.plot_dict[plot_dataset][localisation_number]["labels"].index(plot_label)
+                        data = self.plot_dict[plot_dataset][localisation_number]["data"][data_index]
 
                         if self.normalise_plots.isChecked() and "efficiency" not in plot_label.lower():
                             data = (data - np.min(data)) / (np.max(data) - np.min(data))
-
-                        # print(np.min(data), np.max(data), np.max(data) - np.min(data))
 
                         plot_line = plot_lines[line_index]
                         plot_line.setData(data)
@@ -679,7 +676,6 @@ class _plot_utils:
                             plot_ranges["yRange"][0] = np.min(data)
                         if plot_ranges["xRange"][0] > 0:
                             plot_ranges["xRange"][0] = 0
-
 
                     for line_index, (plot, line, plot_label) in enumerate(zip(sub_axes, plot_lines, plot_lines_labels)):
 
