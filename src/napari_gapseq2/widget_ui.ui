@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>518</width>
+    <width>556</width>
     <height>625</height>
    </rect>
   </property>
@@ -355,16 +355,11 @@
          <item row="4" column="1">
           <widget class="QComboBox" name="picasso_box_size">
            <property name="currentIndex">
-            <number>2</number>
+            <number>0</number>
            </property>
            <item>
             <property name="text">
              <string>3</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>4</string>
             </property>
            </item>
            <item>
@@ -374,17 +369,7 @@
            </item>
            <item>
             <property name="text">
-             <string>6</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
              <string>7</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>8</string>
             </property>
            </item>
            <item>

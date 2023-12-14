@@ -69,22 +69,25 @@ class _plot_utils:
                         channel_names = list(self.traces_dict[dataset_name].keys())
 
                         if set(channel_names).issubset(["da", "dd", "aa", "ad"]):
-                            self.plot_channel.addItem("ALEX Data")
-                            self.plot_channel.addItem("ALEX Efficiency")
-                            self.plot_channel.addItem("ALEX Data + Efficiency")
+                            channel_names.insert(0, "ALEX Data")
+                            channel_names.insert(1, "ALEX Efficiency")
+                            channel_names.insert(2, "ALEX Data + Efficiency")
                         if set(channel_names).issubset(["donor", "acceptor"]):
-                            self.plot_channel.addItem("FRET Data")
-                            self.plot_channel.addItem("FRET Efficiency")
-                            self.plot_channel.addItem("FRET Data + Efficiency")
+                            channel_names.insert(0, "FRET Data")
+                            channel_names.insert(1, "FRET Efficiency")
+                            channel_names.insert(2, "FRET Data + Efficiency")
 
-                        for channel in channel_names:
-                            if channel in ["da", "dd", "aa", "ad"]:
-                                self.plot_channel.addItem(channel.upper())
+                        for channel_index, channel_name in enumerate(channel_names):
+                            if channel_name.lower() in ["dd","da","ad","aa"]:
+                                channel_names[channel_index] = channel_name.upper()
+                            elif channel_name.lower() in ["donor","acceptor"]:
+                                channel_names[channel_index] = channel_name.capitalize()
                             else:
-                                self.plot_channel.addItem(channel.capitalize())
+                                pass
+
+                        self.update_qcombo_items(self.plot_channel, channel_names)
 
                         self.plot_channel.blockSignals(False)
-
                         self.updating_plot_combos = False
 
         except:
@@ -116,24 +119,34 @@ class _plot_utils:
 
                         if n_traces > 0:
 
+                            plot_metric_items = [self.metric_dict[metric] for metric in self.metric_dict.keys()]
+
                             self.updating_plot_combos = True
-
-                            self.plot_metric.blockSignals(True)
-
-                            self.plot_metric.clear()
-
-                            metric_names = channel_dict[0].keys()
-
-                            for metric in metric_names:
-                                if metric in self.metric_dict.keys():
-                                    self.plot_metric.addItem(self.metric_dict[metric])
-
-                            self.plot_metric.blockSignals(False)
-
+                            self.update_qcombo_items(self.plot_metric, plot_metric_items)
                             self.updating_plot_combos = False
 
         except:
             print(traceback.format_exc())
+
+
+    def update_qcombo_items(self, qcombo, items):
+
+        try:
+
+            qcombo.blockSignals(True)
+
+            current_items = [qcombo.itemText(i) for i in range(qcombo.count())]
+
+            if current_items != items:
+                qcombo.clear()
+                qcombo.addItems(items)
+
+            qcombo.blockSignals(False)
+
+        except:
+            print(traceback.format_exc())
+
+
 
     def get_dict_key(self, dict, target_value):
 
@@ -170,7 +183,11 @@ class _plot_utils:
                     donor = donor - donor_bg
                     acceptor = acceptor - acceptor_bg
 
+                    donor[donor < 0] = 0
+                    acceptor[acceptor < 0] = 0
+
                 efficiency = acceptor / ((gamma_correction * donor) + acceptor)
+
                 efficiency = efficiency.tolist()
 
                 dataset_dict["fret_efficiency"][trace_index][metric_key] = efficiency
@@ -219,6 +236,9 @@ class _plot_utils:
 
                     dd = dd - dd_bg
                     da = da - da_bg
+
+                    dd[dd < 0] = 0
+                    da[da < 0] = 0
 
                     efficiency = da / ((gamma_correction * dd) + da)
                     efficiency = np.array(efficiency)
@@ -278,11 +298,11 @@ class _plot_utils:
             spot_size = self.traces_dict[dataset_name][iteration_channel][0]["spot_size"][0].copy()
             n_pixels = spot_size**2
 
-            if channel_name == "ALEX Efficiency":
+            if channel_name in ["ALEX Efficiency", "ALEX Data + Efficiency"]:
                 self.compute_alex_efficiency(dataset_name, metric_key,
                     subtract_background, progress_callback)
 
-            elif channel_name == "FRET Efficiency":
+            elif channel_name in ["FRET Efficiency", "FRET Data + Efficiency"]:
                 self.compute_fret_efficiency( dataset_name, metric_key,
                     subtract_background, progress_callback)
 
@@ -419,19 +439,16 @@ class _plot_utils:
                         check_box = getattr(self, check_box_name)
 
                         check_box.blockSignals(True)
-                        check_box.setChecked(checked)
+                        check_box.setChecked(True)
                         check_box.blockSignals(False)
 
                         check_box.stateChanged.connect(self.plot_checkbox_event)
 
                         self.traces_channel_selection_layout.addWidget(check_box, 0, col_index)
 
-
-
         except:
             print(traceback.format_exc())
             pass
-
 
     def plot_checkbox_event(self, event):
 
@@ -605,7 +622,6 @@ class _plot_utils:
 
         return self.plot_grid
 
-
     def get_loc_coords(self, localisation_number):
 
         try:
@@ -635,8 +651,6 @@ class _plot_utils:
         except:
             print(traceback.format_exc())
             pass
-
-
 
     def plot_traces(self, update=False):
 
