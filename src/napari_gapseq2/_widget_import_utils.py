@@ -536,6 +536,7 @@ class _import_utils:
         self.populate_dataset_combos()
 
         self.update_channel_select_buttons()
+        self.populate_channel_selectors()
         self.update_active_image()
         self.update_export_options()
         self.populate_export_combos()

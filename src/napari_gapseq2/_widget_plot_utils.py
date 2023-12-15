@@ -41,7 +41,13 @@ class _plot_utils:
 
                     self.plot_data.blockSignals(True)
                     self.plot_data.clear()
-                    self.plot_data.addItems(self.traces_dict.keys())
+
+                    dataset_names = list(self.traces_dict.keys())
+
+                    if len(dataset_names) > 0:
+                        dataset_names.insert(0, "All Datasets")
+
+                    self.plot_data.addItems(dataset_names)
                     self.plot_data.blockSignals(False)
 
                     self.updating_plot_combos = False
@@ -66,7 +72,13 @@ class _plot_utils:
                         self.plot_channel.blockSignals(True)
                         self.plot_channel.clear()
 
-                        channel_names = list(self.traces_dict[dataset_name].keys())
+                        if dataset_name == "All Datasets":
+                            channel_names = []
+                            for dataset in self.traces_dict.keys():
+                                channel_names.extend(list(self.traces_dict[dataset].keys()))
+                            channel_names = list(set(channel_names))
+                        else:
+                            channel_names = list(self.traces_dict[dataset_name].keys())
 
                         plot_channel_list = ["All Channels"]
 
@@ -103,21 +115,17 @@ class _plot_utils:
 
                 if self.traces_dict != {}:
 
-                    dataset_name = self.plot_data.currentText()
-                    channel_name = self.plot_channel.currentText()
+                    channel_names = []
+                    dataset_names = list(self.traces_dict.keys())
+                    for dataset in dataset_names:
+                        channel_names.extend(list(self.traces_dict[dataset].keys()))
 
-                    if channel_name in ["All Channels"]:
-                        channel_key = list(self.traces_dict[dataset_name].keys())[0]
-                    elif channel_name in ["ALEX Data","ALEX Efficiency", "ALEX Data + Efficiency"]:
-                        channel_key = "dd"
-                    elif channel_name in ["FRET Data","FRET Efficiency", "FRET Data + Efficiency"]:
-                        channel_key = "donor"
-                    else:
-                        channel_key = channel_name.lower()
+                    channel = channel_names[0]
+                    dataset = dataset_names[0]
 
-                    if dataset_name != "" and channel_name != "":
+                    if dataset != "" and channel != "":
 
-                        channel_dict = self.traces_dict[dataset_name][channel_key]
+                        channel_dict = self.traces_dict[dataset][channel]
 
                         n_traces = len(channel_dict)
 
@@ -193,6 +201,10 @@ class _plot_utils:
                     efficiency = np.clip(efficiency, 0, 1)
 
                 efficiency = efficiency.tolist()
+
+                if "fret_efficiency" not in dataset_dict:
+                    copy_chanel = list(dataset_dict.keys())[0]
+                    dataset_dict["fret_efficiency"] = dataset_dict[copy_chanel].copy()
 
                 dataset_dict["fret_efficiency"][trace_index][metric_key] = efficiency
 
@@ -312,8 +324,13 @@ class _plot_utils:
                 plot_channels = [channel_name.lower()]
                 iteration_channel = channel_name.lower()
 
-            n_traces = len(self.traces_dict[dataset_name][iteration_channel])
-            n_iterations = len(plot_datasets) * len(plot_channels) * n_traces
+            n_iterations = 0
+            for dataset in plot_datasets:
+                if dataset in self.traces_dict:
+                    for channel in plot_channels:
+                        if channel in self.traces_dict[dataset]:
+                            n_iterations += len(self.traces_dict[dataset][channel].copy())
+
 
             iter = 0
 
@@ -326,7 +343,7 @@ class _plot_utils:
                     if set(["dd", "da"]).issubset(dataset_channels):
                         self.compute_alex_efficiency(dataset_name, metric_key,
                             background_metric_key, progress_callback, clip_data=True)
-                    elif set(["Donor", "Acceptor"]).issubset(dataset_channels):
+                    elif set(["donor", "acceptor"]).issubset(dataset_channels):
                         self.compute_fret_efficiency(dataset_name, metric_key,
                             background_metric_key, progress_callback, clip_data=True)
 
@@ -445,15 +462,14 @@ class _plot_utils:
                 for channel in dataset_dict[0]["channels"]:
                     channel_list.append(channel)
 
-            check_box_label_list = [f"Show: {label}" for label in label_list]
-            check_box_name_list = [f"plot_show_{channel}" for channel in channel_list]
-
             for i in range(grid_layout.count()):
                 item = grid_layout.itemAt(i)
                 if item is not None:
                     checkbox = item.widget()
+                    checkbox_label = checkbox.text()
                     if isinstance(checkbox, QCheckBox):
-                        checkbox.hide()
+                        if checkbox_label not in label_list:
+                            checkbox.hide()
 
             self.repaint()
             self.gapseq_ui.repaint()
@@ -461,11 +477,10 @@ class _plot_utils:
             if len(channel_list) > 1:
                 for col_index, (channel, label) in enumerate(zip(channel_list,label_list)):
                     check_box_name = f"plot_show_{channel}"
-                    check_box_label = f"Show: {label}"
+                    check_box_label = f"{label}"
 
                     if hasattr(self, check_box_name):
                         check_box = getattr(self, check_box_name)
-                        checked = check_box.isChecked()
                         check_box.show()
 
                     else:
@@ -704,9 +719,7 @@ class _plot_utils:
                     plot_lines = grid["plot_lines"]
                     plot_lines_labels = grid["plot_lines_labels"]
 
-                    bleach_index = self.plot_dict[plot_dataset][localisation_number]["bleach_index"]
-
-                    plot_details = f"{plot_dataset} - N:{localisation_number} - Bleach:{bleach_index}"
+                    plot_details = f"{plot_dataset} - N:{localisation_number}"
 
                     plot_ranges = {"xRange": [0, 100], "yRange": [0, 100]}
                     for line_index, (plot, line, plot_label) in enumerate(zip(sub_axes, plot_lines, plot_lines_labels)):

@@ -126,8 +126,10 @@ class _export_traces_utils:
 
         n_traces = 0
         for dataset in dataset_list:
-            for channel in channel_list:
-                n_traces += len(self.traces_dict[dataset][channel].keys())
+            if dataset in self.traces_dict:
+                for channel in channel_list:
+                    if channel in self.traces_dict[dataset]:
+                        n_traces += len(self.traces_dict[dataset][channel].copy())
 
         iter = 0
         for dataset in dataset_list:
@@ -136,12 +138,12 @@ class _export_traces_utils:
                 json_dict["data"][dataset] = []
 
             if channel_name == "All Channels" or "efficiency" in channel_name.lower():
-                dataset_channels = self.traces_dict[dataset_name].keys()
+                dataset_channels = self.traces_dict[dataset].keys()
                 if set(["dd", "da"]).issubset(dataset_channels):
-                    self.compute_alex_efficiency(dataset_name, metric_key, background_metric_key,
+                    self.compute_alex_efficiency(dataset, metric_key, background_metric_key,
                         progress_callback, clip_data=False)
                 elif set(["Donor", "Acceptor"]).issubset(dataset_channels):
-                    self.compute_fret_efficiency(dataset_name, metric_key, background_metric_key,
+                    self.compute_fret_efficiency(dataset, metric_key, background_metric_key,
                         progress_callback, clip_data=False)
 
             for channel in channel_list:
@@ -175,7 +177,7 @@ class _export_traces_utils:
                             background = np.array(trace_dict[background_metric_key].copy())
                             data = data - background
 
-                        data = data.astype(float).tolist()
+                        data = np.array(data).astype(float).tolist()
 
                         json_dict["data"][dataset][trace_index][channel_name] = data
 
@@ -329,30 +331,32 @@ class _export_traces_utils:
 
             if export_dataset == "All Datasets":
 
-                export_channel_dict = {}
                 for dataset_name, dataset_dict in self.dataset_dict.items():
-
-                    if dataset_name not in export_channel_dict.keys():
-                        export_channel_dict[dataset_name] = []
-
                     for channel_name in dataset_dict.keys():
-                        export_channel_dict[dataset_name].append(channel_name)
+
+                        if channel_name.lower() in ["donor", "acceptor"]:
+                            channel_name = channel_name.capitalize()
+                        else:
+                            channel_name = channel_name.upper()
+
+                        export_channel_list.append(channel_name)
+                        export_channel_list = list(set(export_channel_list))
 
             else:
 
                 for channel_name in self.dataset_dict[export_dataset].keys():
 
-                    if channel_name.lower() in ["donor", "dcceptor"]:
+                    if channel_name.lower() in ["donor", "acceptor"]:
                         channel_name = channel_name.capitalize()
                     else:
                         channel_name = channel_name.upper()
 
                     export_channel_list.append(channel_name)
 
-                if set(export_channel_list) == set(["Donor", "Acceptor"]):
-                    export_channel_list.inset(0, "FRET")
-                if set(export_channel_list) == set(["DD","DA","AA","AD"]):
-                    export_channel_list.insert(0, "ALEX")
+            if set(["Donor", "Acceptor"]).issubset(set(export_channel_list)):
+                export_channel_list.insert(0, "FRET")
+            if set(["DD","DA","AA","AD"]).issubset(set(export_channel_list)):
+                export_channel_list.insert(0, "ALEX")
 
             export_channel_list.insert(0, "All Channels")
 

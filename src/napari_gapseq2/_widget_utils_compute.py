@@ -16,34 +16,37 @@ class _utils_compute:
         else:
             dataset_list = [dataset for dataset in dataset_list if dataset in self.dataset_dict.keys()]
 
-        if channel_list is None:
-            channel_list = list(self.dataset_dict[dataset_list[0]].keys())
-        else:
-            channel_list = [channel for channel in channel_list if channel in self.dataset_dict[dataset_list[0]].keys()]
-
         self.shared_images = []
 
         for dataset_name in dataset_list:
-            for channel_name in channel_list:
 
-                channel_dict = self.dataset_dict[dataset_name][channel_name]
+            if channel_list is None:
+                channel_names = list(self.dataset_dict[dataset_name].keys())
+            else:
+                channel_names = [channel for channel in channel_list if channel in self.dataset_dict[dataset_name].keys()]
 
-                image = channel_dict.pop("data")
+            for channel_name in channel_names:
 
-                shared_mem = shared_memory.SharedMemory(create=True, size=image.nbytes)
-                shared_memory_name = shared_mem.name
-                shared_image = np.ndarray(image.shape, dtype=image.dtype, buffer=shared_mem.buf)
-                shared_image[:] = image[:]
+                if channel_name in self.dataset_dict[dataset_name].keys():
 
-                n_frames = image.shape[0]
+                    channel_dict = self.dataset_dict[dataset_name][channel_name]
 
-                self.shared_images.append({"dataset": dataset_name,
-                                           "channel": channel_name,
-                                           "n_frames": n_frames,
-                                           "shape": image.shape,
-                                           "dtype": image.dtype,
-                                           "shared_mem": shared_mem,
-                                           "shared_memory_name": shared_memory_name})
+                    image = channel_dict.pop("data")
+
+                    shared_mem = shared_memory.SharedMemory(create=True, size=image.nbytes)
+                    shared_memory_name = shared_mem.name
+                    shared_image = np.ndarray(image.shape, dtype=image.dtype, buffer=shared_mem.buf)
+                    shared_image[:] = image[:]
+
+                    n_frames = image.shape[0]
+
+                    self.shared_images.append({"dataset": dataset_name,
+                                               "channel": channel_name,
+                                               "n_frames": n_frames,
+                                               "shape": image.shape,
+                                               "dtype": image.dtype,
+                                               "shared_mem": shared_mem,
+                                               "shared_memory_name": shared_memory_name})
 
         return self.shared_images
 

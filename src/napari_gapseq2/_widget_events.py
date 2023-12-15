@@ -92,10 +92,17 @@ class _events_utils:
 
                     contrast_range = [np.min(image), np.max(image)]
 
+                    if channel in ["da", "dd", "aa", "ad"]:
+                        channel_name = channel.upper()
+                    else:
+                        channel_name = channel.capitalize()
+
+                    layer_name = f"{dataset_name}: [{channel_name}]"
+
                     if hasattr(self, "image_layer") == False:
 
                         self.image_layer = self.viewer.add_image(image,
-                            name=dataset_name,
+                            name=layer_name,
                             colormap="gray",
                             blending="additive",
                             visible=True)
@@ -105,7 +112,7 @@ class _events_utils:
 
                     else:
                         self.image_layer.data = image
-                        self.image_layer.name = dataset_name
+                        self.image_layer.name = layer_name
                         self.image_layer.refresh()
 
                     self.viewer.layers[dataset_name].contrast_limits = contrast_range
@@ -117,6 +124,75 @@ class _events_utils:
             print(traceback.format_exc())
             pass
 
+    def update_channel_selector(self, dataset_selector, channel_selector, event=None, channel_type = "all", efficiency=False, block_signals=False):
+
+        try:
+
+            if hasattr(self, channel_selector) and hasattr(self, dataset_selector):
+
+                channel_selector = getattr(self, channel_selector)
+                dataset_selector = getattr(self, dataset_selector)
+
+                dataset_name = dataset_selector.currentText()
+
+                if block_signals == True:
+                    channel_selector.blockSignals(True)
+
+                channel_selector_list = []
+
+                if dataset_name in self.dataset_dict.keys():
+
+                    channel_names = [channel.lower() for channel in self.dataset_dict[dataset_name].keys()]
+
+                    if channel_type.lower() == "donor":
+                        channel_names = [channel for channel in channel_names if channel in ["dd","ad", "donor"]]
+                    elif channel_type.lower() == "acceptor":
+                        channel_names = [channel for channel in channel_names if channel in ["da","aa", "acceptor"]]
+
+                    for channel in channel_names:
+
+                        if "efficiency" not in channel.lower():
+
+                            if channel in ["da", "dd", "aa", "ad"]:
+                                channel_selector_list.append(channel.upper())
+                            elif channel in ["donor", "acceptor"]:
+                                channel_selector_list.append(channel.capitalize())
+
+                            if efficiency == True:
+                                if set(["donor", "acceptor"]).issubset(set(channel_names)):
+                                    channel_selector_list.append("FRET Efficiency")
+                                if set(["dd", "da"]).issubset(set(channel_names)):
+                                    channel_selector_list.append("ALEX Efficiency")
+
+                if channel_selector_list != []:
+
+                    channel_selector.clear()
+                    channel_selector_list = list(set(channel_selector_list))
+                    channel_selector.addItems(channel_selector_list)
+
+                channel_selector.blockSignals(False)
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+    def populate_channel_selectors(self):
+
+        try:
+
+            self.update_channel_selector(dataset_selector="picasso_dataset", channel_selector="picasso_channel")
+            self.update_channel_selector(dataset_selector="undrift_dataset_selector", channel_selector="undrift_channel_selector")
+            self.update_channel_selector(dataset_selector="cluster_dataset", channel_selector="cluster_channel")
+            self.update_channel_selector(dataset_selector="tform_compute_dataset", channel_selector="tform_compute_ref_channel", channel_type="donor")
+            self.update_channel_selector(dataset_selector="tform_compute_dataset", channel_selector="tform_compute_target_channel", channel_type="acceptor")
+            self.update_channel_selector(dataset_selector="colo_dataset", channel_selector="colo_channel1")
+            self.update_channel_selector(dataset_selector="colo_dataset", channel_selector="colo_channel2")
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
 
     def update_channel_select_buttons(self):
 
@@ -127,17 +203,6 @@ class _events_utils:
 
                 fret_modes = [self.dataset_dict[datast_name][channel]["FRET"] for channel in self.dataset_dict[datast_name].keys()]
                 channel_refs = [self.dataset_dict[datast_name][channel]["channel_ref"] for channel in self.dataset_dict[datast_name].keys()]
-
-                self.picasso_channel.clear()
-                self.undrift_channel_selector.clear()
-                self.cluster_channel.clear()
-                self.tform_compute_ref_channel.clear()
-                self.tform_compute_target_channel.clear()
-                self.colo_channel1.clear()
-                self.colo_channel2.clear()
-
-                reference_channels = []
-                target_channels = []
 
                 channel_refs = list(set(channel_refs))
                 fret_mode = list(set(fret_modes))[0]
@@ -157,12 +222,6 @@ class _events_utils:
                     if "dd" in channel_refs:
                         self.gapseq_show_dd.setEnabled(True)
                         self.gapseq_show_dd.setText("Donor [F1]")
-                        self.picasso_channel.addItem("Donor")
-                        self.undrift_channel_selector.addItem("Donor")
-                        self.cluster_channel.addItem("Donor")
-                        self.colo_channel1.addItem("Donor")
-                        self.colo_channel2.addItem("Donor")
-                        reference_channels.append("Donor")
                         self.viewer.bind_key(key="F1", func=self.select_channel_donor, overwrite=True)
                         self.gapseq_show_dd.clicked.connect(partial(self.update_active_image, channel="donor"))
                     else:
@@ -172,12 +231,6 @@ class _events_utils:
                     if "da" in channel_refs:
                         self.gapseq_show_da.setEnabled(True)
                         self.gapseq_show_da.setText("Acceptor [F2]")
-                        self.picasso_channel.addItem("Acceptor")
-                        self.undrift_channel_selector.addItem("Acceptor")
-                        self.cluster_channel.addItem("Acceptor")
-                        self.colo_channel1.addItem("Acceptor")
-                        self.colo_channel2.addItem("Acceptor")
-                        target_channels.append("Acceptor")
                         self.viewer.bind_key(key="F2", func=self.select_channel_acceptor, overwrite=True)
                         self.gapseq_show_da.clicked.connect(partial(self.update_active_image, channel="acceptor"))
                     else:
@@ -194,12 +247,6 @@ class _events_utils:
                     if "dd" in channel_refs:
                         self.gapseq_show_dd.setText("DD [F1]")
                         self.gapseq_show_dd.setEnabled(True)
-                        self.picasso_channel.addItem("DD")
-                        self.undrift_channel_selector.addItem("DD")
-                        self.cluster_channel.addItem("DD")
-                        self.colo_channel1.addItem("DD")
-                        self.colo_channel2.addItem("DD")
-                        reference_channels.append("DD")
                         self.viewer.bind_key(key="F1", func=self.select_channel_dd, overwrite=True)
                         self.gapseq_show_dd.clicked.connect(partial(self.update_active_image, channel="dd"))
 
@@ -210,12 +257,6 @@ class _events_utils:
                     if "da" in channel_refs:
                         self.gapseq_show_da.setText("DA [F2]")
                         self.gapseq_show_da.setEnabled(True)
-                        self.picasso_channel.addItem("DA")
-                        self.undrift_channel_selector.addItem("DA")
-                        self.cluster_channel.addItem("DA")
-                        self.colo_channel1.addItem("DA")
-                        self.colo_channel2.addItem("DA")
-                        target_channels.append("DA")
                         self.viewer.bind_key(key="F2", func=self.select_channel_da, overwrite=True)
                         self.gapseq_show_da.clicked.connect(partial(self.update_active_image, channel="da"))
                     else:
@@ -225,12 +266,6 @@ class _events_utils:
                     if "ad" in channel_refs:
                         self.gapseq_show_ad.setText("AD [F3]")
                         self.gapseq_show_ad.setEnabled(True)
-                        self.picasso_channel.addItem("AD")
-                        self.undrift_channel_selector.addItem("AD")
-                        self.cluster_channel.addItem("AD")
-                        self.colo_channel1.addItem("AD")
-                        self.colo_channel2.addItem("AD")
-                        reference_channels.append("AD")
                         self.viewer.bind_key(key="F3", func=self.select_channel_ad, overwrite=True)
                         self.gapseq_show_ad.clicked.connect(partial(self.update_active_image, channel="ad"))
                     else:
@@ -240,20 +275,11 @@ class _events_utils:
                     if "aa" in channel_refs:
                         self.gapseq_show_aa.setText("AA [F4]")
                         self.gapseq_show_aa.setEnabled(True)
-                        self.picasso_channel.addItem("AA")
-                        self.undrift_channel_selector.addItem("AA")
-                        self.cluster_channel.addItem("AA")
-                        self.colo_channel1.addItem("AA")
-                        self.colo_channel2.addItem("AA")
-                        target_channels.append("AA")
                         self.viewer.bind_key(key="F4", func=self.select_channel_aa, overwrite=True)
                         self.gapseq_show_aa.clicked.connect(partial(self.update_active_image, channel="aa"))
                     else:
                         self.gapseq_show_aa.setText("")
                         self.gapseq_show_aa.setEnabled(False)
-
-                self.tform_compute_ref_channel.addItems(reference_channels)
-                self.tform_compute_target_channel.addItems(target_channels)
 
         except:
             print(traceback.format_exc())
