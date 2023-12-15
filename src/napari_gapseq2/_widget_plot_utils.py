@@ -68,24 +68,26 @@ class _plot_utils:
 
                         channel_names = list(self.traces_dict[dataset_name].keys())
 
-                        if set(channel_names).issubset(["da", "dd", "aa", "ad"]):
-                            channel_names.insert(0, "ALEX Data")
-                            channel_names.insert(1, "ALEX Efficiency")
-                            channel_names.insert(2, "ALEX Data + Efficiency")
-                        if set(channel_names).issubset(["donor", "acceptor"]):
-                            channel_names.insert(0, "FRET Data")
-                            channel_names.insert(1, "FRET Efficiency")
-                            channel_names.insert(2, "FRET Data + Efficiency")
+                        plot_channel_list = ["All Channels"]
+
+                        if set(["da", "dd", "aa", "ad"]).issubset(channel_names):
+                            plot_channel_list.insert(1, "ALEX Data")
+                            plot_channel_list.insert(2, "ALEX Efficiency")
+                            plot_channel_list.insert(3, "ALEX Data + Efficiency")
+                        if set(["donor", "acceptor"]).issubset(channel_names):
+                            plot_channel_list.insert(1, "FRET Data")
+                            plot_channel_list.insert(2, "FRET Efficiency")
+                            plot_channel_list.insert(3, "FRET Data + Efficiency")
 
                         for channel_index, channel_name in enumerate(channel_names):
                             if channel_name.lower() in ["dd","da","ad","aa"]:
-                                channel_names[channel_index] = channel_name.upper()
+                                plot_channel_list.append(channel_name.upper())
                             elif channel_name.lower() in ["donor","acceptor"]:
-                                channel_names[channel_index] = channel_name.capitalize()
+                                plot_channel_list.append(channel_name.capitalize())
                             else:
                                 pass
 
-                        self.update_qcombo_items(self.plot_channel, channel_names)
+                        self.update_qcombo_items(self.plot_channel, plot_channel_list)
 
                         self.plot_channel.blockSignals(False)
                         self.updating_plot_combos = False
@@ -104,7 +106,9 @@ class _plot_utils:
                     dataset_name = self.plot_data.currentText()
                     channel_name = self.plot_channel.currentText()
 
-                    if channel_name in ["ALEX Data","ALEX Efficiency", "ALEX Data + Efficiency"]:
+                    if channel_name in ["All Channels"]:
+                        channel_key = list(self.traces_dict[dataset_name].keys())[0]
+                    elif channel_name in ["ALEX Data","ALEX Efficiency", "ALEX Data + Efficiency"]:
                         channel_key = "dd"
                     elif channel_name in ["FRET Data","FRET Efficiency", "FRET Data + Efficiency"]:
                         channel_key = "donor"
@@ -161,8 +165,8 @@ class _plot_utils:
 
         return dict_key
 
-    def compute_fret_efficiency(self,  dataset_name, metric_key, subtract_background=False,
-            progress_callback=None, gamma_correction=1):
+    def compute_fret_efficiency(self,  dataset_name, metric_key, background_metric_key,
+            progress_callback=None, gamma_correction=1, clip_data=False):
 
         try:
 
@@ -176,17 +180,17 @@ class _plot_utils:
                 donor = dataset_dict["donor"][trace_index][metric_key]
                 acceptor = dataset_dict["acceptor"][trace_index][metric_key]
 
-                if subtract_background:
+                if background_metric_key == None:
                     donor_bg = dataset_dict["donor"][trace_index][background_metric_key].copy()
                     acceptor_bg = dataset_dict["acceptor"][trace_index][background_metric_key].copy()
 
                     donor = donor - donor_bg
                     acceptor = acceptor - acceptor_bg
 
-                    donor[donor < 0] = 0
-                    acceptor[acceptor < 0] = 0
-
                 efficiency = acceptor / ((gamma_correction * donor) + acceptor)
+
+                if clip_data:
+                    efficiency = np.clip(efficiency, 0, 1)
 
                 efficiency = efficiency.tolist()
 
@@ -202,13 +206,12 @@ class _plot_utils:
             print(traceback.format_exc())
             pass
 
-    def compute_alex_efficiency(self, dataset_name, metric_key, subtract_background=False,
-            progress_callback=None, gamma_correction=1):
+    def compute_alex_efficiency(self, dataset_name, metric_key, background_metric_key,
+            progress_callback=None, gamma_correction=1, clip_data=False):
 
         try:
 
             dataset_dict = self.traces_dict[dataset_name].copy()
-            background_metric_key = metric_key + "_bg"
 
             n_traces = len(dataset_dict["dd"])
 
@@ -224,7 +227,7 @@ class _plot_utils:
 
                 gamma_correction = 1
 
-                if subtract_background == False:
+                if background_metric_key == None:
 
                     efficiency = da / ((gamma_correction * dd) + da)
                     efficiency = np.array(efficiency)
@@ -237,11 +240,11 @@ class _plot_utils:
                     dd = dd - dd_bg
                     da = da - da_bg
 
-                    dd[dd < 0] = 0
-                    da[da < 0] = 0
-
                     efficiency = da / ((gamma_correction * dd) + da)
                     efficiency = np.array(efficiency)
+
+                if clip_data:
+                    efficiency = np.clip(efficiency, 0, 1)
 
                 dataset_dict["alex_efficiency"][trace_index][metric_key] = efficiency
 
@@ -259,19 +262,35 @@ class _plot_utils:
             dataset_name = self.plot_data.currentText()
             channel_name = self.plot_channel.currentText()
             metric_name = self.plot_metric.currentText()
-            subtract_background = self.subtract_background.isChecked()
+            background_mode = self.plot_background_mode.currentText()
 
             self.plot_show_dict = {}
 
             metric_key = self.get_dict_key(self.metric_dict, metric_name)
-            background_metric_key = metric_key + "_bg"
+
+            if background_mode != "None":
+                if "local" in background_mode.lower():
+                    background_metric_key = metric_key + "_local_bg"
+                else:
+                    background_metric_key = metric_key + "_global_bg"
+            else:
+                background_metric_key = None
 
             if dataset_name == "All Datasets":
                 plot_datasets = self.traces_dict.keys()
             else:
                 plot_datasets = [dataset_name]
 
-            if channel_name == "ALEX Data":
+            if channel_name == "All Channels":
+                plot_channels = [channel for dataset_dict in self.traces_dict.values() for channel in dataset_dict.keys()]
+                plot_channels = list(set(plot_channels))
+                plot_channels = [channel for channel in plot_channels if "efficiency" not in channel.lower()]
+                iteration_channel = plot_channels[0]
+                if set(["dd","da"]).issubset(plot_channels):
+                    plot_channels.append("alex_efficiency")
+                if set(["donor","acceptor"]).issubset(plot_channels):
+                    plot_channels.append("fret_efficiency")
+            elif channel_name == "ALEX Data":
                 plot_channels = ["dd", "da", "ad", "aa"]
                 iteration_channel = "aa"
             elif channel_name == "ALEX Efficiency":
@@ -295,16 +314,6 @@ class _plot_utils:
 
             n_traces = len(self.traces_dict[dataset_name][iteration_channel])
             n_iterations = len(plot_datasets) * len(plot_channels) * n_traces
-            spot_size = self.traces_dict[dataset_name][iteration_channel][0]["spot_size"][0].copy()
-            n_pixels = spot_size**2
-
-            if channel_name in ["ALEX Efficiency", "ALEX Data + Efficiency"]:
-                self.compute_alex_efficiency(dataset_name, metric_key,
-                    subtract_background, progress_callback)
-
-            elif channel_name in ["FRET Efficiency", "FRET Data + Efficiency"]:
-                self.compute_fret_efficiency( dataset_name, metric_key,
-                    subtract_background, progress_callback)
 
             iter = 0
 
@@ -312,43 +321,68 @@ class _plot_utils:
 
             for dataset_name in plot_datasets:
 
-                for channel in plot_channels:
-                    channel_dict = self.traces_dict[dataset_name][channel].copy()
-                    for trace_index, trace_dict in channel_dict.items():
+                if channel_name == "All Channels" or "efficiency" in channel_name.lower():
+                    dataset_channels = self.traces_dict[dataset_name].keys()
+                    if set(["dd", "da"]).issubset(dataset_channels):
+                        self.compute_alex_efficiency(dataset_name, metric_key,
+                            background_metric_key, progress_callback, clip_data=True)
+                    elif set(["Donor", "Acceptor"]).issubset(dataset_channels):
+                        self.compute_fret_efficiency(dataset_name, metric_key,
+                            background_metric_key, progress_callback, clip_data=True)
 
-                        data = np.array(trace_dict[metric_key].copy())
+                for channel_index, channel in enumerate(plot_channels):
 
-                        if "efficiency" not in channel:
-                            if subtract_background:
-                                background = np.array(trace_dict[background_metric_key].copy())
-                                data = data - background
+                    if channel in self.traces_dict[dataset_name].keys():
 
-                        if channel in ["dd", "da", "ad", "aa"]:
-                            label = f"{channel.upper()} [{metric_name}]"
-                        elif channel == "alex_efficiency":
-                            label = f"Alex Efficiency [{metric_name}]"
-                        elif channel == "fret_efficiency":
-                            label = f"FRET Efficiency [{metric_name}]"
-                        else:
-                            label = f"{channel.capitalize()} [{metric_name}]"
+                        channel_dict = self.traces_dict[dataset_name][channel].copy()
+                        for trace_index, trace_dict in channel_dict.items():
 
-                        if dataset_name not in plot_dict.keys():
-                            plot_dict[dataset_name] = {}
-                        if trace_index not in plot_dict[dataset_name].keys():
-                            plot_dict[dataset_name][trace_index] = {"labels": [], "data": [], "channels": []}
+                            data = np.array(trace_dict[metric_key].copy())
 
-                        plot_dict[dataset_name][trace_index]["labels"].append(label)
-                        plot_dict[dataset_name][trace_index]["data"].append(data)
-                        plot_dict[dataset_name][trace_index]["channels"].append(channel)
+                            if "efficiency" not in channel.lower():
+                                if background_mode != "None":
+                                    background = np.array(trace_dict[background_metric_key].copy())
+                                    data = data - background
+                                bleach_index = trace_dict["bleach_index"]
+                                donor_bleach_index = trace_dict["donor_bleach_index"]
+                                acceptor_bleach_index = trace_dict["acceptor_bleach_index"]
 
-                        if label not in self.plot_show_dict.keys():
-                            self.plot_show_dict[label] = True
+                            if channel in ["dd", "da", "ad", "aa"]:
+                                label = f"{channel.upper()} [{metric_name}]"
+                            elif channel == "alex_efficiency":
+                                label = f"ALEX Efficiency [{metric_name}]"
+                            elif channel == "fret_efficiency":
+                                label = f"FRET Efficiency [{metric_name}]"
+                            else:
+                                label = f"{channel.capitalize()} [{metric_name}]"
 
-                        iter += 1
+                            if dataset_name not in plot_dict.keys():
+                                plot_dict[dataset_name] = {}
+                            if trace_index not in plot_dict[dataset_name].keys():
+                                plot_dict[dataset_name][trace_index] = {"labels": [], "data": [],
+                                                                        "channels": [],
+                                                                        "bleach_index": None,
+                                                                        "donor_bleach_index": None,
+                                                                        "acceptor_bleach_index": None
+                                                                        }
 
-                        if progress_callback is not None:
-                            progress = int((iter/n_iterations) * 100)
-                            progress_callback.emit(progress)
+                            plot_dict[dataset_name][trace_index]["labels"].append(label)
+                            plot_dict[dataset_name][trace_index]["data"].append(data)
+                            plot_dict[dataset_name][trace_index]["channels"].append(channel)
+
+                            if "efficiency" not in channel:
+                                plot_dict[dataset_name][trace_index]["bleach_index"] = bleach_index
+                                plot_dict[dataset_name][trace_index]["donor_bleach_index"] = donor_bleach_index
+                                plot_dict[dataset_name][trace_index]["acceptor_bleach_index"] = acceptor_bleach_index
+
+                            if label not in self.plot_show_dict.keys():
+                                self.plot_show_dict[label] = True
+
+                            iter += 1
+
+                            if progress_callback is not None:
+                                progress = int((iter/n_iterations) * 100)
+                                progress_callback.emit(progress)
 
             self.plot_dict = plot_dict
 
@@ -670,8 +704,15 @@ class _plot_utils:
                     plot_lines = grid["plot_lines"]
                     plot_lines_labels = grid["plot_lines_labels"]
 
+                    bleach_index = self.plot_dict[plot_dataset][localisation_number]["bleach_index"]
+
+                    plot_details = f"{plot_dataset} - N:{localisation_number} - Bleach:{bleach_index}"
+
                     plot_ranges = {"xRange": [0, 100], "yRange": [0, 100]}
                     for line_index, (plot, line, plot_label) in enumerate(zip(sub_axes, plot_lines, plot_lines_labels)):
+
+                        if line_index == 0:
+                            plot.setTitle(plot_details)
 
                         data_index = self.plot_dict[plot_dataset][localisation_number]["labels"].index(plot_label)
                         data = self.plot_dict[plot_dataset][localisation_number]["data"][data_index]

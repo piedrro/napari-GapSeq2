@@ -207,7 +207,7 @@ class GapSeqWidget(QWidget,
         self.traces_export_dataset = self.findChild(QComboBox, 'traces_export_dataset')
         self.traces_export_channel = self.findChild(QComboBox, 'traces_export_channel')
         self.traces_export_metric = self.findChild(QComboBox, 'traces_export_metric')
-        self.export_subtract_backgroround = self.findChild(QCheckBox, 'export_subtract_backgroround')
+        self.traces_export_background = self.findChild(QComboBox, 'traces_export_background')
         self.gapseq_export_traces = self.findChild(QPushButton, 'gapseq_export_traces')
         self.export_progressbar = self.findChild(QProgressBar, 'export_progressbar')
 
@@ -225,7 +225,7 @@ class GapSeqWidget(QWidget,
         self.plot_data = self.findChild(QComboBox, 'plot_data')
         self.plot_channel = self.findChild(QComboBox, 'plot_channel')
         self.plot_metric = self.findChild(QComboBox, 'plot_metric')
-        self.subtract_background = self.findChild(QCheckBox, 'subtract_background')
+        self.plot_background_mode = self.findChild(QComboBox, 'plot_background_mode')
         self.split_plots = self.findChild(QCheckBox, 'split_plots')
         self.normalise_plots = self.findChild(QCheckBox, 'normalise_plots')
         self.focus_on_bbox = self.findChild(QCheckBox, 'focus_on_bbox')
@@ -285,7 +285,7 @@ class GapSeqWidget(QWidget,
         self.plot_metric.currentIndexChanged.connect(self.initialize_plot)
         self.split_plots.stateChanged.connect(self.initialize_plot)
         self.normalise_plots.stateChanged.connect(self.initialize_plot)
-        self.subtract_background.stateChanged.connect(self.initialize_plot)
+        self.plot_background_mode.currentIndexChanged.connect(self.initialize_plot)
         self.focus_on_bbox.stateChanged.connect(self.initialize_plot)
 
         self.gapseq_colocalize.clicked.connect(self.gapseq_colocalize_fiducials)
@@ -314,13 +314,7 @@ class GapSeqWidget(QWidget,
         self.update_import_append_options()
 
         self.metric_dict = {"spot_mean": "Mean", "spot_median": "Median", "spot_sum": "Sum", "spot_max": "Maximum",
-                            "spot_std": "std", "snr_mean": "Mean SNR", "snr_std": "std SNR",
-                            "snr_max": "Maximum SNR", "snr_sum": "Sum SNR", "spot_photons": "Picasso Photons", }
-
-        self.background_metric_dict = {"bg_mean": "Local Mean", "bg_sum": "Local Sum",
-                                       "bg_std": "Local std", "bg_max": "Local Maximum",
-                                       "spot_bg": "Picasso Background", }
-
+                            "spot_std": "std", "spot_photons": "Picasso Photons", }
 
     def compute_registration_keypoints(self, reference_box_centres, target_box_centres, alignment_distance=20):
 
