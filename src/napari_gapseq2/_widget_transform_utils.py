@@ -142,8 +142,15 @@ class _tranform_utils:
 
     def _apply_transform_matrix_cleanup(self):
 
-        self.tform_apply_progressbar.setValue(0)
-        self.update_active_image(channel=self.active_channel)
+        try:
+
+            self.tform_apply_progressbar.setValue(0)
+
+            self.image_layer.data = self.dataset_dict[self.active_dataset][self.active_channel]["data"]
+
+        except:
+            print(traceback.format_exc())
+            pass
 
     def _apply_transform_matrix(self, progress_callback=None):
 
@@ -191,6 +198,8 @@ class _tranform_utils:
 
                     img = transform_image(img, self.transform_matrix,progress_callback=transform_progress)
                     self.dataset_dict[dataset_name][channel_name.lower()]["data"] = img.copy()
+
+                self.image_layer.data = self.dataset_dict[self.active_dataset][self.active_channel]["data"]
 
         except:
             print(traceback.format_exc())

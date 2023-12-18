@@ -209,7 +209,6 @@ class _utils_temporal_filtering:
 
             self.restore_shared_images()
 
-            print("finished filtering")
             self.filtering_start.setEnabled(True)
 
         except:
@@ -225,6 +224,7 @@ class _utils_temporal_filtering:
 
             worker = Worker(self._gapseq_temporal_filtering)
             worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.filtering_progressbar))
+            worker.signals.finished.connect(self._gapseq_temporal_filtering_cleanup)
             self.threadpool.start(worker)
 
         except:
@@ -232,6 +232,13 @@ class _utils_temporal_filtering:
             print(traceback.format_exc())
             pass
 
+    def _gapseq_temporal_filtering_cleanup(self):
+
+        try:
+            self.image_layer.data = self.dataset_dict[self.active_dataset][self.active_channel]["data"]
+        except:
+            print(traceback.format_exc())
+            pass
 
 
 

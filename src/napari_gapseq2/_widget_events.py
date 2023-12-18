@@ -115,7 +115,7 @@ class _events_utils:
                         self.image_layer.name = layer_name
                         self.image_layer.refresh()
 
-                    self.viewer.layers[dataset_name].contrast_limits = contrast_range
+                    self.viewer.layers[layer_name].contrast_limits = contrast_range
 
             self.draw_fiducials(update_vis=True)
             self.update_overlay_text()

@@ -128,6 +128,8 @@ class _undrift_utils:
             self.apply_undrift.setEnabled(True)
             self.undrift_progressbar.setValue(0)
 
+            self.image_layer.data = self.dataset_dict[self.active_dataset][self.active_channel]["data"]
+
         except:
             print(traceback.format_exc())
             self.apply_undrift.setEnabled(True)

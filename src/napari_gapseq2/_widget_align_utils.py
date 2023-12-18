@@ -68,9 +68,17 @@ class _align_utils:
 
     def _align_datasets_cleanup(self):
 
-        self.update_active_image()
-        self.align_progressbar.setValue(0)
-        self.gapseq_align_datasets.setEnabled(True)
+        try:
+
+            self.update_active_image()
+            self.align_progressbar.setValue(0)
+            self.gapseq_align_datasets.setEnabled(True)
+
+            self.image_layer.data = self.dataset_dict[self.active_dataset][self.active_channel]["data"]
+
+        except:
+            print(traceback.format_exc())
+            pass
 
     def _align_datasets(self, progress_callback):
 
