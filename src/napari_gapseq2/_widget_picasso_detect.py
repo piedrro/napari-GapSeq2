@@ -143,10 +143,6 @@ class _picasso_detect_utils:
                 else:
                     print("Detected {} localisations".format(total_locs))
 
-                self.gapseq_progress(100, self.picasso_progressbar)
-                self.picasso_detect.setEnabled(True)
-                self.picasso_fit.setEnabled(True)
-
                 self.draw_fiducials(update_vis=True)
                 self.draw_bounding_boxes()
 
@@ -154,6 +150,10 @@ class _picasso_detect_utils:
                 self.gapseq_dataset_selector.setCurrentIndex(self.gapseq_dataset_selector.findText(dataset))
                 self.gapseq_dataset_selector.blockSignals(False)
                 self.update_active_image(channel=image_channel.lower(), dataset=self.active_dataset)
+
+                self.gapseq_progress(100, self.picasso_progressbar)
+                self.picasso_detect.setEnabled(True)
+                self.picasso_fit.setEnabled(True)
 
         except:
             print(traceback.format_exc())
