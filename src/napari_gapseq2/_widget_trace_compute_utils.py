@@ -87,13 +87,6 @@ def get_loc_from_fit(loc, theta, CRLBs, likelihoods, iterations, box):
 
     return loc
 
-
-
-
-
-
-
-
 def create_frame_locs(loc, n_frames):
 
     frame_locs = []
@@ -105,7 +98,6 @@ def create_frame_locs(loc, n_frames):
     frame_locs = np.array(frame_locs, dtype=loc).view(np.recarray)
 
     return frame_locs
-
 
 def extract_picasso_spot_metrics(dat):
 
@@ -187,8 +179,6 @@ def extract_picasso_spot_metrics(dat):
 
     return spot_metrics
 
-
-
 def extract_background_metrics(dat):
 
     background_data = None
@@ -229,8 +219,6 @@ def extract_background_metrics(dat):
         pass
 
     return background_data
-
-
 
 def extract_spot_metrics(dat):
 
@@ -294,6 +282,10 @@ def extract_spot_metrics(dat):
         spot_sum = np.ma.sum(spot_values,axis=(1,2)).data
         spot_max = np.ma.max(spot_values,axis=(1,2)).data
         spot_std = np.ma.std(spot_values,axis=(1,2)).data
+
+        # plt.plot(spot_mean)
+        # plt.title(dat["channel"] + " " + str(dat["spot_index"]))
+        # plt.show()
 
         spot_mean_local_bg = np.ma.mean(spot_background,axis=(1,2)).data
         spot_median_local_bg = np.ma.median(spot_background,axis=(1,2)).data
@@ -562,6 +554,12 @@ class _trace_compute_utils:
                                        "global_spot_mask": global_spot_mask,}
                     background_metrics_jobs.append(background_task)
 
+
+            # for job in spot_metrics_jobs:
+            #     extract_spot_metrics(job)
+            #
+            # print("Extracted spot metrics")
+
             cpu_count = int(multiprocessing.cpu_count() * 0.9)
             timeout_duration = 10  # Timeout in seconds
 
@@ -596,6 +594,8 @@ class _trace_compute_utils:
                     iter += 1
                     progress = int((iter / total_jobs) * 100)
                     progress_callback.emit(progress)  # Emit the signal
+
+            self.compute_traces.setEnabled(True)
 
         except:
             self.compute_traces.setEnabled(True)
@@ -817,8 +817,6 @@ class _trace_compute_utils:
         except:
             print(traceback.format_exc())
             pass
-
-
 
 
     def _gapseq_compute_traces(self, progress_callback=None, picasso=False):

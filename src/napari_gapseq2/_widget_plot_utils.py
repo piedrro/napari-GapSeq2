@@ -179,18 +179,22 @@ class _plot_utils:
         try:
 
             dataset_dict = self.traces_dict[dataset_name].copy()
-            background_metric_key = metric_key + "_bg"
-
             n_traces = len(dataset_dict["donor"])
+
+            dataset_dict["fret_efficiency"] = {}
+            for trace_index in range(n_traces):
+                if trace_index not in dataset_dict["fret_efficiency"]:
+                    dataset_dict["fret_efficiency"][trace_index] = {metric_key: []}
 
             for trace_index in range(n_traces):
 
-                donor = dataset_dict["donor"][trace_index][metric_key]
-                acceptor = dataset_dict["acceptor"][trace_index][metric_key]
+                donor = copy.deepcopy(dataset_dict["donor"][trace_index][metric_key])
+                acceptor = copy.deepcopy(dataset_dict["acceptor"][trace_index][metric_key])
 
-                if background_metric_key == None:
-                    donor_bg = dataset_dict["donor"][trace_index][background_metric_key].copy()
-                    acceptor_bg = dataset_dict["acceptor"][trace_index][background_metric_key].copy()
+                if background_metric_key != None:
+
+                    donor_bg = copy.deepcopy(dataset_dict["donor"][trace_index][background_metric_key])
+                    acceptor_bg = copy.deepcopy(dataset_dict["acceptor"][trace_index][background_metric_key])
 
                     donor = donor - donor_bg
                     acceptor = acceptor - acceptor_bg
@@ -199,12 +203,6 @@ class _plot_utils:
 
                 if clip_data:
                     efficiency = np.clip(efficiency, 0, 1)
-
-                efficiency = efficiency.tolist()
-
-                if "fret_efficiency" not in dataset_dict:
-                    copy_chanel = list(dataset_dict.keys())[0]
-                    dataset_dict["fret_efficiency"] = dataset_dict[copy_chanel].copy()
 
                 dataset_dict["fret_efficiency"][trace_index][metric_key] = efficiency
 
@@ -224,7 +222,6 @@ class _plot_utils:
         try:
 
             dataset_dict = self.traces_dict[dataset_name].copy()
-
             n_traces = len(dataset_dict["dd"])
 
             dataset_dict["alex_efficiency"] = {}
@@ -237,14 +234,7 @@ class _plot_utils:
                 dd = copy.deepcopy(dataset_dict["dd"][trace_index][metric_key])
                 da = copy.deepcopy(dataset_dict["da"][trace_index][metric_key])
 
-                gamma_correction = 1
-
-                if background_metric_key == None:
-
-                    efficiency = da / ((gamma_correction * dd) + da)
-                    efficiency = np.array(efficiency)
-
-                else:
+                if background_metric_key != None:
 
                     dd_bg = dataset_dict["dd"][trace_index][background_metric_key].copy()
                     da_bg = dataset_dict["da"][trace_index][background_metric_key].copy()
@@ -252,15 +242,21 @@ class _plot_utils:
                     dd = dd - dd_bg
                     da = da - da_bg
 
-                    efficiency = da / ((gamma_correction * dd) + da)
-                    efficiency = np.array(efficiency)
+                efficiency = da / ((gamma_correction * dd) + da)
+                efficiency = np.array(efficiency)
 
                 if clip_data:
                     efficiency = np.clip(efficiency, 0, 1)
 
                 dataset_dict["alex_efficiency"][trace_index][metric_key] = efficiency
 
+                if progress_callback is not None:
+                    progress = int(100 * trace_index / n_traces)
+                    progress_callback.emit(progress)
+
             self.traces_dict[dataset_name] = dataset_dict
+
+
 
         except:
             print(traceback.format_exc())
