@@ -262,6 +262,22 @@ class _plot_utils:
             print(traceback.format_exc())
             pass
 
+    def sort_plot_channels(self, plot_channels):
+
+        try:
+
+            reference_list = ["donor", "acceptor", "fret_efficiency",
+                              "dd", "aa", "da", "ad","alex_efficiency",]
+
+            order = {key: i for i, key in enumerate(reference_list)}
+
+            # Sort the actual list based on the order defined in the reference list
+            sorted_list = sorted(plot_channels, key=lambda x: order.get(x, float('inf')))
+
+        except:
+            pass
+
+        return sorted_list
 
     def populate_plot_dict(self, progress_callback=None):
 
@@ -319,6 +335,8 @@ class _plot_utils:
             else:
                 plot_channels = [channel_name.lower()]
                 iteration_channel = channel_name.lower()
+
+            plot_channels = self.sort_plot_channels(plot_channels)
 
             n_iterations = 0
             for dataset in plot_datasets:
