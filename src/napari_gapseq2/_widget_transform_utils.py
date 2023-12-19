@@ -199,8 +199,6 @@ class _tranform_utils:
                     img = transform_image(img, self.transform_matrix,progress_callback=transform_progress)
                     self.dataset_dict[dataset_name][channel_name.lower()]["data"] = img.copy()
 
-                self.image_layer.data = self.dataset_dict[self.active_dataset][self.active_channel]["data"]
-
         except:
             print(traceback.format_exc())
             pass

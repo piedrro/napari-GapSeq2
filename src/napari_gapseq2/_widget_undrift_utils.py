@@ -110,17 +110,6 @@ class _undrift_utils:
 
         try:
 
-            layer_names = [layer.name for layer in self.viewer.layers]
-
-            dataset_name = self.gapseq_dataset_selector.currentText()
-            active_channel = self.active_channel
-
-            if dataset_name in layer_names:
-                self.viewer.layers.data = self.dataset_dict[dataset_name][active_channel]["data"]
-
-            for layer in self.viewer.layers:
-                layer.refresh()
-
             self.undrift_localisations()
 
             self.draw_fiducials(update_vis=True)
@@ -129,6 +118,9 @@ class _undrift_utils:
             self.undrift_progressbar.setValue(0)
 
             self.image_layer.data = self.dataset_dict[self.active_dataset][self.active_channel]["data"]
+
+            for layer in self.viewer.layers:
+                layer.refresh()
 
         except:
             print(traceback.format_exc())
