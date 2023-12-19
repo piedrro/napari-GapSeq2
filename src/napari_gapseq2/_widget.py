@@ -73,6 +73,9 @@ from multiprocessing import Pool
 import multiprocessing
 from functools import partial
 
+
+
+
 if TYPE_CHECKING:
     import napari
 
@@ -245,8 +248,8 @@ class GapSeqWidget(QWidget,
         self.gapseq_import_mode.currentIndexChanged.connect(self.update_import_options)
         self.gapseq_update_dataset_name.clicked.connect(self.update_dataset_name)
 
-        self.picasso_detect.clicked.connect(self.gapseq_picasso_detect)
-        self.picasso_fit.clicked.connect(self.gapseq_picasso_fit)
+        self.picasso_detect.clicked.connect(partial(self.gapseq_picasso, fit=False))
+        self.picasso_fit.clicked.connect(partial(self.gapseq_picasso, fit=True))
         self.cluster_localisations.clicked.connect(self.gapseq_cluster_localisations)
 
         self.gapseq_dataset_selector.currentIndexChanged.connect(self.update_channel_select_buttons)
@@ -323,6 +326,13 @@ class GapSeqWidget(QWidget,
 
         self.metric_dict = {"spot_mean": "Mean", "spot_median": "Median", "spot_sum": "Sum", "spot_max": "Maximum",
                             "spot_std": "std", "spot_photons": "Picasso Photons", }
+
+        self.viewer.bind_key('D', self.dev_function)
+
+    def dev_function(self, event):
+
+        print(True)
+
 
     def compute_registration_keypoints(self, reference_box_centres, target_box_centres, alignment_distance=20):
 

@@ -111,7 +111,7 @@ class _import_utils:
         try:
 
             import_mode = self.gapseq_import_mode.currentText()
-            import_limit = self.gapseq_import_limt.currentText()
+            import_limit_combo = self.gapseq_import_limt.currentText()
             channel_layout = self.gapseq_channel_layout.currentText()
             alex_first_frame = self.gapseq_alex_first_frame.currentText()
 
@@ -131,7 +131,7 @@ class _import_utils:
 
                 if import_mode.lower() in ["donor", "acceptor", "dd", "da", "ad", "aa"]:
 
-                    if import_limit != "None":
+                    if import_limit_combo != "None":
                         import_limit = int(self.gapseq_import_limt.currentText())
                     else:
                         import_limit = n_frames
@@ -170,7 +170,7 @@ class _import_utils:
 
                 elif import_mode.lower() == "fret":
 
-                    if import_limit != "None":
+                    if import_limit_combo != "None":
                         import_limit = int(self.gapseq_import_limt.currentText())
                     else:
                         import_limit = n_frames
@@ -448,11 +448,6 @@ class _import_utils:
             self.gapseq_dataset_selector.addItems(dataset_names)
             self.gapseq_dataset_selector.blockSignals(False)
 
-            self.picasso_dataset.blockSignals(True)
-            self.picasso_dataset.clear()
-            self.picasso_dataset.addItems(dataset_names)
-            self.picasso_dataset.blockSignals(False)
-
             self.export_dataset.blockSignals(True)
             self.export_dataset.clear()
             self.export_dataset.addItems(dataset_names)
@@ -506,6 +501,11 @@ class _import_utils:
             self.filtering_datasets.clear()
             self.filtering_datasets.addItems(dataset_names)
             self.filtering_datasets.blockSignals(False)
+
+            self.picasso_dataset.blockSignals(True)
+            self.picasso_dataset.clear()
+            self.picasso_dataset.addItems(dataset_names)
+            self.picasso_dataset.blockSignals(False)
 
 
         except:

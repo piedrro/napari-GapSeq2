@@ -164,6 +164,31 @@ class _events_utils:
                                 if set(["dd", "da"]).issubset(set(channel_names)):
                                     channel_selector_list.append("ALEX Efficiency")
 
+                elif dataset_name == "All Datasets":
+
+                    channel_names = []
+
+                    for dataset_name in self.dataset_dict.keys():
+                        dataset_channels = [channel.lower() for channel in self.dataset_dict[dataset_name].keys()]
+                        channel_names.append(dataset_channels)
+
+                    channel_names = list(set.intersection(*map(set, channel_names)))
+
+                    for channel in channel_names:
+
+                        if "efficiency" not in channel.lower():
+
+                            if channel in ["da", "dd", "aa", "ad"]:
+                                channel_selector_list.append(channel.upper())
+                            elif channel in ["donor", "acceptor"]:
+                                channel_selector_list.append(channel.capitalize())
+
+                            if efficiency == True:
+                                if set(["donor", "acceptor"]).issubset(set(channel_names)):
+                                    channel_selector_list.append("FRET Efficiency")
+                                if set(["dd", "da"]).issubset(set(channel_names)):
+                                    channel_selector_list.append("ALEX Efficiency")
+
                 if channel_selector_list != []:
 
                     channel_selector.clear()

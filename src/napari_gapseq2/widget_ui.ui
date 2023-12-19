@@ -412,7 +412,7 @@
        <item>
         <widget class="QPushButton" name="picasso_fit">
          <property name="text">
-          <string>Picasso Fit</string>
+          <string>Picasso Detect and Fit</string>
          </property>
         </widget>
        </item>

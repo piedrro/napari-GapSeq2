@@ -992,7 +992,7 @@ class Ui_Frame(object):
         self.picasso_roi_border_width.setText(_translate("Frame", "5"))
         self.picasso_window_cropping.setText(_translate("Frame", "Remove Localisations Outside Active Window"))
         self.picasso_detect.setText(_translate("Frame", "Picasso Detect"))
-        self.picasso_fit.setText(_translate("Frame", "Picasso Fit"))
+        self.picasso_fit.setText(_translate("Frame", "Picasso Detect and Fit"))
         self.label_27.setText(_translate("Frame", "Update Localisation Visualisation Settings"))
         self.picasso_vis_size.setItemText(0, _translate("Frame", "1"))
         self.picasso_vis_size.setItemText(1, _translate("Frame", "2"))

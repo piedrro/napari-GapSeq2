@@ -7,23 +7,371 @@ from functools import partial
 from sklearn.cluster import DBSCAN
 import pandas as pd
 from picasso.clusterer import extract_valid_labels
-
 import os
+from multiprocessing import Process, shared_memory, Pool
+from picasso import gausslq, lib, localize
+from picasso.localize import get_spots, identify_frame
+from picasso.gaussmle import gaussmle
+from functools import partial
+import concurrent.futures
+import multiprocessing
+from itertools import chain
 
+def picasso_detect(dat):
 
+    result = None
 
+    try:
 
+        frame_index = dat["frame_index"]
+        min_net_gradient = dat["min_net_gradient"]
+        box_size = dat["box_size"]
+        roi = dat["roi"]
+        dataset = dat["dataset"]
+        channel = dat["channel"]
+        fit = dat["fit"]
 
+        # Access the shared memory
+        shared_mem = shared_memory.SharedMemory(name=dat["shared_memory_name"])
+        np_array = np.ndarray(dat["shape"], dtype=dat["dtype"], buffer=shared_mem.buf)
 
+        # Perform preprocessing steps and overwrite original image
+        frame = np_array[frame_index].copy()
 
+        locs = identify_frame(frame, min_net_gradient, box_size, 0, roi=roi)
 
+        expected_loc_length = 4
 
+        if fit:
+            expected_loc_length = 12
+            try:
+                image = np.expand_dims(frame, axis=0)
+                camera_info = {"baseline": 100.0, "gain": 1, "sensitivity": 1.0, "qe": 0.9, }
+                spot_data = get_spots(image, locs, box_size, camera_info)
+                theta, CRLBs, likelihoods, iterations = gaussmle(spot_data, eps=0.001, max_it=100, method="sigma")
+                locs = localize.locs_from_fits(locs.copy(), theta, CRLBs, likelihoods, iterations, box_size)
+            except:
+                pass
 
+        for loc in locs:
+            loc.frame = frame_index
+
+        render_locs= {}
+        render_locs[frame_index] = np.vstack((locs.y, locs.x)).T.tolist()
+
+        locs = [loc for loc in locs if len(loc) == expected_loc_length]
+        locs = np.array(locs).view(np.recarray)
+
+        result = {"dataset": dataset, "channel": channel, "frame_index": frame_index,
+                  "locs": locs,"render_locs": render_locs}
+
+    except:
+        print(traceback.format_exc())
+        pass
+
+    return result
 
 
 class _picasso_detect_utils:
 
+    def populate_localisation_dict(self, loc_dict, render_loc_dict, detect_mode, image_channel, box_size, fitted=False):
 
+        detect_mode = detect_mode.lower()
+
+        try:
+
+            for dataset_name, locs in loc_dict.items():
+
+                render_locs = render_loc_dict[dataset_name]
+
+                if detect_mode == "fiducials":
+
+                    loc_centres = self.get_localisation_centres(locs)
+
+                    fiducial_dict = {"localisations": [], "localisation_centres": [], "render_locs": {}}
+
+                    fiducial_dict["localisations"] = locs.copy()
+                    fiducial_dict["localisation_centres"] = loc_centres.copy()
+                    fiducial_dict["render_locs"] = render_locs
+
+                    fiducial_dict["fitted"] = fitted
+                    fiducial_dict["box_size"] = box_size
+
+                    if dataset_name not in self.localisation_dict["fiducials"].keys():
+                        self.localisation_dict["fiducials"][dataset_name] = {}
+                    if image_channel not in self.localisation_dict["fiducials"][dataset_name].keys():
+                        self.localisation_dict["fiducials"][dataset_name][image_channel.lower()] = {}
+
+                    self.localisation_dict["fiducials"][dataset_name][image_channel.lower()] = fiducial_dict.copy()
+
+                else:
+
+                    loc_centres = self.get_localisation_centres(locs)
+
+                    self.localisation_dict["bounding_boxes"]["localisations"] = locs.copy()
+                    self.localisation_dict["bounding_boxes"]["localisation_centres"] = loc_centres.copy()
+                    self.localisation_dict["bounding_boxes"]["fitted"] = fitted
+                    self.localisation_dict["bounding_boxes"]["box_size"] = box_size
+
+
+        except:
+            print(traceback.format_exc())
+            self.picasso_progressbar.setValue(0)
+            self.picasso_detect.setEnabled(True)
+            self.picasso_fit.setEnabled(True)
+
+    def _picasso_wrapper_result(self, result):
+
+        try:
+            fitted, loc_dict, render_loc_dict, total_locs = result
+
+            detect_mode = self.picasso_detect_mode.currentText()
+            image_channel = self.picasso_channel.currentText()
+            box_size = int(self.picasso_box_size.currentText())
+
+            dataset_names = list(loc_dict.keys())
+
+            if len(dataset_names) > 0:
+
+                dataset = dataset_names[0]
+
+                self.populate_localisation_dict(loc_dict, render_loc_dict, detect_mode,
+                    image_channel, box_size)
+
+                if fitted:
+                    print("Fitted {} localisations".format(total_locs))
+                else:
+                    print("Detected {} localisations".format(total_locs))
+
+                self.gapseq_progress(100, self.picasso_progressbar)
+                self.picasso_detect.setEnabled(True)
+                self.picasso_fit.setEnabled(True)
+
+                self.draw_fiducials(update_vis=True)
+                self.draw_bounding_boxes()
+
+                self.gapseq_dataset_selector.blockSignals(True)
+                self.gapseq_dataset_selector.setCurrentIndex(self.gapseq_dataset_selector.findText(dataset))
+                self.gapseq_dataset_selector.blockSignals(False)
+                self.update_active_image(channel=image_channel.lower(), dataset=dataset)
+
+        except:
+            print(traceback.format_exc())
+
+    def _picasso_wrapper(self, progress_callback, fit, min_net_gradient, roi, box_size, dataset_name, image_channel, frame_mode):
+
+        try:
+
+            if dataset_name == "All Datasets":
+                dataset_list = list(self.dataset_dict.keys())
+            else:
+                dataset_list = [dataset_name]
+
+            channel_list = [image_channel.lower()]
+
+            self.shared_images = self.create_shared_images(dataset_list=dataset_list, channel_list=channel_list)
+
+            compute_jobs = []
+
+            for image_dict in self.shared_images:
+
+                if frame_mode.lower() == "active":
+                    frame_list = [self.viewer.dims.current_step[0]]
+                else:
+                    n_frames = image_dict['shape'][0]
+                    frame_list = list(range(n_frames))
+
+                for frame_index in frame_list:
+
+                    compute_job = {"dataset":image_dict["dataset"],
+                                   "channel":image_dict["channel"],
+                                   "frame_index": frame_index,
+                                   "shared_memory_name": image_dict['shared_memory_name'],
+                                   "shape": image_dict['shape'],
+                                   "dtype": image_dict['dtype'],
+                                   "fit": fit,
+                                   "min_net_gradient": int(min_net_gradient),
+                                   "box_size": int(box_size),
+                                   "roi": roi,
+                                   }
+
+                    compute_jobs.append(compute_job)
+
+            timeout_duration = 10  # Timeout in seconds
+
+            loc_dict = {}
+            render_loc_dict = {}
+
+            if frame_mode.lower() == "active":
+                executor_class = concurrent.futures.ThreadPoolExecutor
+                cpu_count = 1
+            else:
+                executor_class = concurrent.futures.ProcessPoolExecutor
+                cpu_count = int(multiprocessing.cpu_count() * 0.9)
+
+            with executor_class(max_workers=cpu_count) as executor:
+                futures = {executor.submit(picasso_detect, job): job for job in compute_jobs}
+
+            iter = 0
+            for future in concurrent.futures.as_completed(futures):
+                job = futures[future]
+                try:
+                    result = future.result(timeout=timeout_duration)  # Process result here
+
+                    if result is not None:
+                        dataset_name = result["dataset"]
+
+                        if dataset_name not in loc_dict:
+                            loc_dict[dataset_name] = []
+                            render_loc_dict[dataset_name] = {}
+
+                        locs = result["locs"]
+                        render_locs = result["render_locs"]
+
+                        loc_dict[dataset_name].extend(locs)
+                        render_loc_dict[dataset_name] = {**render_loc_dict[dataset_name], **render_locs}
+
+                    iter += 1
+                    progress = int((iter / len(compute_jobs)) * 100)
+                    progress_callback.emit(progress)  # Emit the signal
+
+                except concurrent.futures.TimeoutError:
+                    # print(f"Task {job} timed out after {timeout_duration} seconds.")
+                    pass
+                except Exception as e:
+                    print(f"Error occurred in task {job}: {e}")  # Handle other exceptions
+                    pass
+
+            total_locs = 0
+            for dataset, locs in loc_dict.items():
+                locs = np.hstack(locs).view(np.recarray)
+                locs.sort(kind="mergesort", order="frame")
+                total_locs += len(locs)
+
+            self.restore_shared_images()
+
+            self.picasso_progressbar.setValue(0)
+            self.picasso_detect.setEnabled(True)
+            self.picasso_fit.setEnabled(True)
+
+        except:
+            print(traceback.format_exc())
+            self.restore_shared_images()
+
+            self.picasso_progressbar.setValue(0)
+            self.picasso_detect.setEnabled(True)
+            self.picasso_fit.setEnabled(True)
+
+            loc_dict = {}
+            render_loc_dict = {}
+            total_locs = 0
+
+        return fit, loc_dict, render_loc_dict, total_locs
+
+    def gapseq_picasso(self, fit = False):
+
+        try:
+            if self.dataset_dict != {}:
+
+                self.picasso_progressbar.setValue(0)
+                self.picasso_detect.setEnabled(False)
+                self.picasso_fit.setEnabled(False)
+
+                min_net_gradient = self.picasso_min_net_gradient.text()
+                box_size = int(self.picasso_box_size.currentText())
+                dataset_name = self.picasso_dataset.currentText()
+                image_channel = self.picasso_channel.currentText()
+                frame_mode = self.picasso_frame_mode.currentText()
+                detect_mode = self.picasso_detect_mode.currentText()
+
+                roi = self.generate_roi()
+
+                if min_net_gradient.isdigit() and image_channel != "":
+                    worker = Worker(self._picasso_wrapper,
+                        fit=fit,
+                        min_net_gradient=min_net_gradient,
+                        roi = roi,
+                        box_size=box_size,
+                        dataset_name=dataset_name,
+                        image_channel=image_channel,
+                        frame_mode=frame_mode)
+                    worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.picasso_progressbar))
+                    worker.signals.result.connect(self._picasso_wrapper_result)
+                    self.threadpool.start(worker)
+
+        except:
+            print(traceback.format_exc())
+            self.picasso_progressbar.setValue(0)
+            self.picasso_detect.setEnabled(True)
+            self.picasso_fit.setEnabled(True)
+            pass
+
+    def generate_roi(self):
+
+        border_width = self.picasso_roi_border_width.text()
+        window_cropping = self.picasso_window_cropping.isChecked()
+
+        roi = None
+
+        try:
+
+            generate_roi = False
+
+            if window_cropping:
+                layers_names = [layer.name for layer in self.viewer.layers if layer.name not in ["bounding_boxes", "fiducials"]]
+
+                crop = self.viewer.layers[layers_names[0]].corner_pixels[:, -2:]
+                [[y1, x1], [y2, x2]] = crop
+
+                generate_roi = True
+
+            else:
+
+                if type(border_width) == str:
+                    border_width = int(border_width)
+                    if border_width > 0:
+                        generate_roi = True
+                elif type(border_width) == int:
+                    if border_width > 0:
+                        generate_roi = True
+
+            if generate_roi:
+
+                dataset = self.picasso_dataset.currentText()
+                channel = self.picasso_channel.currentText()
+
+                if dataset == "All Datasets":
+                    dataset = list(self.dataset_dict.keys())[0]
+
+                image_shape = self.dataset_dict[dataset][channel.lower()]["data"].shape
+
+                frame_shape = image_shape[1:]
+
+                if window_cropping:
+
+                    border_width = int(border_width)
+
+                    if x1 < border_width:
+                        x1 = border_width
+                    if y1 < border_width:
+                        y1 = border_width
+                    if x2 > frame_shape[1] - border_width:
+                        x2 = frame_shape[1] - border_width
+                    if y2 > frame_shape[0] - border_width:
+                        y2 = frame_shape[0] - border_width
+
+                    roi = [[y1, x1], [y2, x2]]
+
+                else:
+
+                    roi = [[int(border_width), int(border_width)],
+                           [int(frame_shape[0] - border_width), int(frame_shape[1] - border_width)]]
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+        return roi
     def gapseq_cluster_localisations(self):
 
         try:
@@ -83,342 +431,12 @@ class _picasso_detect_utils:
 
             self.draw_fiducials(update_vis=True)
 
-
         except:
             print(traceback.format_exc())
             self.picasso_progressbar.setValue(0)
             self.picasso_detect.setEnabled(True)
             self.picasso_fit.setEnabled(True)
             pass
-
-
-
-    def populate_localisation_dict(self, locs, detect_mode, dataset_name, image_channel, box_size, fitted=False):
-
-        detect_mode = detect_mode.lower()
-
-        try:
-
-            if detect_mode == "fiducials":
-
-                loc_centres = self.get_localisation_centres(locs)
-
-                fiducial_dict = {"localisations": [], "localisation_centres": [], "render_locs": {}}
-
-                fiducial_dict["localisations"] = locs.copy()
-                fiducial_dict["localisation_centres"] = loc_centres.copy()
-                if fitted:
-                    fiducial_dict["render_locs"] = self.fitted_render_locs.copy()
-                else:
-                    fiducial_dict["render_locs"] = self.detected_render_locs.copy()
-
-                fiducial_dict["fitted"] = fitted
-                fiducial_dict["box_size"] = box_size
-
-                if dataset_name not in self.localisation_dict["fiducials"].keys():
-                    self.localisation_dict["fiducials"][dataset_name] = {}
-                if image_channel not in self.localisation_dict["fiducials"][dataset_name].keys():
-                    self.localisation_dict["fiducials"][dataset_name][image_channel.lower()] = {}
-
-                self.localisation_dict["fiducials"][dataset_name][image_channel.lower()] = fiducial_dict.copy()
-
-            else:
-
-                loc_centres = self.get_localisation_centres(locs)
-
-                self.localisation_dict["bounding_boxes"]["localisations"] = locs.copy()
-                self.localisation_dict["bounding_boxes"]["localisation_centres"] = loc_centres.copy()
-                self.localisation_dict["bounding_boxes"]["fitted"] = fitted
-                self.localisation_dict["bounding_boxes"]["box_size"] = box_size
-
-
-        except:
-            print(traceback.format_exc())
-            self.picasso_progressbar.setValue(0)
-            self.picasso_detect.setEnabled(True)
-            self.picasso_fit.setEnabled(True)
-
-
-    def filter_localisations(self, locs):
-
-        if self.picasso_window_cropping.isChecked():
-
-            layers_names = [layer.name for layer in self.viewer.layers if layer.name not in ["bounding_boxes", "fiducials"]]
-
-            crop = self.viewer.layers[layers_names[0]].corner_pixels[:, -2:]
-
-            [[y1, x1], [y2, x2]] = crop
-
-            x_range = [x1, x2]
-            y_range = [y1, y2]
-
-            filtered_locs = []
-
-            for loc in locs:
-                locX = loc.x
-                locY = loc.y
-                if locX > x_range[0] and locX < x_range[1] and locY > y_range[0] and locY < y_range[1]:
-                    filtered_locs.append(copy.deepcopy(loc))
-
-            filtered_locs = np.array(filtered_locs)
-            filtered_locs = np.rec.fromrecords(filtered_locs, dtype=locs.dtype)
-
-            return filtered_locs
-
-        else:
-            return locs
-
-    def _detect_localisations_cleanup(self):
-
-        try:
-
-            detect_mode = self.picasso_detect_mode.currentText()
-            dataset_name = self.picasso_dataset.currentText()
-            image_channel = self.picasso_channel.currentText()
-            box_size = int(self.picasso_box_size.currentText())
-
-            self.populate_localisation_dict(self.detected_locs, detect_mode,
-                dataset_name, image_channel, box_size, fitted=False)
-
-            n_frames = len(np.unique([loc[0] for loc in self.detected_locs]))
-            print("detected {} localisations from {} frame(s)".format(len(self.detected_locs), n_frames))
-
-            self.gapseq_progress(100, self.picasso_progressbar)
-            self.picasso_detect.setEnabled(True)
-            self.picasso_fit.setEnabled(True)
-
-            self.draw_fiducials(update_vis=True)
-            self.draw_bounding_boxes()
-
-            self.gapseq_dataset_selector.blockSignals(True)
-            self.gapseq_dataset_selector.setCurrentIndex(self.gapseq_dataset_selector.findText(dataset_name))
-            self.gapseq_dataset_selector.blockSignals(False)
-            self.update_active_image(channel=image_channel.lower(), dataset=dataset_name)
-
-        except:
-            print(traceback.format_exc())
-            self.picasso_progressbar.setValue(0)
-            self.picasso_detect.setEnabled(True)
-            self.picasso_fit.setEnabled(True)
-            pass
-
-    def _fit_localisations_cleanup(self):
-
-        try:
-            detect_mode = self.picasso_detect_mode.currentText()
-            dataset_name = self.picasso_dataset.currentText()
-            image_channel = self.picasso_channel.currentText()
-            box_size = int(self.picasso_box_size.currentText())
-
-            if hasattr(self, "fitted_locs"):
-                self.populate_localisation_dict(self.fitted_locs, detect_mode,
-                    dataset_name, image_channel, box_size, fitted=True)
-                n_frames = len(np.unique([loc[0] for loc in self.fitted_locs]))
-                print("Fitted {} localisations from {} frame(s)".format(len(self.fitted_locs), n_frames))
-            else:
-                print("No localisations fitted")
-
-            self.gapseq_progress(100, self.picasso_progressbar)
-            self.picasso_detect.setEnabled(True)
-            self.picasso_fit.setEnabled(True)
-
-            self.draw_fiducials()
-            self.draw_bounding_boxes()
-
-            self.gapseq_dataset_selector.blockSignals(True)
-            self.gapseq_dataset_selector.setCurrentIndex(self.gapseq_dataset_selector.findText(dataset_name))
-            self.gapseq_dataset_selector.blockSignals(False)
-            self.update_active_image(channel=image_channel.lower(), dataset=dataset_name)
-
-            self.export_picasso_locs(self.fitted_locs)
-
-        except:
-            print(traceback.format_exc())
-            self.picasso_progressbar.setValue(0)
-            self.picasso_detect.setEnabled(True)
-            self.picasso_fit.setEnabled(True)
-            pass
-
-    def _fit_localisations(self, progress_callback, detected_locs, min_net_gradient, box_size, camera_info, dataset_name, image_channel, frame_mode, detect_mode):
-
-        try:
-            from picasso import gausslq, lib, localize
-
-            method = "lq"
-            gain = 1
-
-            localisation_centres = self.get_localisation_centres(detected_locs)
-
-            if frame_mode.lower() == "active":
-                image_data = self.dataset_dict[dataset_name][image_channel.lower()]["data"][0]
-                image_data = np.expand_dims(image_data, axis=0)
-            else:
-                image_data = self.dataset_dict[dataset_name][image_channel.lower()]["data"]
-
-            n_detected_frames = len(np.unique([loc[0] for loc in localisation_centres]))
-
-            if n_detected_frames != image_data.shape[0]:
-                print("Picasso can only Detect AND Fit localisations with same image frame mode")
-            else:
-                detected_loc_spots = localize.get_spots(image_data, detected_locs, box_size, camera_info)
-
-                print(f"Picasso fitting {len(detected_locs)} spots...")
-
-                if method == "lq":
-
-                    fs = gausslq.fit_spots_parallel(detected_loc_spots, asynch=True)
-
-                    n_tasks = len(fs)
-                    while lib.n_futures_done(fs) < n_tasks:
-                        progress = (lib.n_futures_done(fs)/ n_tasks) * 100
-                        progress_callback.emit(progress)
-                        time.sleep(0.1)
-
-                    theta = gausslq.fits_from_futures(fs)
-                    em = gain > 1
-
-                    self.fitted_locs = gausslq.locs_from_fits(detected_locs, theta, box_size, em)
-
-                    if frame_mode.lower() == "active":
-                        for loc in self.fitted_locs:
-                            loc.frame = self.viewer.dims.current_step[0]
-
-                    n_frames = np.unique(self.fitted_locs.frame)
-                    self.fitted_render_locs = {}
-
-                    for frame in n_frames:
-                        frame_locs = self.fitted_locs[self.fitted_locs['frame'] == frame].copy()
-                        frame_coords = np.vstack((frame_locs.y, frame_locs.x)).T.tolist()
-
-                        if frame not in self.fitted_render_locs.keys():
-                            self.fitted_render_locs[frame] = []
-
-                        self.fitted_render_locs[frame] = frame_coords
-
-                        progress = (frame / n_frames) * 100
-                        progress_callback.emit(progress)
-
-        except:
-            print(traceback.format_exc())
-            self.picasso_progressbar.setValue(0)
-            self.picasso_detect.setEnabled(True)
-            self.picasso_fit.setEnabled(True)
-            pass
-
-    def _detect_localisations(self, progress_callback, min_net_gradient, roi, box_size, camera_info, dataset_name, image_channel, frame_mode, detect_mode):
-
-        try:
-            from picasso import localize
-
-            min_net_gradient = int(min_net_gradient)
-
-            if frame_mode.lower() == "active":
-                image_data = self.dataset_dict[dataset_name][image_channel.lower()]["data"][0]
-                image_data = np.expand_dims(image_data, axis=0)
-            else:
-                image_data = self.dataset_dict[dataset_name][image_channel.lower()]["data"]
-
-            n_frames = image_data.shape[0]
-
-            curr, futures = localize.identify_async(image_data, min_net_gradient, box_size, roi=roi)
-
-            while curr[0] < n_frames:
-                progress = (curr[0]/ n_frames) * 100
-                progress_callback.emit(progress)
-                time.sleep(0.1)
-
-            self.detected_locs = localize.identifications_from_futures(futures)
-
-            if frame_mode.lower() == "active":
-                for loc in self.detected_locs:
-                    loc.frame = self.viewer.dims.current_step[0]
-
-
-            n_frames = np.unique(self.detected_locs.frame)
-            self.detected_render_locs = {}
-
-            for frame in n_frames:
-                frame_locs = self.detected_locs[self.detected_locs['frame'] == frame].copy()
-                frame_coords = np.vstack((frame_locs.y, frame_locs.x)).T.tolist()
-
-                if frame not in self.detected_render_locs.keys():
-                    self.detected_render_locs[frame] = []
-
-                self.detected_render_locs[frame] = frame_coords
-
-                progress = (frame / n_frames) * 100
-                progress_callback.emit(progress)
-
-        except:
-            print(traceback.format_exc())
-            self.picasso_progressbar.setValue(0)
-            self.picasso_detect.setEnabled(True)
-            self.picasso_fit.setEnabled(True)
-            pass
-
-    def generate_roi(self):
-
-        border_width = self.picasso_roi_border_width.text()
-        window_cropping = self.picasso_window_cropping.isChecked()
-
-        roi = None
-
-        try:
-
-            generate_roi = False
-
-            if window_cropping:
-                layers_names = [layer.name for layer in self.viewer.layers if layer.name not in ["bounding_boxes", "fiducials"]]
-
-                crop = self.viewer.layers[layers_names[0]].corner_pixels[:, -2:]
-                [[y1, x1], [y2, x2]] = crop
-
-                generate_roi = True
-
-            else:
-
-                if type(border_width) == str:
-                    border_width = int(border_width)
-                    if border_width > 0:
-                        generate_roi = True
-                elif type(border_width) == int:
-                    if border_width > 0:
-                        generate_roi = True
-
-            if generate_roi:
-
-                dataset = self.picasso_dataset.currentText()
-                channel = self.picasso_channel.currentText()
-
-                image_shape = self.dataset_dict[dataset][channel.lower()]["data"].shape
-
-                frame_shape = image_shape[1:]
-
-                if window_cropping:
-
-                    border_width = int(border_width)
-
-                    if x1 < border_width:
-                        x1 = border_width
-                    if y1 < border_width:
-                        y1 = border_width
-                    if x2 > frame_shape[1] - border_width:
-                        x2 = frame_shape[1] - border_width
-                    if y2 > frame_shape[0] - border_width:
-                        y2 = frame_shape[0] - border_width
-
-                    roi = [[y1, x1], [y2, x2]]
-
-                else:
-
-                    roi = [[int(border_width), int(border_width)],
-                           [int(frame_shape[0] - border_width), int(frame_shape[1] - border_width)]]
-
-        except:
-            print(traceback.format_exc())
-            pass
-
-        return roi
 
     def export_picasso_locs(self, locs):
 
@@ -448,93 +466,3 @@ class _picasso_detect_utils:
         except:
             print(traceback.format_exc())
             pass
-
-    def gapseq_picasso_detect(self):
-
-        try:
-            if self.dataset_dict != {}:
-
-                self.picasso_progressbar.setValue(0)
-                self.picasso_detect.setEnabled(False)
-                self.picasso_fit.setEnabled(False)
-
-                min_net_gradient = self.picasso_min_net_gradient.text()
-                box_size = int(self.picasso_box_size.currentText())
-                dataset_name = self.picasso_dataset.currentText()
-                image_channel = self.picasso_channel.currentText()
-                frame_mode = self.picasso_frame_mode.currentText()
-                detect_mode = self.picasso_detect_mode.currentText()
-
-                roi = self.generate_roi()
-
-                camera_info = {"baseline": 100.0, "gain": 1, "sensitivity": 1.0, "qe": 0.9, }
-
-                if min_net_gradient.isdigit() and image_channel != "":
-                    worker = Worker(self._detect_localisations,
-                        min_net_gradient=min_net_gradient,
-                        roi = roi,
-                        box_size=box_size,
-                        camera_info=camera_info,
-                        dataset_name=dataset_name,
-                        image_channel=image_channel,
-                        frame_mode=frame_mode,
-                        detect_mode=detect_mode)
-                    worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.picasso_progressbar))
-                    worker.signals.finished.connect(self._detect_localisations_cleanup)
-                    self.threadpool.start(worker)
-
-        except:
-            print(traceback.format_exc())
-            self.picasso_progressbar.setValue(0)
-            self.picasso_detect.setEnabled(True)
-            self.picasso_fit.setEnabled(True)
-            pass
-
-    def gapseq_picasso_fit(self):
-
-        try:
-
-            min_net_gradient = self.picasso_min_net_gradient.text()
-            box_size = int(self.picasso_box_size.currentText())
-            dataset_name = self.picasso_dataset.currentText()
-            image_channel = self.picasso_channel.currentText()
-            frame_mode = self.picasso_frame_mode.currentText()
-            detect_mode = self.picasso_detect_mode.currentText()
-
-            if detect_mode.lower() == "fiducials":
-                localisation_dict = self.localisation_dict["fiducials"][dataset_name][image_channel.lower()]
-            else:
-                localisation_dict = self.localisation_dict["bounding_boxes"]
-
-            if "localisations" in localisation_dict.keys():
-
-                self.picasso_progressbar.setValue(0)
-                self.picasso_detect.setEnabled(False)
-                self.picasso_fit.setEnabled(False)
-
-                detected_locs = localisation_dict["localisations"]
-
-                camera_info = {"baseline": 100.0, "gain": 1, "sensitivity": 1.0, "qe": 0.9, }
-
-                if min_net_gradient.isdigit() and image_channel != "":
-                    worker = Worker(self._fit_localisations,
-                        detected_locs=detected_locs,
-                        min_net_gradient=min_net_gradient,
-                        box_size=box_size,
-                        camera_info=camera_info,
-                        dataset_name=dataset_name,
-                        image_channel=image_channel,
-                        frame_mode=frame_mode,
-                        detect_mode=detect_mode)
-
-                    worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.picasso_progressbar))
-                    worker.signals.finished.connect(self._fit_localisations_cleanup)
-                    self.threadpool.start(worker)
-
-        except:
-            print(traceback.format_exc())
-            self.picasso_progressbar.setValue(0)
-            self.picasso_detect.setEnabled(True)
-            self.picasso_fit.setEnabled(True)
-            pass
-
