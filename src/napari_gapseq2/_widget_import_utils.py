@@ -213,7 +213,7 @@ class _import_utils:
 
                 elif import_mode.lower() == "alex":
 
-                    if import_limit != "None":
+                    if import_limit_combo != "None":
                         import_limit = int(self.gapseq_import_limt.currentText())
                     else:
                         import_limit = n_frames
@@ -473,12 +473,6 @@ class _import_utils:
             self.align_reference_dataset.addItems(dataset_names)
             self.align_reference_dataset.blockSignals(False)
 
-
-            self.undrift_dataset_selector.blockSignals(True)
-            self.undrift_dataset_selector.clear()
-            self.undrift_dataset_selector.addItems(dataset_names)
-            self.undrift_dataset_selector.blockSignals(False)
-
             self.colo_dataset.blockSignals(True)
             self.colo_dataset.clear()
             self.colo_dataset.addItems(dataset_names)
@@ -506,6 +500,11 @@ class _import_utils:
             self.picasso_dataset.clear()
             self.picasso_dataset.addItems(dataset_names)
             self.picasso_dataset.blockSignals(False)
+
+            self.undrift_dataset_selector.blockSignals(True)
+            self.undrift_dataset_selector.clear()
+            self.undrift_dataset_selector.addItems(dataset_names)
+            self.undrift_dataset_selector.blockSignals(False)
 
 
         except:

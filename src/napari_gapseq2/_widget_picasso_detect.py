@@ -136,7 +136,7 @@ class _picasso_detect_utils:
                 dataset = dataset_names[0]
 
                 self.populate_localisation_dict(loc_dict, render_loc_dict, detect_mode,
-                    image_channel, box_size)
+                    image_channel, box_size, fitted)
 
                 if fitted:
                     print("Fitted {} localisations".format(total_locs))
@@ -153,7 +153,7 @@ class _picasso_detect_utils:
                 self.gapseq_dataset_selector.blockSignals(True)
                 self.gapseq_dataset_selector.setCurrentIndex(self.gapseq_dataset_selector.findText(dataset))
                 self.gapseq_dataset_selector.blockSignals(False)
-                self.update_active_image(channel=image_channel.lower(), dataset=dataset)
+                self.update_active_image(channel=image_channel.lower(), dataset=self.active_dataset)
 
         except:
             print(traceback.format_exc())
@@ -244,8 +244,10 @@ class _picasso_detect_utils:
 
             total_locs = 0
             for dataset, locs in loc_dict.items():
-                locs = np.hstack(locs).view(np.recarray)
+                locs = np.hstack(locs).view(np.recarray).copy()
                 locs.sort(kind="mergesort", order="frame")
+                locs = np.array(locs).view(np.recarray)
+                loc_dict[dataset] = locs
                 total_locs += len(locs)
 
             self.restore_shared_images()

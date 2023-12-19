@@ -169,12 +169,9 @@ class GapSeqWidget(QWidget,
         self.cluster_channel = self.findChild(QComboBox, 'cluster_channel')
         self.cluster_dataset = self.findChild(QComboBox, 'cluster_dataset')
 
-        self.picasso_undrift_mode = self.findChild(QComboBox, 'picasso_undrift_mode')
-        self.picasso_undrift_channel = self.findChild(QComboBox, 'picasso_undrift_channel')
-        self.detect_undrift = self.findChild(QPushButton, 'detect_undrift')
-        self.apply_undrift = self.findChild(QPushButton, 'apply_undrift')
         self.undrift_dataset_selector = self.findChild(QComboBox, 'undrift_dataset_selector')
         self.undrift_channel_selector = self.findChild(QComboBox, 'undrift_channel_selector')
+        self.picasso_undrift = self.findChild(QPushButton, 'picasso_undrift')
         self.undrift_progressbar = self.findChild(QProgressBar, 'undrift_progressbar')
 
         self.filtering_datasets = self.findChild(QComboBox, 'filtering_datasets')
@@ -256,8 +253,7 @@ class GapSeqWidget(QWidget,
         self.gapseq_dataset_selector.currentIndexChanged.connect(partial(self.update_active_image,
             dataset = self.gapseq_dataset_selector.currentText()))
 
-        self.detect_undrift.clicked.connect(self.gapseq_picasso_undrift)
-        self.apply_undrift.clicked.connect(self.gapseq_undrift_images)
+        self.picasso_undrift.clicked.connect(self.undrift_images)
 
         self.gapseq_align_datasets.clicked.connect(self.align_datasets)
         self.align_reference_dataset.currentIndexChanged.connect(self.update_align_reference_channel)
@@ -331,7 +327,7 @@ class GapSeqWidget(QWidget,
 
     def dev_function(self, event):
 
-        print(True)
+        self.update_align_reference_channel()
 
 
     def compute_registration_keypoints(self, reference_box_centres, target_box_centres, alignment_distance=20):

@@ -901,7 +901,7 @@
           </font>
          </property>
          <property name="text">
-          <string>Compute Image Drift using Fiducials</string>
+          <string>Compute Image Drift using Fitted Fiducials</string>
          </property>
         </widget>
        </item>
@@ -920,7 +920,7 @@
          <item row="0" column="0">
           <widget class="QLabel" name="label_46">
            <property name="text">
-            <string>Undrift Dataset</string>
+            <string>Undrift Dataset(s)</string>
            </property>
           </widget>
          </item>
@@ -930,16 +930,9 @@
         </layout>
        </item>
        <item>
-        <widget class="QPushButton" name="detect_undrift">
+        <widget class="QPushButton" name="picasso_undrift">
          <property name="text">
-          <string>Detect Image Drift</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="apply_undrift">
-         <property name="text">
-          <string>Apply Undrift</string>
+          <string>Undrift Image(s)</string>
          </property>
         </widget>
        </item>
@@ -978,7 +971,7 @@
           </font>
          </property>
          <property name="text">
-          <string>Align Datasets Using Fiducials</string>
+          <string>Align Datasets Using Fitted Fiducials</string>
          </property>
         </widget>
        </item>

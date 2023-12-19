@@ -22,26 +22,42 @@ class _align_utils:
 
         try:
 
-            datast_name = self.gapseq_dataset_selector.currentText()
+            acceptor_channels = []
+            donor_channels = []
 
-            if datast_name in self.dataset_dict.keys():
+            self.align_channels_dict = {}
 
-                fret_modes = [self.dataset_dict[datast_name][channel]["FRET"] for channel in self.dataset_dict[datast_name].keys()]
-                channel_refs = [self.dataset_dict[datast_name][channel]["channel_ref"] for channel in self.dataset_dict[datast_name].keys()]
+            for datast_name, dataset_dict in self.dataset_dict.items():
+                for channel in self.dataset_dict[datast_name].keys():
+                    if channel.lower() in ["donor","dd","ad"]:
 
-                channel_refs = list(set(channel_refs))
-                fret_mode = list(set(fret_modes))[0]
+                        if channel.lower() == "donor":
+                            channel = channel.capitalize()
+                        else:
+                            channel = channel.upper()
 
-                self.align_reference_channel.clear()
+                        donor_channels.append(channel)
 
-                if fret_mode == True:
-                    if "dd" in channel_refs:
-                        self.align_reference_channel.addItem("Donor")
                     else:
-                        self.align_reference_channel.addItem("Acceptor")
-                else:
-                    for channel in channel_refs:
-                        self.align_reference_channel.addItem(channel.upper())
+
+                        if channel.lower() == "acceptor":
+                            channel = channel.capitalize()
+                        else:
+                            channel = channel.upper()
+
+                        acceptor_channels.append(channel)
+
+            acceptor_channels = np.unique(acceptor_channels).tolist()
+            donor_channels = np.unique(donor_channels).tolist()
+
+            acceptor_channels = "Acceptor Channels: [" + "/ ".join(acceptor_channels) + "]"
+            donor_channels = "Donor Channels: [" + "/".join(donor_channels) + "]"
+
+            self.align_reference_channel.blockSignals(True)
+            self.align_reference_channel.clear()
+            self.align_reference_channel.addItem(acceptor_channels)
+            self.align_reference_channel.addItem(donor_channels)
+            self.align_reference_channel.blockSignals(False)
 
         except:
             pass
@@ -80,7 +96,7 @@ class _align_utils:
             print(traceback.format_exc())
             pass
 
-    def _align_datasets(self, progress_callback):
+    def _align_datasets(self, progress_callback, align_dict):
 
         try:
 
@@ -95,14 +111,13 @@ class _align_utils:
                 for channel_name, channel_dict in self.dataset_dict[dataset].items():
                     total_frames += channel_dict["data"].shape[0]
 
-
-            dst_locs = self.localisation_dict["fiducials"][reference_dataset][reference_channel.lower()]["localisations"].copy()
+            dst_locs = align_dict[reference_dataset].copy()
 
             iter = 0
 
             for dataset in dataset_list:
 
-                src_locs = self.localisation_dict["fiducials"][dataset][reference_channel.lower()]["localisations"].copy()
+                src_locs = align_dict[dataset].copy()
 
                 dst_pts = [[loc.x, loc.y] for loc in dst_locs]
                 src_pts = [[loc.x, loc.y] for loc in src_locs]
@@ -152,40 +167,50 @@ class _align_utils:
 
             if self.dataset_dict != {}:
 
-                reference_dataset = self.align_reference_dataset.currentText()
-                reference_channel = self.align_reference_channel.currentText()
+                align_dataset = self.align_reference_dataset.currentText()
+                align_channel = self.align_reference_channel.currentText()
+
+                if "Donor Channels" in align_channel:
+                    channel_mode = "Donor"
+                    target_channels = ["donor", "dd", "ad"]
+                else:
+                    channel_mode = "Acceptor"
+                    target_channels = ["acceptor", "aa", "da"]
 
                 missing_fiducial_list = []
+
+                align_dict = {}
 
                 for dataset_name in self.dataset_dict.keys():
                     if dataset_name not in self.localisation_dict["fiducials"].keys():
                         missing_fiducial_list.append(dataset_name)
                     else:
-                        if reference_channel.lower() not in self.localisation_dict["fiducials"][dataset_name].keys():
-                            missing_fiducial_list.append(dataset_name)
-                        else:
-                            localisation_dict =  self.localisation_dict["fiducials"][dataset_name][reference_channel.lower()]
+                        dataset_channels = list(self.dataset_dict[dataset_name].keys())
+                        reference_channels = [channel.lower() for channel in dataset_channels if channel in target_channels]
 
-                            if "fitted" not in localisation_dict.keys():
+                        for channel in reference_channels:
+                            if channel not in self.localisation_dict["fiducials"][dataset_name].keys():
                                 missing_fiducial_list.append(dataset_name)
                             else:
-                                if localisation_dict["fitted"] == False:
+                                localisation_dict = self.localisation_dict["fiducials"][dataset_name][channel]
+                                if "fitted" not in localisation_dict.keys():
                                     missing_fiducial_list.append(dataset_name)
+                                else:
+                                    if localisation_dict["fitted"] == False:
+                                        missing_fiducial_list.append(dataset_name)
+                                    else:
+                                        align_dict[dataset_name] = localisation_dict["localisations"]
+
 
                 if len(missing_fiducial_list) > 0:
                     missing_fiducial_list = ", ".join(missing_fiducial_list)
-                    print(f"Missing fitted {reference_channel} fiducials for {missing_fiducial_list}")
+                    print(f"Missing fitted {channel_mode} fiducials for {missing_fiducial_list}")
                 else:
-
-                    align_dict = {}
-                    for dataset_name in self.dataset_dict.keys():
-                        localisations = self.localisation_dict["fiducials"][dataset_name][reference_channel.lower()]["localisations"]
-                        align_dict[dataset_name] = localisations
 
                     self.align_progressbar.setValue(0)
                     self.gapseq_align_datasets.setEnabled(False)
 
-                    worker = Worker(self._align_datasets)
+                    worker = Worker(self._align_datasets, align_dict=align_dict)
                     worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.align_progressbar))
                     worker.signals.finished.connect(self._align_datasets_cleanup)
                     self.threadpool.start(worker)
