@@ -211,8 +211,6 @@ class _picasso_detect_utils:
                     frame_locs = self.get_frame_locs( image_dict["dataset"],
                         image_channel, frame_index)
 
-                    print(detect,frame_index, type(frame_locs))
-
                     if detect == False and frame_locs is None:
                         continue
                     else:
@@ -231,8 +229,6 @@ class _picasso_detect_utils:
                                        }
 
                     compute_jobs.append(compute_job)
-
-            print("Computing {} jobs".format(len(compute_jobs)))
 
             if len(compute_jobs) > 0:
 
