@@ -191,6 +191,8 @@ class Worker(QRunnable):
         # Add the callback to our kwargs
         self.kwargs["progress_callback"] = self.signals.progress
 
+        self._is_stopped = False  # Stop flag
+
     @pyqtSlot()
     def run(self):
         """
@@ -199,16 +201,22 @@ class Worker(QRunnable):
 
         # Retrieve args/kwargs here; and fire processing using them
         try:
-            result = self.fn(*self.args, **self.kwargs)
+
+            while not self._is_stopped:
+                result = self.fn(*self.args, **self.kwargs)
+                self.signals.result.emit(result)  # Emit the result
+                self._is_stopped = True
         except:
             traceback.print_exc()
             exctype, value = sys.exc_info()[:2]
             self.signals.error.emit((exctype, value, traceback.format_exc()))
-        else:
-            self.signals.result.emit(result)  # Return the result of the processing
         finally:
             self.signals.finished.emit()  # Done
 
     def result(self):
         return self.fn(*self.args, **self.kwargs)
 
+    def stop(self):
+
+        self._is_stopped = True
+        self.signals.finished.emit()

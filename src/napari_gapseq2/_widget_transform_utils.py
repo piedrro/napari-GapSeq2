@@ -140,13 +140,14 @@ class _tranform_utils:
             pass
 
 
-    def _apply_transform_matrix_cleanup(self):
+    def _apply_transform_matrix_finished(self):
 
         try:
 
             self.tform_apply_progressbar.setValue(0)
 
             self.image_layer.data = self.dataset_dict[self.active_dataset][self.active_channel]["data"]
+            self.multiprocessing_active = False
 
         except:
             print(traceback.format_exc())
@@ -221,10 +222,10 @@ class _tranform_utils:
                         print("No transform matrix loaded.")
 
                     else:
-                        worker = Worker(self._apply_transform_matrix)
-                        worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.tform_apply_progressbar))
-                        worker.signals.finished.connect(self._apply_transform_matrix_cleanup)
-                        self.threadpool.start(worker)
+                        self.worker = Worker(self._apply_transform_matrix)
+                        self.worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.tform_apply_progressbar))
+                        self.worker.signals.finished.connect(self._apply_transform_matrix_finished)
+                        self.threadpool.start(self.worker)
 
         except:
             print(traceback.format_exc())

@@ -152,7 +152,7 @@ class _utils_colocalize:
 
         return result_dict
 
-    def _gapseq_colocalize_fiducials_cleanup(self, colo_locs):
+    def _gapseq_colocalize_fiducials_result(self, colo_locs):
 
         try:
 
@@ -185,7 +185,9 @@ class _utils_colocalize:
             print(traceback.format_exc())
             pass
 
+    def _gapseq_colocalize_fiducials_finished(self):
 
+        self.multiprocessing_active = False
 
 
     def gapseq_colocalize_fiducials(self):
@@ -208,9 +210,10 @@ class _utils_colocalize:
 
             else:
 
-                worker = Worker(self._gapseq_colocalize_fiducials)
-                worker.signals.result.connect(self._gapseq_colocalize_fiducials_cleanup)
-                self.threadpool.start(worker)
+                self.worker = Worker(self._gapseq_colocalize_fiducials)
+                self.worker.signals.result.connect(self._gapseq_colocalize_fiducials_result)
+                self.worker.signals.finished.connect(self._gapseq_colocalize_fiducials_finished)
+                self.threadpool.start(self.worker)
 
         except:
             print(traceback.format_exc())

@@ -21,20 +21,23 @@ def undrift_image(dat):
 
         drift = dat["drift"]
         frame_index = dat["frame_index"]
+        stop_event = dat["stop_event"]
 
-        # Access the shared memory
-        shared_mem = shared_memory.SharedMemory(name=dat["shared_memory_name"])
-        np_array = np.ndarray(dat["shape"], dtype=dat["dtype"], buffer=shared_mem.buf)
+        if not stop_event.is_set():
 
-        # Perform preprocessing steps and overwrite original image
-        img = np_array[frame_index]
+            # Access the shared memory
+            shared_mem = shared_memory.SharedMemory(name=dat["shared_memory_name"])
+            np_array = np.ndarray(dat["shape"], dtype=dat["dtype"], buffer=shared_mem.buf)
 
-        drift = [-drift[1], -drift[0]]
+            # Perform preprocessing steps and overwrite original image
+            img = np_array[frame_index]
 
-        img = scipy.ndimage.shift(img, drift, mode='constant', cval=0.0)
+            drift = [-drift[1], -drift[0]]
 
-        # overwrite the shared memory block
-        np_array[frame_index] = img
+            img = scipy.ndimage.shift(img, drift, mode='constant', cval=0.0)
+
+            # overwrite the shared memory block
+            np_array[frame_index] = img
 
     except:
         print(traceback.format_exc())
@@ -100,6 +103,8 @@ class _undrift_utils:
 
             for layer in self.viewer.layers:
                 layer.refresh()
+
+            self.multiprocessing_active = False
 
         except:
             print(traceback.format_exc())
@@ -175,10 +180,14 @@ class _undrift_utils:
                                          "shape": image_dict["shape"],
                                          "dtype": image_dict["dtype"],
                                          "frame_index": frame_index,
-                                         "drift": frame_drift})
+                                         "drift": frame_drift,
+                                         "stop_event": self.stop_event,
+                                         })
 
             cpu_count = int(multiprocessing.cpu_count() * 0.9)
             timeout_duration = 10  # Timeout in seconds
+
+            self.multiprocessing_active = True
 
             with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
                 # Submit all jobs and store the future objects
@@ -186,27 +195,33 @@ class _undrift_utils:
 
                 iter = 0
                 for future in concurrent.futures.as_completed(futures):
-                    job = futures[future]
-                    try:
-                        result = future.result(timeout=timeout_duration)  # Process result here
-                    except concurrent.futures.TimeoutError:
-                        # print(f"Task {job} timed out after {timeout_duration} seconds.")
-                        pass
-                    except Exception as e:
-                        # print(f"Error occurred in task {job}: {e}")  # Handle other exceptions
-                        pass
 
-                    # Update progress
-                    iter += 1
-                    progress = 50 + int((iter / len(compute_jobs)) * 50)
-                    progress_callback.emit(progress)  # Emit the signal
+                    if self.stop_event.is_set():
+                        future.cancel()
+                    else:
+                        job = futures[future]
+                        try:
+                            result = future.result(timeout=timeout_duration)  # Process result here
+                        except concurrent.futures.TimeoutError:
+                            # print(f"Task {job} timed out after {timeout_duration} seconds.")
+                            pass
+                        except Exception as e:
+                            # print(f"Error occurred in task {job}: {e}")  # Handle other exceptions
+                            pass
+
+                        # Update progress
+                        iter += 1
+                        progress = 50 + int((iter / len(compute_jobs)) * 50)
+                        progress_callback.emit(progress)  # Emit the signal
 
             self.restore_shared_images()
+            self.multiprocessing_active = False
 
         except:
             self.restore_shared_images()
             self.picasso_undrift.setEnabled(True)
             self.undrift_progressbar.setValue(0)
+            self.multiprocessing_active = False
             print(traceback.format_exc())
             pass
 
@@ -241,10 +256,10 @@ class _undrift_utils:
 
                 self.picasso_undrift.setEnabled(False)
 
-                worker = Worker(self._undrift_images, undrift_dict=undrift_dict)
-                worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.undrift_progressbar))
-                worker.signals.finished.connect(self._undrift_images_finished)
-                self.threadpool.start(worker)
+                self.worker = Worker(self._undrift_images, undrift_dict=undrift_dict)
+                self.worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.undrift_progressbar))
+                self.worker.signals.finished.connect(self._undrift_images_finished)
+                self.threadpool.start(self.worker)
 
         except:
             self.picasso_undrift.setEnabled(True)

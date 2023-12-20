@@ -219,6 +219,8 @@ class _export_images_utils:
 
         return export_jobs, total_frames
 
+    def export_data_finished(self):
+        self.multiprocessing_active = False
 
 
     def export_data(self):
@@ -246,26 +248,29 @@ class _export_images_utils:
                         self.gapseq_progress(total_progress, self.export_progressbar)
 
                     if export_channel.lower() == "alex":
-                        worker = Worker(self.export_alex_data,
+                        self.worker = Worker(self.export_alex_data,
                             dataset_name=dataset_name,
                             export_path=export_path)
-                        worker.signals.progress.connect(partial(export_progress, job_index=job_index))
-                        self.threadpool.start(worker)
+                        self.worker.signals.progress.connect(partial(export_progress, job_index=job_index))
+                        self.worker.signals.finished.connect(self.export_data_finished)
+                        self.threadpool.start(self.worker)
 
                     elif export_channel.lower() == "fret":
-                        worker = Worker(self.export_fret_data,
+                        self.worker = Worker(self.export_fret_data,
                             dataset_name=dataset_name,
                             export_path=export_path)
-                        worker.signals.progress.connect(partial(export_progress, job_index=job_index))
-                        self.threadpool.start(worker)
+                        self.worker.signals.progress.connect(partial(export_progress, job_index=job_index))
+                        self.worker.signals.finished.connect(self.export_data_finished)
+                        self.threadpool.start(self.worker)
 
                     else:
-                        worker = Worker(self.export_channel_data,
+                        self.worker = Worker(self.export_channel_data,
                             dataset_name=dataset_name,
                             export_channel=export_channel,
                             export_path=export_path)
-                        worker.signals.progress.connect(partial(export_progress, job_index=job_index))
-                        self.threadpool.start(worker)
+                        self.worker.signals.progress.connect(partial(export_progress, job_index=job_index))
+                        self.worker.signals.finished.connect(self.export_data_finished)
+                        self.threadpool.start(self.worker)
 
         except:
             print(traceback.format_exc())

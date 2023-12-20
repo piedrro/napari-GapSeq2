@@ -8,7 +8,7 @@ from sklearn.cluster import DBSCAN
 import pandas as pd
 from picasso.clusterer import extract_valid_labels
 import os
-from multiprocessing import Process, shared_memory, Pool
+from multiprocessing import Process, shared_memory, Pool, Manager
 from picasso import gausslq, lib, localize
 from picasso.localize import get_spots, identify_frame
 from picasso.gaussmle import gaussmle
@@ -31,43 +31,46 @@ def picasso_detect(dat):
         channel = dat["channel"]
         detect = dat["detect"]
         fit = dat["fit"]
+        stop_event = dat["stop_event"]
 
-        # Access the shared memory
-        shared_mem = shared_memory.SharedMemory(name=dat["shared_memory_name"])
-        np_array = np.ndarray(dat["shape"], dtype=dat["dtype"], buffer=shared_mem.buf)
+        if not stop_event.is_set():
 
-        # Perform preprocessing steps and overwrite original image
-        frame = np_array[frame_index].copy()
+            # Access the shared memory
+            shared_mem = shared_memory.SharedMemory(name=dat["shared_memory_name"])
+            np_array = np.ndarray(dat["shape"], dtype=dat["dtype"], buffer=shared_mem.buf)
 
-        if detect:
-            locs = identify_frame(frame, min_net_gradient, box_size, 0, roi=roi)
-        else:
-            locs = dat["frame_locs"]
+            # Perform preprocessing steps and overwrite original image
+            frame = np_array[frame_index].copy()
 
-        expected_loc_length = 4
+            if detect:
+                locs = identify_frame(frame, min_net_gradient, box_size, 0, roi=roi)
+            else:
+                locs = dat["frame_locs"]
 
-        if fit:
-            expected_loc_length = 12
-            try:
-                image = np.expand_dims(frame, axis=0)
-                camera_info = {"baseline": 100.0, "gain": 1, "sensitivity": 1.0, "qe": 0.9, }
-                spot_data = get_spots(image, locs, box_size, camera_info)
-                theta, CRLBs, likelihoods, iterations = gaussmle(spot_data, eps=0.001, max_it=100, method="sigma")
-                locs = localize.locs_from_fits(locs.copy(), theta, CRLBs, likelihoods, iterations, box_size)
-            except:
-                pass
+            expected_loc_length = 4
 
-        for loc in locs:
-            loc.frame = frame_index
+            if fit:
+                expected_loc_length = 12
+                try:
+                    image = np.expand_dims(frame, axis=0)
+                    camera_info = {"baseline": 100.0, "gain": 1, "sensitivity": 1.0, "qe": 0.9, }
+                    spot_data = get_spots(image, locs, box_size, camera_info)
+                    theta, CRLBs, likelihoods, iterations = gaussmle(spot_data, eps=0.001, max_it=100, method="sigma")
+                    locs = localize.locs_from_fits(locs.copy(), theta, CRLBs, likelihoods, iterations, box_size)
+                except:
+                    pass
 
-        render_locs= {}
-        render_locs[frame_index] = np.vstack((locs.y, locs.x)).T.tolist()
+            for loc in locs:
+                loc.frame = frame_index
 
-        locs = [loc for loc in locs if len(loc) == expected_loc_length]
-        locs = np.array(locs).view(np.recarray)
+            render_locs= {}
+            render_locs[frame_index] = np.vstack((locs.y, locs.x)).T.tolist()
 
-        result = {"dataset": dataset, "channel": channel, "frame_index": frame_index,
-                  "locs": locs,"render_locs": render_locs}
+            locs = [loc for loc in locs if len(loc) == expected_loc_length]
+            locs = np.array(locs).view(np.recarray)
+
+            result = {"dataset": dataset, "channel": channel, "frame_index": frame_index,
+                      "locs": locs,"render_locs": render_locs}
 
     except:
         print(traceback.format_exc())
@@ -146,18 +149,29 @@ class _picasso_detect_utils:
                 else:
                     print("Detected {} localisations".format(total_locs))
 
-                self.update_active_image(channel=image_channel.lower(), dataset=self.active_dataset)
-                self.draw_fiducials(update_vis=True)
-                self.draw_bounding_boxes()
-
-                self.gapseq_progress(100, self.picasso_progressbar)
-                self.picasso_detect.setEnabled(True)
-                self.picasso_fit.setEnabled(True)
-                self.picasso_detectfit.setEnabled(True)
-
         except:
             print(traceback.format_exc())
 
+    def _picasso_wrapper_finished(self):
+
+        try:
+
+            image_channel = self.picasso_channel.currentText()
+
+            self.update_active_image(channel=image_channel.lower(), dataset=self.active_dataset)
+
+            self.draw_fiducials(update_vis=True)
+            self.draw_bounding_boxes()
+
+            self.picasso_progressbar.setValue(0)
+            self.picasso_detect.setEnabled(True)
+            self.picasso_fit.setEnabled(True)
+            self.picasso_detectfit.setEnabled(True)
+
+            self.multiprocessing_active = False
+
+        except:
+            print(traceback.format_exc())
 
     def get_frame_locs(self, dataset_name, image_channel, frame_index):
 
@@ -181,13 +195,18 @@ class _picasso_detect_utils:
 
 
 
-    def _picasso_wrapper(self, progress_callback, detect, fit, min_net_gradient, roi, box_size, dataset_name, image_channel, frame_mode):
+    def _picasso_wrapper(self, progress_callback, detect, fit, min_net_gradient, image_channel):
 
         loc_dict = {}
         render_loc_dict = {}
         total_locs = 0
 
         try:
+
+            box_size = int(self.picasso_box_size.currentText())
+            dataset_name = self.picasso_dataset.currentText()
+            frame_mode = self.picasso_frame_mode.currentText()
+            roi = self.generate_roi()
 
             if dataset_name == "All Datasets":
                 dataset_list = list(self.dataset_dict.keys())
@@ -228,6 +247,7 @@ class _picasso_detect_utils:
                                        "box_size": int(box_size),
                                        "roi": roi,
                                        "frame_locs": frame_locs,
+                                       "stop_event": self.stop_event,
                                        }
 
                     compute_jobs.append(compute_job)
@@ -246,38 +266,45 @@ class _picasso_detect_utils:
                     executor_class = concurrent.futures.ProcessPoolExecutor
                     cpu_count = int(multiprocessing.cpu_count() * 0.9)
 
+                self.multiprocessing_active = True
+
                 with executor_class(max_workers=cpu_count) as executor:
                     futures = {executor.submit(picasso_detect, job): job for job in compute_jobs}
 
                 iter = 0
                 for future in concurrent.futures.as_completed(futures):
-                    job = futures[future]
-                    try:
-                        result = future.result(timeout=timeout_duration)  # Process result here
+                    if self.stop_event.is_set():
+                        future.cancel()
+                    else:
+                        job = futures[future]
+                        try:
+                            result = future.result(timeout=timeout_duration)  # Process result here
 
-                        if result is not None:
-                            dataset_name = result["dataset"]
+                            if result is not None:
+                                dataset_name = result["dataset"]
 
-                            if dataset_name not in loc_dict:
-                                loc_dict[dataset_name] = []
-                                render_loc_dict[dataset_name] = {}
+                                if dataset_name not in loc_dict:
+                                    loc_dict[dataset_name] = []
+                                    render_loc_dict[dataset_name] = {}
 
-                            locs = result["locs"]
-                            render_locs = result["render_locs"]
+                                locs = result["locs"]
+                                render_locs = result["render_locs"]
 
-                            loc_dict[dataset_name].extend(locs)
-                            render_loc_dict[dataset_name] = {**render_loc_dict[dataset_name], **render_locs}
+                                loc_dict[dataset_name].extend(locs)
+                                render_loc_dict[dataset_name] = {**render_loc_dict[dataset_name], **render_locs}
 
-                        iter += 1
-                        progress = int((iter / len(compute_jobs)) * 100)
-                        progress_callback.emit(progress)  # Emit the signal
+                            iter += 1
+                            progress = int((iter / len(compute_jobs)) * 100)
+                            progress_callback.emit(progress)  # Emit the signal
 
-                    except concurrent.futures.TimeoutError:
-                        # print(f"Task {job} timed out after {timeout_duration} seconds.")
-                        pass
-                    except Exception as e:
-                        print(f"Error occurred in task {job}: {e}")  # Handle other exceptions
-                        pass
+                        except concurrent.futures.TimeoutError:
+                            # print(f"Task {job} timed out after {timeout_duration} seconds.")
+                            pass
+                        except Exception as e:
+                            print(f"Error occurred in task {job}: {e}")  # Handle other exceptions
+                            pass
+
+
 
                 total_locs = 0
                 for dataset, locs in loc_dict.items():
@@ -293,6 +320,8 @@ class _picasso_detect_utils:
             self.picasso_detect.setEnabled(True)
             self.picasso_fit.setEnabled(True)
             self.picasso_detectfit.setEnabled(True)
+
+            self.multiprocessing_active = False
 
         except:
             print(traceback.format_exc())
@@ -314,33 +343,26 @@ class _picasso_detect_utils:
         try:
             if self.dataset_dict != {}:
 
-                self.picasso_progressbar.setValue(0)
-                self.picasso_detect.setEnabled(False)
-                self.picasso_fit.setEnabled(False)
-                self.picasso_detectfit.setEnabled(False)
-
                 min_net_gradient = self.picasso_min_net_gradient.text()
-                box_size = int(self.picasso_box_size.currentText())
-                dataset_name = self.picasso_dataset.currentText()
                 image_channel = self.picasso_channel.currentText()
-                frame_mode = self.picasso_frame_mode.currentText()
-                detect_mode = self.picasso_detect_mode.currentText()
-
-                roi = self.generate_roi()
 
                 if min_net_gradient.isdigit() and image_channel != "":
-                    worker = Worker(self._picasso_wrapper,
-                        detect=detect,
-                        fit=fit,
+
+                    self.picasso_progressbar.setValue(0)
+                    self.picasso_detect.setEnabled(False)
+                    self.picasso_fit.setEnabled(False)
+                    self.picasso_detectfit.setEnabled(False)
+
+                    self.worker = Worker(self._picasso_wrapper,
+                        detect=detect, fit=fit,
                         min_net_gradient=min_net_gradient,
-                        roi = roi,
-                        box_size=box_size,
-                        dataset_name=dataset_name,
-                        image_channel=image_channel,
-                        frame_mode=frame_mode)
-                    worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.picasso_progressbar))
-                    worker.signals.result.connect(self._picasso_wrapper_result)
-                    self.threadpool.start(worker)
+                        image_channel=image_channel,)
+
+                    self.worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.picasso_progressbar))
+                    self.worker.signals.result.connect(self._picasso_wrapper_result)
+                    self.worker.signals.finished.connect(self._picasso_wrapper_finished)
+                    self.threadpool.start(self.worker)
+
 
         except:
             print(traceback.format_exc())

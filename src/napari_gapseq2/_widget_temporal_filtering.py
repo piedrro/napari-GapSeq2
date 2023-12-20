@@ -138,7 +138,9 @@ class _utils_temporal_filtering:
                                    "shared_mem": image_dict['shared_mem'],
                                    "shape": image_dict['shape'],
                                    "dtype": image_dict['dtype'],
-                                   "height_range": height_range}
+                                   "height_range": height_range,
+                                   "stop_event": self.stop_event,
+                                   }
 
                     compute_jobs.append(compute_job)
 
@@ -169,8 +171,6 @@ class _utils_temporal_filtering:
 
             compute_jobs = self._populate_temport_compute_jobs()
 
-            temporal_filtering(compute_jobs[0])
-
             print("Starting temporal filtering on {} images".format(len(self.shared_images)))
 
             start_time = time.time()
@@ -183,37 +183,43 @@ class _utils_temporal_filtering:
                 cpu_count = int(multiprocessing.cpu_count() * 0.9)
                 timeout_duration = 10  # Timeout in seconds
 
+                self.multiprocessing_active = True
+
                 with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
                     # Submit all jobs and store the future objects
                     futures = {executor.submit(temporal_filtering, job): job for job in compute_jobs}
 
                     iter = 0
                     for future in concurrent.futures.as_completed(futures):
-                        job = futures[future]
-                        try:
-                            result = future.result(timeout=timeout_duration)  # Process result here
-                        except concurrent.futures.TimeoutError:
-                            # print(f"Task {job} timed out after {timeout_duration} seconds.")
-                            pass
-                        except Exception as e:
-                            # print(f"Error occurred in task {job}: {e}")  # Handle other exceptions
-                            pass
+                        if self.stop_event.is_set():
+                            future.cancel()
+                        else:
+                            job = futures[future]
+                            try:
+                                result = future.result(timeout=timeout_duration)  # Process result here
+                            except concurrent.futures.TimeoutError:
+                                # print(f"Task {job} timed out after {timeout_duration} seconds.")
+                                pass
+                            except Exception as e:
+                                # print(f"Error occurred in task {job}: {e}")  # Handle other exceptions
+                                pass
 
-                        # Update progress
-                        iter += 1
-                        progress = int((iter / len(compute_jobs)) * 100)
-                        progress_callback.emit(progress)  # Emit the signal
+                            # Update progress
+                            iter += 1
+                            progress = int((iter / len(compute_jobs)) * 100)
+                            progress_callback.emit(progress)  # Emit the signal
 
-            end_time = time.time()
-            print(f"Time elapsed: {end_time - start_time}")
+
 
             self.restore_shared_images()
-
             self.filtering_start.setEnabled(True)
+
+            self.multiprocessing_active = False
 
         except:
             self.restore_shared_images()
             self.filtering_start.setEnabled(True)
+            self.multiprocessing_active = False
             print(traceback.format_exc())
             pass
 
@@ -222,20 +228,21 @@ class _utils_temporal_filtering:
         try:
             self.filtering_start.setEnabled(False)
 
-            worker = Worker(self._gapseq_temporal_filtering)
-            worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.filtering_progressbar))
-            worker.signals.finished.connect(self._gapseq_temporal_filtering_cleanup)
-            self.threadpool.start(worker)
+            self.worker = Worker(self._gapseq_temporal_filtering)
+            self.worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.filtering_progressbar))
+            self.worker.signals.finished.connect(self._gapseq_temporal_filtering_finished)
+            self.threadpool.start(self.worker)
 
         except:
             self.filtering_start.setEnabled(True)
             print(traceback.format_exc())
             pass
 
-    def _gapseq_temporal_filtering_cleanup(self):
+    def _gapseq_temporal_filtering_finished(self):
 
         try:
             self.image_layer.data = self.dataset_dict[self.active_dataset][self.active_channel]["data"]
+            self.multiprocessing_active = False
         except:
             print(traceback.format_exc())
             pass

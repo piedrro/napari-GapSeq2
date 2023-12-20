@@ -719,6 +719,9 @@ class _plot_utils:
 
         try:
 
+            if hasattr(self, "plot_grid") == False:
+                self.update_plot_layout()
+
             if self.plot_grid != {}:
 
                 localisation_number = self.plot_localisation_number.value()

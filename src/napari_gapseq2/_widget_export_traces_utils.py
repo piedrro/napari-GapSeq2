@@ -254,18 +254,20 @@ class _export_traces_utils:
 
         return export_dict
 
-    def export_traces_cleanup(self, export_path):
+    def export_traces_finished(self, export_path):
 
         if self.traces_export_status == True:
             print("Traces exported to: {}".format(export_path))
 
         self.export_progressbar.setValue(0)
         self.gapseq_export_traces.setEnabled(True)
+        self.multiprocessing_active = False
 
     def export_traces_error(self, error_message):
 
         self.export_progressbar.setValue(0)
         self.gapseq_export_traces.setEnabled(True)
+        self.multiprocessing_active = False
 
     def export_traces(self):
 
@@ -285,33 +287,33 @@ class _export_traces_utils:
 
                 if export_mode == "JSON Dataset":
 
-                    worker = Worker(self.export_traces_json, export_path=export_path)
-                    worker.signals.progress.connect(partial(self.gapseq_progress,
+                    self.worker = Worker(self.export_traces_json, export_path=export_path)
+                    self.worker.signals.progress.connect(partial(self.gapseq_progress,
                         progress_bar=self.export_progressbar))
-                    worker.signals.finished.connect(partial(self.export_traces_cleanup,
+                    self.worker.signals.finished.connect(partial(self.export_traces_finished,
                         export_path=export_path))
-                    worker.signals.error.connect(self.export_traces_error)
-                    self.threadpool.start(worker)
+                    self.worker.signals.error.connect(self.export_traces_error)
+                    self.threadpool.start(self.worker)
 
                 if export_mode == "DAT":
 
-                    worker = Worker(self.export_traces_dat, export_path=export_path)
-                    worker.signals.progress.connect(partial(self.gapseq_progress,
+                    self.worker = Worker(self.export_traces_dat, export_path=export_path)
+                    self.worker.signals.progress.connect(partial(self.gapseq_progress,
                         progress_bar=self.export_progressbar))
-                    worker.signals.finished.connect(partial(self.export_traces_cleanup,
+                    self.worker.signals.finished.connect(partial(self.export_traces_finished,
                         export_path=export_path))
-                    worker.signals.error.connect(self.export_traces_error)
-                    self.threadpool.start(worker)
+                    self.worker.signals.error.connect(self.export_traces_error)
+                    self.threadpool.start(self.worker)
 
                 if export_mode == "Excel":
 
-                    worker = Worker(self.export_traces_excel, export_path=export_path)
-                    worker.signals.progress.connect(partial(self.gapseq_progress,
+                    self.worker = Worker(self.export_traces_excel, export_path=export_path)
+                    self.worker.signals.progress.connect(partial(self.gapseq_progress,
                         progress_bar=self.export_progressbar))
-                    worker.signals.finished.connect(partial(self.export_traces_cleanup,
+                    self.worker.signals.finished.connect(partial(self.export_traces_finished,
                         export_path=export_path))
-                    worker.signals.error.connect(self.export_traces_error)
-                    self.threadpool.start(worker)
+                    self.worker.signals.error.connect(self.export_traces_error)
+                    self.threadpool.start(self.worker)
 
             else:
                 self.gapseq_export_traces.setEnabled(True)

@@ -69,7 +69,7 @@ from napari_gapseq2._widget_temporal_filtering import _utils_temporal_filtering
 
 from qtpy.QtWidgets import QFileDialog
 import os
-from multiprocessing import Pool
+from multiprocessing import Manager
 import multiprocessing
 from functools import partial, wraps
 from PyQt5.QtCore import Qt
@@ -317,6 +317,12 @@ class GapSeqWidget(QWidget,
 
         self.threadpool = QThreadPool()
 
+        manager = Manager()
+        self.stop_event = manager.Event()
+
+        self.worker = None
+        self.multiprocessing_active = False
+
         self.transform_matrix = None
 
         self.update_import_options()
@@ -330,12 +336,28 @@ class GapSeqWidget(QWidget,
         self.viewer.bind_key('PageUp', self.named_partial(self.increment_active_dataset, key='Up'), overwrite=True)
         self.viewer.bind_key('PageDown', self.named_partial(self.increment_active_dataset, key='Down'), overwrite=True)
 
+        self.viewer.bind_key('Q', self.stop_worker, overwrite=True)
+
+    def stop_worker(self, viewer=None):
+
+        if self.stop_event is not None:
+            self.stop_event.set()
+
+        while self.multiprocessing_active is True:
+            time.sleep(0.1)
+
+        if self.stop_event is not None:
+            self.stop_event.clear()
+
+        if self.worker is not None:
+            self.worker.stop()
+
 
     def dev_function(self, event):
 
         print("Dev function called")
 
-        self.update_export_options()
+        self.stop_worker()
 
     def compute_registration_keypoints(self, reference_box_centres, target_box_centres, alignment_distance=20):
 
@@ -472,8 +494,7 @@ class GapSeqWidget(QWidget,
                 if image_channel != "" and dataset_name != "":
 
                     if image_channel.lower() in self.localisation_dict["fiducials"][dataset_name].keys():
-
-                        localisation_dict = self.localisation_dict["fiducials"][dataset_name][image_channel.lower()]
+                        localisation_dict = self.localisation_dict["fiducials"][dataset_name][image_channel.lower()].copy()
 
                         if "render_locs" in localisation_dict.keys():
 

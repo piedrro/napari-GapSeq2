@@ -22,6 +22,7 @@ import math
 import tifffile
 import concurrent.futures
 import matplotlib.pyplot as plt
+import threading
 
 def import_image_data(dat):
 
@@ -33,33 +34,31 @@ def import_image_data(dat):
         channel_frame = dat["channel_frame"]
         channel_images = dat["channel_images"]
         image_shape = dat["image_shape"]
+        stop_event = dat["stop_event"]
 
-        with Image.open(path) as img:
-            img.seek(frame_index)
-            img_frame = img.copy()
+        if not stop_event.is_set():
 
-        img_frame = np.array(img_frame)
-        image_frame = img_frame.astype(dat["dtype"])
+            with Image.open(path) as img:
+                img.seek(frame_index)
+                img_frame = img.copy()
 
-        if len(channels) == 1:
-            img_frames = [img_frame]
-        else:
-            img_frames = np.array_split(img_frame, 2, axis=-1)
+            img_frame = np.array(img_frame)
+            image_frame = img_frame.astype(dat["dtype"])
 
-        for channel, channel_img in zip(channels, img_frames):
+            if len(channels) == 1:
+                img_frames = [img_frame]
+            else:
+                img_frames = np.array_split(img_frame, 2, axis=-1)
 
-            shared_mem = channel_images[channel]
-            np_array = np.ndarray(image_shape, dtype=dat["dtype"], buffer=shared_mem.buf)
-            np_array[channel_frame] = channel_img
+            for channel, channel_img in zip(channels, img_frames):
+
+                shared_mem = channel_images[channel]
+                np_array = np.ndarray(image_shape, dtype=dat["dtype"], buffer=shared_mem.buf)
+                np_array[channel_frame] = channel_img
 
     except:
         print(traceback.format_exc())
         pass
-
-
-
-
-
 
 
 
@@ -306,7 +305,9 @@ class _import_utils:
 
                 compute_job = {"frame_index": frame_index,
                                "channels":channels,
-                               "channel_frame": channel_frame}
+                               "channel_frame": channel_frame,
+                               "stop_event": self.stop_event,
+                               }
 
                 compute_job = {**compute_job, **image_dict}
                 compute_jobs.append(compute_job)
@@ -318,26 +319,33 @@ class _import_utils:
         cpu_count = int(multiprocessing.cpu_count() * 0.75)
         timeout_duration = 10  # Timeout in seconds
 
+        self.multiprocessing_active = True
+
         with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
             # Submit all jobs and store the future objects
             futures = {executor.submit(import_image_data, job): job for job in compute_jobs}
 
             iter = 0
             for future in concurrent.futures.as_completed(futures):
-                job = futures[future]
-                try:
-                    result = future.result(timeout=timeout_duration)  # Process result here
-                except concurrent.futures.TimeoutError:
-                    # print(f"Task {job} timed out after {timeout_duration} seconds.")
-                    pass
-                except Exception as e:
-                    # print(f"Error occurred in task {job}: {e}")  # Handle other exceptions
-                    pass
+                if self.stop_event.is_set():
+                    future.cancel()
+                else:
+                    job = futures[future]
+                    try:
+                        result = future.result(timeout=timeout_duration)  # Process result here
+                    except concurrent.futures.TimeoutError:
+                        # print(f"Task {job} timed out after {timeout_duration} seconds.")
+                        pass
+                    except Exception as e:
+                        # print(f"Error occurred in task {job}: {e}")  # Handle other exceptions
+                        pass
 
                 # Update progress
                 iter += 1
                 progress = int((iter / len(compute_jobs)) * 100)
                 progress_callback.emit(progress)  # Emit the signal
+
+        self.multiprocessing_active = False
 
     def populate_dataset_dict(self, import_dict):
 
@@ -528,7 +536,7 @@ class _import_utils:
 
                 self.localisation_dict["fiducials"][dataset_name] = fiducial_dict
 
-    def _gapseq_import_data_cleanup(self):
+    def _gapseq_import_data_finished(self):
 
         self.initialise_localisation_dict()
         self.populate_dataset_combos()
@@ -544,6 +552,7 @@ class _import_utils:
 
         self.gapseq_import.setEnabled(True)
         self.gapseq_import_progressbar.setValue(0)
+        self.multiprocessing_active = False
 
     def gapseq_import_data(self):
 
@@ -564,11 +573,11 @@ class _import_utils:
 
                     self.gapseq_import.setEnabled(False)
 
-                    worker = Worker(self._gapseq_import_data, paths=paths)
-                    worker.signals.progress.connect(partial(self.gapseq_progress,
+                    self.worker = Worker(self._gapseq_import_data, paths=paths)
+                    self.worker.signals.progress.connect(partial(self.gapseq_progress,
                         progress_bar=self.gapseq_import_progressbar))
-                    worker.signals.finished.connect(self._gapseq_import_data_cleanup)
-                    self.threadpool.start(worker)
+                    self.worker.signals.finished.connect(self._gapseq_import_data_finished)
+                    self.threadpool.start(self.worker)
 
         except:
             self.gapseq_import.setEnabled(True)
