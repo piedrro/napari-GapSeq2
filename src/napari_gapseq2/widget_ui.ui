@@ -403,18 +403,29 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="picasso_detect">
-         <property name="text">
-          <string>Picasso Detect</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="picasso_fit">
-         <property name="text">
-          <string>Picasso Detect and Fit</string>
-         </property>
-        </widget>
+        <layout class="QGridLayout" name="gridLayout_6">
+         <item row="0" column="1">
+          <widget class="QPushButton" name="picasso_fit">
+           <property name="text">
+            <string>Fit</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0">
+          <widget class="QPushButton" name="picasso_detect">
+           <property name="text">
+            <string>Detect</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="2">
+          <widget class="QPushButton" name="picasso_detectfit">
+           <property name="text">
+            <string>Detect and Fit</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
        <item>
         <widget class="QProgressBar" name="picasso_progressbar">

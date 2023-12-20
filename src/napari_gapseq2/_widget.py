@@ -146,6 +146,7 @@ class GapSeqWidget(QWidget,
         self.picasso_frame_mode = self.findChild(QComboBox, 'picasso_frame_mode')
         self.picasso_detect = self.findChild(QPushButton, 'picasso_detect')
         self.picasso_fit = self.findChild(QPushButton, 'picasso_fit')
+        self.picasso_detectfit = self.findChild(QPushButton, 'picasso_detectfit')
         self.picasso_detect_mode = self.findChild(QComboBox, 'picasso_detect_mode')
         self.picasso_window_cropping = self.findChild(QCheckBox, 'picasso_window_cropping')
         self.picasso_progressbar = self.findChild(QProgressBar, 'picasso_progressbar')
@@ -245,8 +246,9 @@ class GapSeqWidget(QWidget,
         self.gapseq_import_mode.currentIndexChanged.connect(self.update_import_options)
         self.gapseq_update_dataset_name.clicked.connect(self.update_dataset_name)
 
-        self.picasso_detect.clicked.connect(partial(self.gapseq_picasso, fit=False))
-        self.picasso_fit.clicked.connect(partial(self.gapseq_picasso, fit=True))
+        self.picasso_detect.clicked.connect(partial(self.gapseq_picasso, detect = True, fit=False))
+        self.picasso_fit.clicked.connect(partial(self.gapseq_picasso, detect = False, fit=True))
+        self.picasso_detectfit.clicked.connect(partial(self.gapseq_picasso, detect=True, fit=True))
         self.cluster_localisations.clicked.connect(self.gapseq_cluster_localisations)
 
         self.gapseq_dataset_selector.currentIndexChanged.connect(self.update_channel_select_buttons)

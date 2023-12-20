@@ -153,8 +153,6 @@ class picasso_loc_utils():
 
 
 
-
-
 class _loc_utils():
 
     def get_loc_dict(self, dataset_name="", channel_name="", type = "fiducials"):

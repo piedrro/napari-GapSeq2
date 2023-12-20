@@ -29,6 +29,7 @@ def picasso_detect(dat):
         roi = dat["roi"]
         dataset = dat["dataset"]
         channel = dat["channel"]
+        detect = dat["detect"]
         fit = dat["fit"]
 
         # Access the shared memory
@@ -38,7 +39,10 @@ def picasso_detect(dat):
         # Perform preprocessing steps and overwrite original image
         frame = np_array[frame_index].copy()
 
-        locs = identify_frame(frame, min_net_gradient, box_size, 0, roi=roi)
+        if detect:
+            locs = identify_frame(frame, min_net_gradient, box_size, 0, roi=roi)
+        else:
+            locs = dat["frame_locs"]
 
         expected_loc_length = 4
 
@@ -152,7 +156,34 @@ class _picasso_detect_utils:
         except:
             print(traceback.format_exc())
 
-    def _picasso_wrapper(self, progress_callback, fit, min_net_gradient, roi, box_size, dataset_name, image_channel, frame_mode):
+
+    def get_frame_locs(self, dataset_name, image_channel, frame_index):
+
+        try:
+
+            loc_dict, n_locs = self.get_loc_dict(dataset_name,
+                image_channel.lower(), type = "fiducials")
+
+            if "localisations" not in loc_dict.keys():
+                return None
+            else:
+                locs = loc_dict["localisations"]
+                locs = [loc for loc in locs if loc.frame == frame_index]
+                locs = np.array(locs).view(np.recarray)
+
+                return locs
+
+        except:
+            print(traceback.format_exc())
+            return None
+
+
+
+    def _picasso_wrapper(self, progress_callback, detect, fit, min_net_gradient, roi, box_size, dataset_name, image_channel, frame_mode):
+
+        loc_dict = {}
+        render_loc_dict = {}
+        total_locs = 0
 
         try:
 
@@ -177,72 +208,86 @@ class _picasso_detect_utils:
 
                 for frame_index in frame_list:
 
-                    compute_job = {"dataset":image_dict["dataset"],
-                                   "channel":image_dict["channel"],
-                                   "frame_index": frame_index,
-                                   "shared_memory_name": image_dict['shared_memory_name'],
-                                   "shape": image_dict['shape'],
-                                   "dtype": image_dict['dtype'],
-                                   "fit": fit,
-                                   "min_net_gradient": int(min_net_gradient),
-                                   "box_size": int(box_size),
-                                   "roi": roi,
-                                   }
+                    frame_locs = self.get_frame_locs( image_dict["dataset"],
+                        image_channel, frame_index)
+
+                    print(detect,frame_index, type(frame_locs))
+
+                    if detect == False and frame_locs is None:
+                        continue
+                    else:
+                        compute_job = {"dataset":image_dict["dataset"],
+                                       "channel":image_dict["channel"],
+                                       "frame_index": frame_index,
+                                       "shared_memory_name": image_dict['shared_memory_name'],
+                                       "shape": image_dict['shape'],
+                                       "dtype": image_dict['dtype'],
+                                       "detect": detect,
+                                       "fit": fit,
+                                       "min_net_gradient": int(min_net_gradient),
+                                       "box_size": int(box_size),
+                                       "roi": roi,
+                                       "frame_locs": frame_locs,
+                                       }
 
                     compute_jobs.append(compute_job)
 
-            timeout_duration = 10  # Timeout in seconds
+            print("Computing {} jobs".format(len(compute_jobs)))
 
-            loc_dict = {}
-            render_loc_dict = {}
+            if len(compute_jobs) > 0:
 
-            if frame_mode.lower() == "active":
-                executor_class = concurrent.futures.ThreadPoolExecutor
-                cpu_count = 1
-            else:
-                executor_class = concurrent.futures.ProcessPoolExecutor
-                cpu_count = int(multiprocessing.cpu_count() * 0.9)
+                timeout_duration = 10  # Timeout in seconds
 
-            with executor_class(max_workers=cpu_count) as executor:
-                futures = {executor.submit(picasso_detect, job): job for job in compute_jobs}
+                loc_dict = {}
+                render_loc_dict = {}
 
-            iter = 0
-            for future in concurrent.futures.as_completed(futures):
-                job = futures[future]
-                try:
-                    result = future.result(timeout=timeout_duration)  # Process result here
+                if frame_mode.lower() == "active":
+                    executor_class = concurrent.futures.ThreadPoolExecutor
+                    cpu_count = 1
+                else:
+                    executor_class = concurrent.futures.ProcessPoolExecutor
+                    cpu_count = int(multiprocessing.cpu_count() * 0.9)
 
-                    if result is not None:
-                        dataset_name = result["dataset"]
+                with executor_class(max_workers=cpu_count) as executor:
+                    futures = {executor.submit(picasso_detect, job): job for job in compute_jobs}
 
-                        if dataset_name not in loc_dict:
-                            loc_dict[dataset_name] = []
-                            render_loc_dict[dataset_name] = {}
+                iter = 0
+                for future in concurrent.futures.as_completed(futures):
+                    job = futures[future]
+                    try:
+                        result = future.result(timeout=timeout_duration)  # Process result here
 
-                        locs = result["locs"]
-                        render_locs = result["render_locs"]
+                        if result is not None:
+                            dataset_name = result["dataset"]
 
-                        loc_dict[dataset_name].extend(locs)
-                        render_loc_dict[dataset_name] = {**render_loc_dict[dataset_name], **render_locs}
+                            if dataset_name not in loc_dict:
+                                loc_dict[dataset_name] = []
+                                render_loc_dict[dataset_name] = {}
 
-                    iter += 1
-                    progress = int((iter / len(compute_jobs)) * 100)
-                    progress_callback.emit(progress)  # Emit the signal
+                            locs = result["locs"]
+                            render_locs = result["render_locs"]
 
-                except concurrent.futures.TimeoutError:
-                    # print(f"Task {job} timed out after {timeout_duration} seconds.")
-                    pass
-                except Exception as e:
-                    print(f"Error occurred in task {job}: {e}")  # Handle other exceptions
-                    pass
+                            loc_dict[dataset_name].extend(locs)
+                            render_loc_dict[dataset_name] = {**render_loc_dict[dataset_name], **render_locs}
 
-            total_locs = 0
-            for dataset, locs in loc_dict.items():
-                locs = np.hstack(locs).view(np.recarray).copy()
-                locs.sort(kind="mergesort", order="frame")
-                locs = np.array(locs).view(np.recarray)
-                loc_dict[dataset] = locs
-                total_locs += len(locs)
+                        iter += 1
+                        progress = int((iter / len(compute_jobs)) * 100)
+                        progress_callback.emit(progress)  # Emit the signal
+
+                    except concurrent.futures.TimeoutError:
+                        # print(f"Task {job} timed out after {timeout_duration} seconds.")
+                        pass
+                    except Exception as e:
+                        print(f"Error occurred in task {job}: {e}")  # Handle other exceptions
+                        pass
+
+                total_locs = 0
+                for dataset, locs in loc_dict.items():
+                    locs = np.hstack(locs).view(np.recarray).copy()
+                    locs.sort(kind="mergesort", order="frame")
+                    locs = np.array(locs).view(np.recarray)
+                    loc_dict[dataset] = locs
+                    total_locs += len(locs)
 
             self.restore_shared_images()
 
@@ -264,7 +309,7 @@ class _picasso_detect_utils:
 
         return fit, loc_dict, render_loc_dict, total_locs
 
-    def gapseq_picasso(self, fit = False):
+    def gapseq_picasso(self, detect = False, fit = False):
 
         try:
             if self.dataset_dict != {}:
@@ -284,6 +329,7 @@ class _picasso_detect_utils:
 
                 if min_net_gradient.isdigit() and image_channel != "":
                     worker = Worker(self._picasso_wrapper,
+                        detect=detect,
                         fit=fit,
                         min_net_gradient=min_net_gradient,
                         roi = roi,
