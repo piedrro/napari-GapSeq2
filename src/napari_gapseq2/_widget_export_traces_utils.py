@@ -329,8 +329,6 @@ class _export_traces_utils:
 
             export_dataset = self.traces_export_dataset.currentText()
 
-            print(export_dataset)
-
             if export_dataset == "All Datasets":
 
                 for dataset_name, dataset_dict in self.dataset_dict.items():
@@ -343,8 +341,6 @@ class _export_traces_utils:
 
                         export_channel_list.append(channel_name)
                         export_channel_list = list(set(export_channel_list))
-
-                        print(export_channel_list)
 
             else:
 

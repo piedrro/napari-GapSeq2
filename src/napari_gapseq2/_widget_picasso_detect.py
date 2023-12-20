@@ -123,7 +123,7 @@ class _picasso_detect_utils:
             self.picasso_progressbar.setValue(0)
             self.picasso_detect.setEnabled(True)
             self.picasso_fit.setEnabled(True)
-            self.picasso_detectfit.setEnabled(False)
+            self.picasso_detectfit.setEnabled(True)
 
     def _picasso_wrapper_result(self, result):
 
@@ -153,7 +153,7 @@ class _picasso_detect_utils:
                 self.gapseq_progress(100, self.picasso_progressbar)
                 self.picasso_detect.setEnabled(True)
                 self.picasso_fit.setEnabled(True)
-                self.picasso_detectfit.setEnabled(False)
+                self.picasso_detectfit.setEnabled(True)
 
         except:
             print(traceback.format_exc())
@@ -292,7 +292,7 @@ class _picasso_detect_utils:
             self.picasso_progressbar.setValue(0)
             self.picasso_detect.setEnabled(True)
             self.picasso_fit.setEnabled(True)
-            self.picasso_detectfit.setEnabled(False)
+            self.picasso_detectfit.setEnabled(True)
 
         except:
             print(traceback.format_exc())
@@ -301,7 +301,7 @@ class _picasso_detect_utils:
             self.picasso_progressbar.setValue(0)
             self.picasso_detect.setEnabled(True)
             self.picasso_fit.setEnabled(True)
-            self.picasso_detectfit.setEnabled(False)
+            self.picasso_detectfit.setEnabled(True)
 
             loc_dict = {}
             render_loc_dict = {}
@@ -480,7 +480,7 @@ class _picasso_detect_utils:
             self.picasso_progressbar.setValue(0)
             self.picasso_detect.setEnabled(True)
             self.picasso_fit.setEnabled(True)
-            self.picasso_detectfit.setEnabled(False)
+            self.picasso_detectfit.setEnabled(True)
             pass
 
     def export_picasso_locs(self, locs):
