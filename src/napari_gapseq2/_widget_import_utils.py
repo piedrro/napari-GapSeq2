@@ -448,11 +448,6 @@ class _import_utils:
             self.gapseq_dataset_selector.addItems(dataset_names)
             self.gapseq_dataset_selector.blockSignals(False)
 
-            self.export_dataset.blockSignals(True)
-            self.export_dataset.clear()
-            self.export_dataset.addItems(dataset_names)
-            self.export_dataset.blockSignals(False)
-
             self.cluster_dataset.blockSignals(True)
             self.cluster_dataset.clear()
             self.cluster_dataset.addItems(dataset_names)
@@ -506,6 +501,10 @@ class _import_utils:
             self.undrift_dataset_selector.addItems(dataset_names)
             self.undrift_dataset_selector.blockSignals(False)
 
+            self.export_dataset.blockSignals(True)
+            self.export_dataset.clear()
+            self.export_dataset.addItems(dataset_names)
+            self.export_dataset.blockSignals(False)
 
         except:
             print(traceback.format_exc())

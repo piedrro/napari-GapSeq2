@@ -123,6 +123,7 @@ class _picasso_detect_utils:
             self.picasso_progressbar.setValue(0)
             self.picasso_detect.setEnabled(True)
             self.picasso_fit.setEnabled(True)
+            self.picasso_detectfit.setEnabled(False)
 
     def _picasso_wrapper_result(self, result):
 
@@ -152,6 +153,7 @@ class _picasso_detect_utils:
                 self.gapseq_progress(100, self.picasso_progressbar)
                 self.picasso_detect.setEnabled(True)
                 self.picasso_fit.setEnabled(True)
+                self.picasso_detectfit.setEnabled(False)
 
         except:
             print(traceback.format_exc())
@@ -290,6 +292,7 @@ class _picasso_detect_utils:
             self.picasso_progressbar.setValue(0)
             self.picasso_detect.setEnabled(True)
             self.picasso_fit.setEnabled(True)
+            self.picasso_detectfit.setEnabled(False)
 
         except:
             print(traceback.format_exc())
@@ -298,6 +301,7 @@ class _picasso_detect_utils:
             self.picasso_progressbar.setValue(0)
             self.picasso_detect.setEnabled(True)
             self.picasso_fit.setEnabled(True)
+            self.picasso_detectfit.setEnabled(False)
 
             loc_dict = {}
             render_loc_dict = {}
@@ -313,6 +317,7 @@ class _picasso_detect_utils:
                 self.picasso_progressbar.setValue(0)
                 self.picasso_detect.setEnabled(False)
                 self.picasso_fit.setEnabled(False)
+                self.picasso_detectfit.setEnabled(False)
 
                 min_net_gradient = self.picasso_min_net_gradient.text()
                 box_size = int(self.picasso_box_size.currentText())
@@ -342,6 +347,7 @@ class _picasso_detect_utils:
             self.picasso_progressbar.setValue(0)
             self.picasso_detect.setEnabled(True)
             self.picasso_fit.setEnabled(True)
+            self.picasso_detectfit.setEnabled(True)
             pass
 
     def generate_roi(self):
@@ -474,6 +480,7 @@ class _picasso_detect_utils:
             self.picasso_progressbar.setValue(0)
             self.picasso_detect.setEnabled(True)
             self.picasso_fit.setEnabled(True)
+            self.picasso_detectfit.setEnabled(False)
             pass
 
     def export_picasso_locs(self, locs):

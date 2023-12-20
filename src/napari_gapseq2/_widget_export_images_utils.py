@@ -10,6 +10,15 @@ from functools import partial
 
 class _export_images_utils:
 
+    def common_elements(self, list_of_lists):
+
+        common_set = set(list_of_lists[0])
+
+        for sublist in list_of_lists[1:]:
+            common_set = common_set.intersection(sublist)
+
+        return list(common_set)
+
     def update_export_options(self):
 
         if self.dataset_dict != {}:
@@ -18,9 +27,16 @@ class _export_images_utils:
 
             export_channel_list = []
 
-            if dataset_name in self.dataset_dict.keys():
+            if dataset_name == "All Datasets":
+                dataset_list = list(self.dataset_dict.keys())
+            else:
+                dataset_list = [dataset_name]
+
+            for dataset_name in dataset_list:
 
                 import_mode_list = []
+
+                dataset_channel_list = []
 
                 for channel_name, channel_data in self.dataset_dict[dataset_name].items():
 
@@ -31,17 +47,15 @@ class _export_images_utils:
                     else:
                         channel_name = channel_name.upper()
 
-                    export_channel_list.append(channel_name)
+                    dataset_channel_list.append(channel_name)
+                export_channel_list.append(dataset_channel_list)
 
-                if set(export_channel_list).issubset(["DD", "AA", "DA", "AD"]):
-                    export_channel_list.insert(0, "ALEX")
-                if set(export_channel_list).issubset(["Donor", "Acceptor"]):
-                    export_channel_list.insert(0, "FRET")
+            export_channel_list = self.common_elements(export_channel_list)
 
-                self.export_channel.clear()
-                self.export_channel.addItems(export_channel_list)
+            export_channel_list.insert(0, "Import Channel(s)")
 
-
+            self.export_channel.clear()
+            self.export_channel.addItems(export_channel_list)
 
     def get_free_RAM(self):
 
@@ -113,6 +127,98 @@ class _export_images_utils:
 
 
 
+    def get_export_jobs(self):
+
+        dataset_name = self.export_dataset.currentText()
+        export_channel = self.export_channel.currentText()
+
+        export_jobs = []
+        total_frames = 0
+
+        if dataset_name == "All Datasets":
+
+            for dataset_name in list(self.dataset_dict.keys()):
+                dataset_dict = self.dataset_dict[dataset_name]
+
+                if export_channel != "Import Channel(s)":
+                    path = dataset_dict[export_channel.lower()]["path"]
+                    export_jobs.append({"dataset_name": dataset_name, "export_channel": export_channel, "import_path": path})
+
+                    n_frames = dataset_dict[export_channel.lower()]["data"].shape[0]
+                    total_frames += n_frames
+
+                else:
+                    import_modes = np.unique([channel_dict["import_mode"] for channel_dict in dataset_dict.values()])
+                    channel_names = np.unique([channel_name for channel_name in dataset_dict.keys()])
+                    import_paths = np.unique([channel_dict["path"] for channel_dict in dataset_dict.values()])
+
+                    for path, mode, channel in zip(import_paths, import_modes, channel_names):
+                        export_jobs.append({"dataset_name": dataset_name, "export_channel": mode.upper(), "import_path": path})
+
+                        n_frames = dataset_dict[channel]["data"].shape[0]
+                        total_frames += n_frames
+
+        else:
+
+            dataset_dict = self.dataset_dict[dataset_name]
+
+            if export_channel != "Import Channel(s)":
+
+                path = dataset_dict[export_channel.lower()]["path"]
+
+                export_jobs.append({"dataset_name": dataset_name,
+                                    "export_channel": export_channel,
+                                    "import_path": path})
+
+                n_frames = dataset_dict[export_channel.lower()]["data"].shape[0]
+                total_frames += n_frames
+            else:
+                import_modes = np.unique([channel_dict["import_mode"] for channel_dict in dataset_dict.values()])
+                channel_names = np.unique([channel_name for channel_name in dataset_dict.keys()])
+                import_paths = np.unique([channel_dict["path"] for channel_dict in dataset_dict.values()])
+
+                for path, mode, channel in zip(import_paths, import_modes, channel_names):
+
+                    export_jobs.append({"dataset_name": dataset_name,
+                                        "export_channel": mode.upper(),
+                                        "import_path": path})
+
+                    n_frames = dataset_dict[channel]["data"].shape[0]
+                    total_frames += n_frames
+
+        for index, export_dict in enumerate(export_jobs):
+
+            import_path = export_dict["import_path"]
+            export_channel = export_dict["export_channel"]
+
+            export_path = os.path.normpath(import_path)
+            export_dir = os.path.dirname(export_path)
+            file_name = os.path.basename(export_path)
+            file_name = os.path.splitext(file_name)[0]
+            file_name, file_extension = os.path.splitext(file_name)
+            file_name = file_name.replace("_gapseq_processed", "")
+
+            if export_channel.lower() not in ["alex", "fret"]:
+                name_modifier = f"_{export_channel}_gapseq_processed.tif"
+                if name_modifier not in file_name:
+                    export_path = os.path.join(export_dir, file_name + name_modifier)
+                else:
+                    export_path = os.path.join(export_dir, file_name, ".tif")
+            else:
+                name_modifier = "_gapseq_processed.tif"
+                if name_modifier not in file_name:
+                    export_path = os.path.join(export_dir, file_name + name_modifier)
+                else:
+                    export_path = os.path.join(export_dir, file_name, ".tif")
+
+            export_path = os.path.normpath(export_path)
+            export_dict["export_path"] = export_path
+
+            export_jobs[index] = export_dict
+
+
+        return export_jobs, total_frames
+
 
 
     def export_data(self):
@@ -121,28 +227,45 @@ class _export_images_utils:
 
             if self.dataset_dict != {}:
 
-                dataset_name = self.export_dataset.currentText()
-                export_channel = self.export_channel.currentText()
+                export_jobs, total_frames = self.get_export_jobs()
 
-                export_path = self.get_export_path(dialog=True)
+                progress_dict = {}
 
-                if export_channel.lower() == "alex":
-                    worker = Worker(self.export_alex_data,
-                        dataset_name=dataset_name, export_path=export_path)
-                    worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.export_progressbar))
-                    self.threadpool.start(worker)
+                for job_index, export_jobs in enumerate(export_jobs):
 
-                elif export_channel.lower() == "fret":
-                    worker = Worker(self.export_fret_data,
-                        dataset_name=dataset_name, export_path=export_path)
-                    worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.export_progressbar))
-                    self.threadpool.start(worker)
+                    if job_index not in progress_dict.keys():
+                        progress_dict[job_index] = 0
 
-                else:
-                    worker = Worker(self.export_channel_data,
-                        dataset_name=dataset_name, export_channel=export_channel, export_path=export_path)
-                    worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.export_progressbar))
-                    self.threadpool.start(worker)
+                    dataset_name = export_jobs["dataset_name"]
+                    export_channel = export_jobs["export_channel"]
+                    export_path = export_jobs["export_path"]
+
+                    def export_progress(progress, job_index=None):
+                        progress_dict[job_index] = progress
+                        total_progress = int(np.sum(list(progress_dict.values()))/len(progress_dict))
+                        self.gapseq_progress(total_progress, self.export_progressbar)
+
+                    if export_channel.lower() == "alex":
+                        worker = Worker(self.export_alex_data,
+                            dataset_name=dataset_name,
+                            export_path=export_path)
+                        worker.signals.progress.connect(partial(export_progress, job_index=job_index))
+                        self.threadpool.start(worker)
+
+                    elif export_channel.lower() == "fret":
+                        worker = Worker(self.export_fret_data,
+                            dataset_name=dataset_name,
+                            export_path=export_path)
+                        worker.signals.progress.connect(partial(export_progress, job_index=job_index))
+                        self.threadpool.start(worker)
+
+                    else:
+                        worker = Worker(self.export_channel_data,
+                            dataset_name=dataset_name,
+                            export_channel=export_channel,
+                            export_path=export_path)
+                        worker.signals.progress.connect(partial(export_progress, job_index=job_index))
+                        self.threadpool.start(worker)
 
         except:
             print(traceback.format_exc())
@@ -176,8 +299,6 @@ class _export_images_utils:
             export_dir = os.path.dirname(export_path)
 
             if export_path != "" and os.path.isdir(export_dir):
-
-                print("Exporting FRET data")
 
                 image_disk_size = 0
                 for size in image_disk_sizes:

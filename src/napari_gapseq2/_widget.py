@@ -335,7 +335,7 @@ class GapSeqWidget(QWidget,
 
         print("Dev function called")
 
-        # self.update_align_reference_channel()
+        self.update_export_options()
 
     def compute_registration_keypoints(self, reference_box_centres, target_box_centres, alignment_distance=20):
 
