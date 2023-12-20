@@ -1172,4 +1172,4 @@ class Ui_Frame(object):
         self.cluster_localisations.setText(_translate("Frame", "Cluster Localisations"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_7), _translate("Frame", "Utils"))
         self.label_12.setText(_translate("Frame", "Display Mode"))
-        self.label_14.setText(_translate("Frame", "Dataset"))
+        self.label_14.setText(_translate("Frame", "Dataset [PageUp/PageDown]"))

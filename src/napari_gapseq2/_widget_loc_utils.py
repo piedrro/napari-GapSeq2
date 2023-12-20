@@ -225,7 +225,7 @@ class _loc_utils():
             if box_size is None:
                 box_size = self.picasso_box_size.currentText()
 
-            loc_mask, loc_bg_mask = self.generate_localisation_mask(
+            loc_mask, _, loc_bg_mask = self.generate_localisation_mask(
                 box_size, spot_shape = "square")
 
             box_size = len(loc_mask[0])

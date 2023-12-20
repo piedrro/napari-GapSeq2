@@ -1,10 +1,43 @@
 import os.path
 import traceback
 import numpy as np
-from functools import partial
+from functools import partial, wraps
 from qtpy.QtWidgets import (QSlider, QLabel)
 
 class _events_utils:
+
+    def increment_active_dataset(self, viewer=None, key=None):
+        try:
+            if self.dataset_dict != {}:
+                dataset_list = list(self.dataset_dict.keys())
+                current_dataset = self.active_dataset
+                current_dataset_index = dataset_list.index(current_dataset)
+
+                if key == 'Up':
+                    new_dataset_index = current_dataset_index + 1
+                elif key == 'Down':
+                    new_dataset_index = current_dataset_index - 1
+
+                if new_dataset_index < 0:
+                    new_dataset_index = len(dataset_list) - 1
+                elif new_dataset_index > len(dataset_list) - 1:
+                    new_dataset_index = 0
+
+                self.gapseq_dataset_selector.setCurrentIndex(new_dataset_index)
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+    def named_partial(self, func, *args, **kwargs):
+        partial_func = partial(func, *args, **kwargs)
+
+        # Use wraps to copy metadata from the original function to the partial function
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            return partial_func(*args, **kwargs)
+
+        return wrapper
 
     def update_overlay_text(self):
 

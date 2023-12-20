@@ -71,8 +71,8 @@ from qtpy.QtWidgets import QFileDialog
 import os
 from multiprocessing import Pool
 import multiprocessing
-from functools import partial
-
+from functools import partial, wraps
+from PyQt5.QtCore import Qt
 
 
 
@@ -325,10 +325,15 @@ class GapSeqWidget(QWidget,
 
         self.viewer.bind_key('D', self.dev_function)
 
+        self.viewer.bind_key('PageUp', self.named_partial(self.increment_active_dataset, key='Up'), overwrite=True)
+        self.viewer.bind_key('PageDown', self.named_partial(self.increment_active_dataset, key='Down'), overwrite=True)
+
+
     def dev_function(self, event):
 
-        self.update_align_reference_channel()
+        print("Dev function called")
 
+        # self.update_align_reference_channel()
 
     def compute_registration_keypoints(self, reference_box_centres, target_box_centres, alignment_distance=20):
 
