@@ -159,6 +159,7 @@ class _loc_utils():
 
         loc_dict = {}
         n_localisations = 0
+        fitted = False
 
         try:
 
@@ -171,6 +172,7 @@ class _loc_utils():
                         self.localisation_dict["fiducials"][dataset_name][channel_name] = {}
                     else:
                         loc_dict = self.localisation_dict["fiducials"][dataset_name][channel_name].copy()
+
             else:
 
                 if "bounding_boxes" not in self.localisation_dict.keys():
@@ -181,11 +183,14 @@ class _loc_utils():
             if "localisations" in loc_dict.keys():
                 n_localisations = len(loc_dict["localisations"])
 
+            if "fitted" in loc_dict.keys():
+                fitted = loc_dict["fitted"]
+
         except:
             print(traceback.format_exc())
             pass
 
-        return loc_dict, n_localisations
+        return loc_dict, n_localisations, fitted
 
 
     def update_loc_dict(self, dataset_name="", channel_name="", type = "fiducials", loc_dict = {}):
@@ -274,7 +279,7 @@ class _loc_utils():
 
             if mode == "fiducials":
 
-                loc_dict, n_locs = self.get_loc_dict(active_dataset, active_channel,
+                loc_dict, n_locs, _ = self.get_loc_dict(active_dataset, active_channel,
                     type = "fiducials")
 
                 if n_locs > 0:
@@ -363,7 +368,7 @@ class _loc_utils():
 
             else:
 
-                loc_dict, n_locs = self.get_loc_dict(active_dataset, active_channel,
+                loc_dict, n_locs,_ = self.get_loc_dict(active_dataset, active_channel,
                     type = "bounding_box")
 
                 if n_locs > 0:

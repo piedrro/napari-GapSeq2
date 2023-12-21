@@ -3,8 +3,84 @@ import traceback
 import numpy as np
 from functools import partial, wraps
 from qtpy.QtWidgets import (QSlider, QLabel)
+import time
+
 
 class _events_utils:
+
+    def update_ui(self, error=None, init = False):
+
+        try:
+
+            controls = ["gapseq_import",
+                        "picasso_detect", "picasso_fit", "picasso_detectfit",
+                        "gapseq_compute_tform", "gapseq_apply_tform",
+                        "picasso_undrift","gapseq_align_datasets",
+                        "filtering_start",
+                        "compute_traces",
+                        "gapseq_export_data","gapseq_export_traces",
+                        "gapseq_update_dataset_name",
+                        "gapseq_colocalize",
+                        "cluster_localisations",
+                        ]
+
+            progressbars = ["gapseq_import_progressbar",
+                            "picasso_progressbar",
+                            "tform_apply_progressbar",
+                            "undrift_progressbar",
+                            "align_progressbar",
+                            "filtering_progressbar",
+                            "compute_traces_progressbar",
+                            "plot_compute_progress",
+                            "export_progressbar",
+                            ]
+
+            for progressbar in progressbars:
+                if hasattr(self, progressbar):
+                    getattr(self, progressbar).setValue(0)
+
+            if init is True:
+
+                for control in controls:
+                    getattr(self, control).setEnabled(False)
+
+                self.stop_event.clear()
+                self.multiprocessing_active = True
+
+            else:
+
+                for control in controls:
+                    getattr(self, control).setEnabled(True)
+
+                self.multiprocessing_active = False
+
+                self.stop_event.clear()
+                self.multiprocessing_active = False
+
+            if error is not None:
+                print(error)
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
+    def stop_worker(self, viewer=None):
+
+        if self.stop_event is not None:
+            self.stop_event.set()
+
+        while self.multiprocessing_active is True:
+            time.sleep(0.1)
+
+        if self.stop_event is not None:
+            self.stop_event.clear()
+
+        if self.worker is not None:
+            self.worker.stop()
+
+        self.update_ui()
+
 
     def increment_active_dataset(self, viewer=None, key=None):
         try:

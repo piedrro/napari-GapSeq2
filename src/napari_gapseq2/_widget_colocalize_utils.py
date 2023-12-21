@@ -60,8 +60,8 @@ class _utils_colocalize:
             channel2 = self.colo_channel2.currentText()
             max_dist = float(self.colo_max_dist.currentText())
 
-            ch1_loc_dict, ch1_n_locs = self.get_loc_dict(dataset, channel1.lower())
-            ch2_loc_dict, ch2_n_locs = self.get_loc_dict(dataset, channel2.lower())
+            ch1_loc_dict, ch1_n_locs, _ = self.get_loc_dict(dataset, channel1.lower())
+            ch2_loc_dict, ch2_n_locs, _ = self.get_loc_dict(dataset, channel2.lower())
 
             ch1_locs = ch1_loc_dict["localisations"].copy()
             ch2_locs = ch2_loc_dict["localisations"].copy()
@@ -198,8 +198,8 @@ class _utils_colocalize:
             channel1 = self.colo_channel1.currentText()
             channel2 = self.colo_channel2.currentText()
 
-            ch1_loc_dict, ch1_n_locs = self.get_loc_dict(dataset, channel1.lower())
-            ch2_loc_dict, ch2_n_locs = self.get_loc_dict(dataset, channel2.lower())
+            ch1_loc_dict, ch1_n_locs, _ = self.get_loc_dict(dataset, channel1.lower())
+            ch2_loc_dict, ch2_n_locs, _ = self.get_loc_dict(dataset, channel2.lower())
 
             if channel1 == channel2:
                 print("Channels must be different for colocalisation")

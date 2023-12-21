@@ -235,7 +235,7 @@ class _undrift_utils:
             undrift_dict = {}
 
             for dataset in dataset_list:
-                loc_dict, n_locs = self.get_loc_dict(dataset, channel.lower())
+                loc_dict, n_locs, _ = self.get_loc_dict(dataset, channel.lower())
                 if n_locs > 0 and loc_dict["fitted"] == True:
 
                     n_frames,height,width = self.dataset_dict[dataset][channel.lower()]["data"].shape

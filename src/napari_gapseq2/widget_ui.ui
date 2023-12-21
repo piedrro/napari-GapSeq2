@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>556</width>
-    <height>625</height>
+    <height>769</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -1237,7 +1237,7 @@
        <item>
         <widget class="QTabWidget" name="traces_tab_widget">
          <property name="currentIndex">
-          <number>0</number>
+          <number>1</number>
          </property>
          <widget class="QWidget" name="compute_tab_2">
           <attribute name="title">
@@ -1671,7 +1671,7 @@
        <item>
         <widget class="QTabWidget" name="tabWidget_2">
          <property name="currentIndex">
-          <number>0</number>
+          <number>1</number>
          </property>
          <widget class="QWidget" name="tab_8">
           <attribute name="title">
@@ -2105,7 +2105,7 @@
           </font>
          </property>
          <property name="text">
-          <string>Cluster Localisations</string>
+          <string>Cluster Localisations (DBSCAN)</string>
          </property>
         </widget>
        </item>
@@ -2134,7 +2134,7 @@
          <item row="0" column="0">
           <widget class="QLabel" name="label_19">
            <property name="text">
-            <string>Localisation Type</string>
+            <string>Mode</string>
            </property>
           </widget>
          </item>
@@ -2142,17 +2142,52 @@
           <widget class="QComboBox" name="cluster_mode">
            <item>
             <property name="text">
-             <string>Fiducials</string>
+             <string>Create Fiducials From Cluster Centers</string>
             </property>
            </item>
            <item>
             <property name="text">
-             <string>Bounding Boxes</string>
+             <string>Create Bounding Boxes From Cluster Centers</string>
             </property>
            </item>
           </widget>
          </item>
+         <item row="3" column="0">
+          <widget class="QLabel" name="label_60">
+           <property name="text">
+            <string>Distance (EPS)</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="QLineEdit" name="cluster_eps">
+           <property name="text">
+            <string>0.2</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="0">
+          <widget class="QLabel" name="label_61">
+           <property name="text">
+            <string>Min Frames </string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="1">
+          <widget class="QLineEdit" name="dbscan_min_samples">
+           <property name="text">
+            <string>20</string>
+           </property>
+          </widget>
+         </item>
         </layout>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="dbscan_remove_overlapping">
+         <property name="text">
+          <string>Remove Overlapping Localisations</string>
+         </property>
+        </widget>
        </item>
        <item>
         <widget class="QPushButton" name="cluster_localisations">

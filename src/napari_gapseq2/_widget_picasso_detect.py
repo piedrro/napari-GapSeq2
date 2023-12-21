@@ -174,7 +174,7 @@ class _picasso_detect_utils:
 
         try:
 
-            loc_dict, n_locs = self.get_loc_dict(dataset_name,
+            loc_dict, n_locs, _ = self.get_loc_dict(dataset_name,
                 image_channel.lower(), type = "fiducials")
 
             if "localisations" not in loc_dict.keys():
@@ -422,72 +422,6 @@ class _picasso_detect_utils:
             pass
 
         return roi
-    def gapseq_cluster_localisations(self):
-
-        try:
-
-            # mode = self.cluster_mode.currentText()
-            dataset = self.cluster_dataset.currentText()
-            channel = self.cluster_channel.currentText()
-
-            locs = self.localisation_dict["fiducials"][dataset][channel.lower()]["localisations"]
-
-            n_frames = len(np.unique([loc.frame for loc in locs]))
-
-            cluster_dataset = np.vstack((locs.x, locs.y)).T
-
-            # Applying DBSCAN
-            dbscan = DBSCAN(eps=0.5, min_samples=5, n_jobs=-1)
-            dbscan.fit(cluster_dataset)
-
-            # Extracting labels
-            labels = dbscan.labels_
-
-            # Finding unique clusters
-            n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
-            unique_labels = set(labels)
-
-            # Filtering out noise (-1 label)
-            filtered_data = cluster_dataset[labels != -1]
-
-            # Corresponding labels after filtering out noise
-            filtered_labels = labels[labels != -1]
-
-            # Finding cluster centers
-            cluster_centers = np.array([filtered_data[filtered_labels == i].mean(axis=0) for i in range(n_clusters)])
-
-            clustered_locs = []
-            render_locs = {}
-
-            for cluster_index in range(len(cluster_centers)):
-                for frame_index in range(n_frames):
-                    [locX, locY] = cluster_centers[cluster_index]
-                    new_loc = (int(frame_index), float(locX), float(locY))
-                    clustered_locs.append(new_loc)
-
-                    if frame_index not in render_locs.keys():
-                        render_locs[frame_index] = []
-
-                    render_locs[frame_index].append([locY, locX])
-
-            # Convert list to recarray
-            clustered_locs = np.array(clustered_locs, dtype=[('frame', '<u4'), ('x', '<f4'), ('y', '<f4')]).view(np.recarray)
-
-            cluster_loc_centers = self.get_localisation_centres(clustered_locs)
-
-            self.localisation_dict["fiducials"][dataset][channel.lower()]["localisations"] = clustered_locs
-            self.localisation_dict["fiducials"][dataset][channel.lower()]["localisation_centres"] = cluster_loc_centers
-            self.localisation_dict["fiducials"][dataset][channel.lower()]["render_locs"] = render_locs
-
-            self.draw_fiducials(update_vis=True)
-
-        except:
-            print(traceback.format_exc())
-            self.picasso_progressbar.setValue(0)
-            self.picasso_detect.setEnabled(True)
-            self.picasso_fit.setEnabled(True)
-            self.picasso_detectfit.setEnabled(True)
-            pass
 
     def export_picasso_locs(self, locs):
 

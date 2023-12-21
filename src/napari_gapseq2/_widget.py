@@ -66,6 +66,7 @@ from napari_gapseq2._widget_align_utils import _align_utils
 from napari_gapseq2._widget_export_traces_utils import _export_traces_utils
 from napari_gapseq2._widget_colocalize_utils import _utils_colocalize
 from napari_gapseq2._widget_temporal_filtering import _utils_temporal_filtering
+from napari_gapseq2._widget_cluster_utils import _cluster_utils
 
 from qtpy.QtWidgets import QFileDialog
 import os
@@ -85,7 +86,8 @@ class GapSeqWidget(QWidget,
     _import_utils, _events_utils, _export_images_utils,
     _tranform_utils, _trace_compute_utils, _plot_utils,
     _align_utils, _loc_utils, _export_traces_utils,
-    _utils_colocalize, _utils_temporal_filtering, _utils_compute):
+    _utils_colocalize, _utils_temporal_filtering, _utils_compute,
+    _cluster_utils):
 
     # your QWidget.__init__ can optionally request the napari viewer instance
     # use a type annotation of 'napari.viewer.Viewer' for any parameter
@@ -169,6 +171,8 @@ class GapSeqWidget(QWidget,
         self.cluster_mode = self.findChild(QComboBox, 'cluster_mode')
         self.cluster_channel = self.findChild(QComboBox, 'cluster_channel')
         self.cluster_dataset = self.findChild(QComboBox, 'cluster_dataset')
+        self.cluster_eps = self.findChild(QLineEdit, "cluster_eps")
+        self.dbscan_min_samples = self.findChild(QLineEdit, "dbscan_min_samples")
 
         self.undrift_dataset_selector = self.findChild(QComboBox, 'undrift_dataset_selector')
         self.undrift_channel_selector = self.findChild(QComboBox, 'undrift_channel_selector')
@@ -250,6 +254,7 @@ class GapSeqWidget(QWidget,
         self.picasso_fit.clicked.connect(partial(self.gapseq_picasso, detect = False, fit=True))
         self.picasso_detectfit.clicked.connect(partial(self.gapseq_picasso, detect=True, fit=True))
         self.cluster_localisations.clicked.connect(self.gapseq_cluster_localisations)
+        self.dbscan_remove_overlapping = self.findChild(QCheckBox, "dbscan_remove_overlapping")
 
         self.gapseq_dataset_selector.currentIndexChanged.connect(self.update_channel_select_buttons)
         self.gapseq_dataset_selector.currentIndexChanged.connect(partial(self.update_active_image,
@@ -339,78 +344,6 @@ class GapSeqWidget(QWidget,
         self.viewer.bind_key('Q', self.stop_worker, overwrite=True)
 
 
-    def update_ui(self, error=None, init = False):
-
-        try:
-
-            controls = ["gapseq_import",
-                        "picasso_detect", "picasso_fit", "picasso_detectfit",
-                        "gapseq_compute_tform", "gapseq_apply_tform",
-                        "picasso_undrift","gapseq_align_datasets",
-                        "filtering_start",
-                        "compute_traces",
-                        "gapseq_export_data","gapseq_export_traces",
-                        "gapseq_update_dataset_name",
-                        "gapseq_colocalize",
-                        "cluster_localisations",
-                        ]
-
-            progressbars = ["gapseq_import_progressbar",
-                            "picasso_progressbar",
-                            "tform_apply_progressbar",
-                            "undrift_progressbar",
-                            "align_progressbar",
-                            "filtering_progressbar",
-                            "compute_traces_progressbar",
-                            "plot_compute_progress",
-                            "export_progressbar",
-                            ]
-
-            for progressbar in progressbars:
-                if hasattr(self, progressbar):
-                    getattr(self, progressbar).setValue(0)
-
-            if init is True:
-
-                for control in controls:
-                    getattr(self, control).setEnabled(False)
-
-                self.stop_event.clear()
-                self.multiprocessing_active = True
-
-            else:
-
-                for control in controls:
-                    getattr(self, control).setEnabled(True)
-
-                self.multiprocessing_active = False
-
-                self.stop_event.clear()
-                self.multiprocessing_active = False
-
-            if error is not None:
-                print(error)
-
-        except:
-            print(traceback.format_exc())
-            pass
-
-
-    def stop_worker(self, viewer=None):
-
-        if self.stop_event is not None:
-            self.stop_event.set()
-
-        while self.multiprocessing_active is True:
-            time.sleep(0.1)
-
-        if self.stop_event is not None:
-            self.stop_event.clear()
-
-        if self.worker is not None:
-            self.worker.stop()
-
-        self.update_ui()
 
 
     def dev_function(self, event):
@@ -419,40 +352,6 @@ class GapSeqWidget(QWidget,
 
         self.stop_worker()
 
-    def compute_registration_keypoints(self, reference_box_centres, target_box_centres, alignment_distance=20):
-
-        alignment_keypoints = []
-        keypoint_distances = []
-        target_keypoints = []
-
-        distances = distance.cdist(np.array(reference_box_centres), np.array(target_box_centres))
-
-        for j in range(distances.shape[0]):
-
-            dat = distances[j]
-
-            loc_index = np.nanargmin(dat)
-            loc_distance = np.nanmin(dat)
-            loc0_index = j
-
-            loc0_centre = reference_box_centres[loc0_index]
-            loc_centre = target_box_centres[loc_index]
-
-            x_difference = abs(loc0_centre[0] - loc_centre[0])
-            y_difference = abs(loc0_centre[1] - loc_centre[1])
-
-            xy_distance = np.sqrt(x_difference ** 2 + y_difference ** 2)
-
-            if xy_distance < alignment_distance:
-
-                alignment_keypoints.append([loc0_centre[0], loc0_centre[1]])
-                target_keypoints.append([loc_centre[0], loc_centre[1]])
-                keypoint_distances.append(loc_distance)
-
-        alignment_keypoints = np.array(alignment_keypoints).astype(np.float32)
-        target_keypoints = np.array(target_keypoints).astype(np.float32)
-
-        return alignment_keypoints, target_keypoints
 
 
     def select_image_layer(self):
@@ -463,7 +362,6 @@ class GapSeqWidget(QWidget,
         except:
             print(traceback.format_exc())
             pass
-
 
     def draw_bounding_boxes(self, update_vis=False):
 
