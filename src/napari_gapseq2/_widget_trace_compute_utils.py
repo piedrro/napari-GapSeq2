@@ -375,7 +375,7 @@ class _trace_compute_utils:
         self.populate_export_combos()
         self.initialize_plot()
 
-        self.multiprocessing_active = False
+        self.update_ui()
 
     def _get_bbox_localisations(self, n_frames):
 
@@ -414,7 +414,6 @@ class _trace_compute_utils:
             bbox_locs = np.array(bbox_locs, dtype=new_dtype).view(np.recarray)
 
         except:
-            self.compute_traces.setEnabled(True)
             print(traceback.format_exc())
             pass
 
@@ -530,7 +529,6 @@ class _trace_compute_utils:
 
             spot_metrics_jobs = []
             background_metrics_jobs = []
-            self.stop_event.clear()
 
             for image_dict in self.shared_images:
 
@@ -578,8 +576,6 @@ class _trace_compute_utils:
 
             total_jobs = len(spot_metrics_jobs) + len(background_metrics_jobs)
 
-            self.multiprocessing_active = True
-
             with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
                 # Combine both job types into a single dictionary
 
@@ -613,14 +609,11 @@ class _trace_compute_utils:
                         progress = int((iter / total_jobs) * 100)
                         progress_callback.emit(progress)  # Emit the signal
 
-            self.compute_traces.setEnabled(True)
-
-            self.multiprocessing_active = False
+            self.update_ui()
 
         except:
-            self.compute_traces.setEnabled(True)
             self.restore_shared_images()
-            self.multiprocessing_active = False
+            self.update_ui()
             print(traceback.format_exc())
 
         return spot_metrics, background_metrics
@@ -661,8 +654,6 @@ class _trace_compute_utils:
             cpu_count = int(multiprocessing.cpu_count() * 0.9)
             timeout_duration = 10  # Timeout in seconds
 
-            self.multiprocessing_active = True
-
             with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
                 # Submit all jobs and store the future objects
                 futures = {executor.submit(extract_picasso_spot_metrics, job): job for job in compute_jobs}
@@ -688,12 +679,9 @@ class _trace_compute_utils:
                         progress = int((iter / len(compute_jobs)) * 100)
                         progress_callback.emit(progress)  # Emit the signal
 
-            self.multiprocessing_active = False
-
         except:
-            self.compute_traces.setEnabled(True)
+            self.update_ui()
             self.restore_shared_images()
-            self.multiprocessing_active = False
             print(traceback.format_exc())
             pass
 
@@ -876,7 +864,7 @@ class _trace_compute_utils:
             self.compute_traces.setEnabled(True)
 
         except:
-            self.compute_traces.setEnabled(True)
+            self.update_ui()
             self.restore_shared_images()
             self.restore_shared_frames()
             print(traceback.format_exc())
@@ -894,7 +882,7 @@ class _trace_compute_utils:
                     if "localisations" in self.localisation_dict["bounding_boxes"].keys():
                         if len(self.localisation_dict["bounding_boxes"]["localisations"]):
 
-                            self.compute_traces.setEnabled(False)
+                            self.update_ui(init=True)
 
                             self.worker = Worker(self._gapseq_compute_traces)
                             self.worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.compute_traces_progressbar))
@@ -903,7 +891,7 @@ class _trace_compute_utils:
                             self.threadpool.start(self.worker)
 
         except:
-            self.compute_traces.setEnabled(True)
+            self.update_ui()
             self.restore_shared_images()
             print(traceback.format_exc())
 

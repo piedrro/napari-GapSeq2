@@ -165,8 +165,6 @@ class _picasso_detect_utils:
 
             self.update_ui()
 
-            self.multiprocessing_active = False
-
         except:
             print(traceback.format_exc())
 

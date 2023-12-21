@@ -93,10 +93,10 @@ class _undrift_utils:
 
         try:
 
+            self.image_layer.data = self.dataset_dict[self.active_dataset][self.active_channel]["data"]
+
             self.undrift_localisations()
             self.draw_fiducials(update_vis=True)
-
-            self.image_layer.data = self.dataset_dict[self.active_dataset][self.active_channel]["data"]
 
             for layer in self.viewer.layers:
                 layer.refresh()
@@ -181,8 +181,6 @@ class _undrift_utils:
 
             cpu_count = int(multiprocessing.cpu_count() * 0.9)
             timeout_duration = 10  # Timeout in seconds
-
-            self.multiprocessing_active = True
 
             with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
                 # Submit all jobs and store the future objects

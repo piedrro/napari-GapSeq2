@@ -183,8 +183,6 @@ class _utils_temporal_filtering:
                 cpu_count = int(multiprocessing.cpu_count() * 0.9)
                 timeout_duration = 10  # Timeout in seconds
 
-                self.multiprocessing_active = True
-
                 with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
                     # Submit all jobs and store the future objects
                     futures = {executor.submit(temporal_filtering, job): job for job in compute_jobs}
@@ -212,14 +210,9 @@ class _utils_temporal_filtering:
 
 
             self.restore_shared_images()
-            self.filtering_start.setEnabled(True)
-
-            self.multiprocessing_active = False
 
         except:
-            self.restore_shared_images()
-            self.filtering_start.setEnabled(True)
-            self.multiprocessing_active = False
+            self.update_ui()
             print(traceback.format_exc())
             pass
 

@@ -187,7 +187,7 @@ class _utils_colocalize:
 
     def _gapseq_colocalize_fiducials_finished(self):
 
-        self.multiprocessing_active = False
+        self.update_ui()
 
 
     def gapseq_colocalize_fiducials(self):

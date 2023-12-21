@@ -263,9 +263,9 @@ class _export_traces_utils:
 
     def export_traces_error(self, error_message):
 
-        self.export_progressbar.setValue(0)
-        self.gapseq_export_traces.setEnabled(True)
-        self.multiprocessing_active = False
+        self.update_ui()
+
+
 
     def export_traces(self):
 
