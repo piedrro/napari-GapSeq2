@@ -220,7 +220,8 @@ class _export_images_utils:
         return export_jobs, total_frames
 
     def export_data_finished(self):
-        self.multiprocessing_active = False
+
+        self.update_ui()
 
 
     def export_data(self):
@@ -242,6 +243,8 @@ class _export_images_utils:
                     export_channel = export_jobs["export_channel"]
                     export_path = export_jobs["export_path"]
 
+                    self.update_ui(init=True)
+
                     def export_progress(progress, job_index=None):
                         progress_dict[job_index] = progress
                         total_progress = int(np.sum(list(progress_dict.values()))/len(progress_dict))
@@ -253,6 +256,7 @@ class _export_images_utils:
                             export_path=export_path)
                         self.worker.signals.progress.connect(partial(export_progress, job_index=job_index))
                         self.worker.signals.finished.connect(self.export_data_finished)
+                        self.worker.signals.error.connect(self.update_ui)
                         self.threadpool.start(self.worker)
 
                     elif export_channel.lower() == "fret":
@@ -261,6 +265,7 @@ class _export_images_utils:
                             export_path=export_path)
                         self.worker.signals.progress.connect(partial(export_progress, job_index=job_index))
                         self.worker.signals.finished.connect(self.export_data_finished)
+                        self.worker.signals.error.connect(self.update_ui)
                         self.threadpool.start(self.worker)
 
                     else:
@@ -270,6 +275,7 @@ class _export_images_utils:
                             export_path=export_path)
                         self.worker.signals.progress.connect(partial(export_progress, job_index=job_index))
                         self.worker.signals.finished.connect(self.export_data_finished)
+                        self.worker.signals.error.connect(self.update_ui)
                         self.threadpool.start(self.worker)
 
         except:

@@ -319,8 +319,6 @@ class _import_utils:
         cpu_count = int(multiprocessing.cpu_count() * 0.75)
         timeout_duration = 10  # Timeout in seconds
 
-        self.multiprocessing_active = True
-
         with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
             # Submit all jobs and store the future objects
             futures = {executor.submit(import_image_data, job): job for job in compute_jobs}
@@ -344,8 +342,6 @@ class _import_utils:
                 iter += 1
                 progress = int((iter / len(compute_jobs)) * 100)
                 progress_callback.emit(progress)  # Emit the signal
-
-        self.multiprocessing_active = False
 
     def populate_dataset_dict(self, import_dict):
 
@@ -443,7 +439,7 @@ class _import_utils:
 
         except:
             print(traceback.format_exc())
-            pass
+            self.update_ui()
 
     def populate_dataset_combos(self):
 
@@ -550,9 +546,7 @@ class _import_utils:
 
         self.update_align_reference_channel()
 
-        self.gapseq_import.setEnabled(True)
-        self.gapseq_import_progressbar.setValue(0)
-        self.multiprocessing_active = False
+        self.update_ui()
 
     def gapseq_import_data(self):
 
@@ -571,14 +565,15 @@ class _import_utils:
 
                 if paths != []:
 
-                    self.gapseq_import.setEnabled(False)
+                    self.update_ui(init=True)
 
                     self.worker = Worker(self._gapseq_import_data, paths=paths)
                     self.worker.signals.progress.connect(partial(self.gapseq_progress,
                         progress_bar=self.gapseq_import_progressbar))
                     self.worker.signals.finished.connect(self._gapseq_import_data_finished)
+                    self.worker.signals.error.connect(self.update_ui)
                     self.threadpool.start(self.worker)
 
         except:
-            self.gapseq_import.setEnabled(True)
+            self.update_ui()
             pass

@@ -96,22 +96,17 @@ class _undrift_utils:
             self.undrift_localisations()
             self.draw_fiducials(update_vis=True)
 
-            self.picasso_undrift.setEnabled(True)
-            self.undrift_progressbar.setValue(0)
-
             self.image_layer.data = self.dataset_dict[self.active_dataset][self.active_channel]["data"]
 
             for layer in self.viewer.layers:
                 layer.refresh()
 
-            self.multiprocessing_active = False
+            self.update_ui()
 
         except:
             print(traceback.format_exc())
-            self.picasso_undrift.setEnabled(True)
-            self.undrift_progressbar.setValue(0)
-            pass
 
+            self.update_ui()
 
     def _compute_undrift(self, progress_callback, undrift_dict, segmentation=20):
 
@@ -215,13 +210,12 @@ class _undrift_utils:
                         progress_callback.emit(progress)  # Emit the signal
 
             self.restore_shared_images()
-            self.multiprocessing_active = False
 
         except:
             self.restore_shared_images()
-            self.picasso_undrift.setEnabled(True)
-            self.undrift_progressbar.setValue(0)
-            self.multiprocessing_active = False
+
+            self.update_ui()
+
             print(traceback.format_exc())
             pass
 
@@ -254,16 +248,17 @@ class _undrift_utils:
 
             if undrift_dict != {}:
 
-                self.picasso_undrift.setEnabled(False)
+                self.update_ui(init=True)
 
                 self.worker = Worker(self._undrift_images, undrift_dict=undrift_dict)
                 self.worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.undrift_progressbar))
                 self.worker.signals.finished.connect(self._undrift_images_finished)
+                self.worker.signals.error.connect(self.update_ui)
                 self.threadpool.start(self.worker)
 
         except:
-            self.picasso_undrift.setEnabled(True)
-            self.undrift_progressbar.setValue(0)
+            self.update_ui()
+
             print(traceback.format_exc())
             pass
 

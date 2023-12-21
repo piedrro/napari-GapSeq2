@@ -209,10 +209,12 @@ class _utils_colocalize:
                 print("No localisations found in one or both channels.")
 
             else:
+                self.update_ui(init=True)
 
                 self.worker = Worker(self._gapseq_colocalize_fiducials)
                 self.worker.signals.result.connect(self._gapseq_colocalize_fiducials_result)
                 self.worker.signals.finished.connect(self._gapseq_colocalize_fiducials_finished)
+                self.worker.signals.error.connect(self.update_ui)
                 self.threadpool.start(self.worker)
 
         except:

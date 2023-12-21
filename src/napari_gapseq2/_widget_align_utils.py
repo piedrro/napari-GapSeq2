@@ -87,11 +87,9 @@ class _align_utils:
         try:
 
             self.update_active_image()
-            self.align_progressbar.setValue(0)
-            self.gapseq_align_datasets.setEnabled(True)
-
             self.image_layer.data = self.dataset_dict[self.active_dataset][self.active_channel]["data"]
-            self.multiprocessing_active = False
+
+            self.update_ui()
 
         except:
             print(traceback.format_exc())
@@ -156,8 +154,7 @@ class _align_utils:
 
         except:
             print(traceback.format_exc())
-            self.align_progressbar.setValue(0)
-            self.gapseq_align_datasets.setEnabled(True)
+            self.update_ui()
             pass
 
 
@@ -208,16 +205,15 @@ class _align_utils:
                     print(f"Missing fitted {channel_mode} fiducials for {missing_fiducial_list}")
                 else:
 
-                    self.align_progressbar.setValue(0)
-                    self.gapseq_align_datasets.setEnabled(False)
+                    self.update_ui(init=True)
 
                     self.worker = Worker(self._align_datasets, align_dict=align_dict)
                     self.worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.align_progressbar))
                     self.worker.signals.finished.connect(self._align_datasets_finished)
+                    self.worker.signals.error.connect(self.update_ui)
                     self.threadpool.start(self.worker)
 
         except:
             print(traceback.format_exc())
-            self.align_progressbar.setValue(0)
-            self.gapseq_align_datasets.setEnabled(True)
-            pass
+
+            self.update_ui()

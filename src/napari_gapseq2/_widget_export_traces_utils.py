@@ -259,9 +259,7 @@ class _export_traces_utils:
         if self.traces_export_status == True:
             print("Traces exported to: {}".format(export_path))
 
-        self.export_progressbar.setValue(0)
-        self.gapseq_export_traces.setEnabled(True)
-        self.multiprocessing_active = False
+        self.update_ui()
 
     def export_traces_error(self, error_message):
 
@@ -279,9 +277,7 @@ class _export_traces_utils:
 
             if export_path != "" and os.path.isdir(export_directory):
 
-                self.export_progressbar.setValue(0)
-                self.gapseq_export_traces.setEnabled(False)
-                self.traces_export_status = False
+                self.update_ui(init=True)
 
                 export_mode = self.traces_export_mode.currentText()
 
@@ -292,7 +288,7 @@ class _export_traces_utils:
                         progress_bar=self.export_progressbar))
                     self.worker.signals.finished.connect(partial(self.export_traces_finished,
                         export_path=export_path))
-                    self.worker.signals.error.connect(self.export_traces_error)
+                    self.worker.signals.error.connect(self.update_ui)
                     self.threadpool.start(self.worker)
 
                 if export_mode == "DAT":
@@ -302,7 +298,7 @@ class _export_traces_utils:
                         progress_bar=self.export_progressbar))
                     self.worker.signals.finished.connect(partial(self.export_traces_finished,
                         export_path=export_path))
-                    self.worker.signals.error.connect(self.export_traces_error)
+                    self.worker.signals.error.connect(self.update_ui)
                     self.threadpool.start(self.worker)
 
                 if export_mode == "Excel":
@@ -312,7 +308,7 @@ class _export_traces_utils:
                         progress_bar=self.export_progressbar))
                     self.worker.signals.finished.connect(partial(self.export_traces_finished,
                         export_path=export_path))
-                    self.worker.signals.error.connect(self.export_traces_error)
+                    self.worker.signals.error.connect(self.update_ui)
                     self.threadpool.start(self.worker)
 
             else:
@@ -320,9 +316,8 @@ class _export_traces_utils:
 
         except:
             print(traceback.format_exc())
-            self.export_progressbar.setValue(0)
-            self.gapseq_export_traces.setEnabled(False)
-            pass
+            self.update_ui()
+
 
     def populate_export_combos(self):
 

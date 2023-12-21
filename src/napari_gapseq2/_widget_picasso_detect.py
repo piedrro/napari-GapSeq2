@@ -163,10 +163,7 @@ class _picasso_detect_utils:
             self.draw_fiducials(update_vis=True)
             self.draw_bounding_boxes()
 
-            self.picasso_progressbar.setValue(0)
-            self.picasso_detect.setEnabled(True)
-            self.picasso_fit.setEnabled(True)
-            self.picasso_detectfit.setEnabled(True)
+            self.update_ui()
 
             self.multiprocessing_active = False
 
@@ -192,8 +189,6 @@ class _picasso_detect_utils:
         except:
             print(traceback.format_exc())
             return None
-
-
 
     def _picasso_wrapper(self, progress_callback, detect, fit, min_net_gradient, image_channel):
 
@@ -266,8 +261,6 @@ class _picasso_detect_utils:
                     executor_class = concurrent.futures.ProcessPoolExecutor
                     cpu_count = int(multiprocessing.cpu_count() * 0.9)
 
-                self.multiprocessing_active = True
-
                 with executor_class(max_workers=cpu_count) as executor:
                     futures = {executor.submit(picasso_detect, job): job for job in compute_jobs}
 
@@ -304,8 +297,6 @@ class _picasso_detect_utils:
                             print(f"Error occurred in task {job}: {e}")  # Handle other exceptions
                             pass
 
-
-
                 total_locs = 0
                 for dataset, locs in loc_dict.items():
                     locs = np.hstack(locs).view(np.recarray).copy()
@@ -316,21 +307,13 @@ class _picasso_detect_utils:
 
             self.restore_shared_images()
 
-            self.picasso_progressbar.setValue(0)
-            self.picasso_detect.setEnabled(True)
-            self.picasso_fit.setEnabled(True)
-            self.picasso_detectfit.setEnabled(True)
-
-            self.multiprocessing_active = False
+            self.update_ui()
 
         except:
             print(traceback.format_exc())
             self.restore_shared_images()
 
-            self.picasso_progressbar.setValue(0)
-            self.picasso_detect.setEnabled(True)
-            self.picasso_fit.setEnabled(True)
-            self.picasso_detectfit.setEnabled(True)
+            self.update_ui()
 
             loc_dict = {}
             render_loc_dict = {}
@@ -353,6 +336,8 @@ class _picasso_detect_utils:
                     self.picasso_fit.setEnabled(False)
                     self.picasso_detectfit.setEnabled(False)
 
+                    self.update_ui(init=True)
+
                     self.worker = Worker(self._picasso_wrapper,
                         detect=detect, fit=fit,
                         min_net_gradient=min_net_gradient,
@@ -361,16 +346,15 @@ class _picasso_detect_utils:
                     self.worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.picasso_progressbar))
                     self.worker.signals.result.connect(self._picasso_wrapper_result)
                     self.worker.signals.finished.connect(self._picasso_wrapper_finished)
+                    self.worker.signals.error.connect(self.update_ui)
                     self.threadpool.start(self.worker)
 
 
         except:
             print(traceback.format_exc())
-            self.picasso_progressbar.setValue(0)
-            self.picasso_detect.setEnabled(True)
-            self.picasso_fit.setEnabled(True)
-            self.picasso_detectfit.setEnabled(True)
-            pass
+
+            self.update_ui()
+
 
     def generate_roi(self):
 

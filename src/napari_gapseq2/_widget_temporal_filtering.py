@@ -228,13 +228,16 @@ class _utils_temporal_filtering:
         try:
             self.filtering_start.setEnabled(False)
 
+            self.update_ui(init=True)
+
             self.worker = Worker(self._gapseq_temporal_filtering)
             self.worker.signals.progress.connect(partial(self.gapseq_progress, progress_bar=self.filtering_progressbar))
             self.worker.signals.finished.connect(self._gapseq_temporal_filtering_finished)
+            self.worker.signals.error.connect(self.update_ui)
             self.threadpool.start(self.worker)
 
         except:
-            self.filtering_start.setEnabled(True)
+            self.update_ui()
             print(traceback.format_exc())
             pass
 
@@ -242,7 +245,9 @@ class _utils_temporal_filtering:
 
         try:
             self.image_layer.data = self.dataset_dict[self.active_dataset][self.active_channel]["data"]
-            self.multiprocessing_active = False
+
+            self.update_ui()
+
         except:
             print(traceback.format_exc())
             pass
