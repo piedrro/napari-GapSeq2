@@ -95,8 +95,8 @@ class _undrift_utils:
 
             self.image_layer.data = self.dataset_dict[self.active_dataset][self.active_channel]["data"]
 
-            self.undrift_localisations()
-            self.draw_fiducials(update_vis=True)
+            # self.undrift_localisations()
+            # self.draw_fiducials(update_vis=True)
 
             for layer in self.viewer.layers:
                 layer.refresh()
