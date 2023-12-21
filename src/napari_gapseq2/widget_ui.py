@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_Frame(object):
     def setupUi(self, Frame):
         Frame.setObjectName("Frame")
-        Frame.resize(556, 769)
+        Frame.resize(618, 769)
         self.verticalLayout = QtWidgets.QVBoxLayout(Frame)
         self.verticalLayout.setObjectName("verticalLayout")
         self.tabWidget = QtWidgets.QTabWidget(Frame)
@@ -1189,8 +1189,8 @@ class Ui_Frame(object):
         self.label_17.setText(_translate("Frame", "Dataset"))
         self.label_18.setText(_translate("Frame", "Channel"))
         self.label_19.setText(_translate("Frame", "Mode"))
-        self.cluster_mode.setItemText(0, _translate("Frame", "Create Fiducials From Cluster Centers"))
-        self.cluster_mode.setItemText(1, _translate("Frame", "Create Bounding Boxes From Cluster Centers"))
+        self.cluster_mode.setItemText(0, _translate("Frame", "Create Bounding Boxes From Cluster Centers"))
+        self.cluster_mode.setItemText(1, _translate("Frame", "Create Fiducials From Cluster Centers"))
         self.label_60.setText(_translate("Frame", "Distance (EPS)"))
         self.cluster_eps.setText(_translate("Frame", "0.2"))
         self.label_61.setText(_translate("Frame", "Min Frames "))

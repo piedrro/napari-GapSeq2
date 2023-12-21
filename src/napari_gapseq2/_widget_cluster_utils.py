@@ -2,7 +2,7 @@ from sklearn.cluster import DBSCAN
 import numpy as np
 import traceback
 from napari_gapseq2._widget_utils_compute import Worker
-
+import copy
 
 
 
@@ -12,9 +12,19 @@ class _cluster_utils:
 
     def _cluster_localisations_finished(self):
 
-        self.draw_fiducials(update_vis=True)
-        self.draw_bounding_boxes()
-        self.update_ui()
+        try:
+            mode = self.cluster_mode.currentText()
+
+            if "fiducials" in mode.lower():
+                self.draw_fiducials(update_vis=True)
+            else:
+                self.draw_bounding_boxes()
+
+            self.update_ui()
+
+        except:
+            print(traceback.format_exc())
+            pass
 
 
     def remove_overlapping_coords(self, coordinates, min_distance):
@@ -46,6 +56,8 @@ class _cluster_utils:
 
     def _cluster_localisations(self, progress_callback=None, eps=0.1, min_samples=20):
 
+        result = None, None, None
+
         try:
 
             mode = self.cluster_mode.currentText()
@@ -53,8 +65,10 @@ class _cluster_utils:
             channel = self.cluster_channel.currentText()
             remove_overlapping = self.dbscan_remove_overlapping.isChecked()
 
-            locs = self.localisation_dict["fiducials"][dataset][channel.lower()]["localisations"]
-            box_size = self.localisation_dict["fiducials"][dataset][channel.lower()]["box_size"]
+            loc_dict, n_locs, fitted = self.get_loc_dict(dataset, channel.lower(), type = "fiducials")
+
+            locs = loc_dict["localisations"]
+            box_size = loc_dict["box_size"]
 
             n_frames = len(np.unique([loc.frame for loc in locs]))
 
@@ -84,15 +98,16 @@ class _cluster_utils:
                 cluster_centers = self.remove_overlapping_coords(cluster_centers,
                     min_distance = box_size)
 
-            if "fiducials" in mode.lower():
+            if "fiducials" not in mode.lower():
                 n_frames = 1
 
             clustered_locs = []
+            clustered_loc_centers = []
             render_locs = {}
 
             for cluster_index in range(len(cluster_centers)):
                 for frame_index in range(n_frames):
-                    [locX, locY] = cluster_centers[cluster_index]
+                    [locX, locY] = cluster_centers[cluster_index].copy()
                     new_loc = (int(frame_index), float(locX), float(locY))
                     clustered_locs.append(new_loc)
 
@@ -100,28 +115,46 @@ class _cluster_utils:
                         render_locs[frame_index] = []
 
                     render_locs[frame_index].append([locY, locX])
+                    clustered_loc_centers.append([frame_index, locY, locX])
 
             # Convert list to recarray
             clustered_locs = np.array(clustered_locs, dtype=[('frame', '<u4'), ('x', '<f4'), ('y', '<f4')]).view(np.recarray)
 
-            if "fiducials" in mode.lower():
-
-                cluster_loc_centers = self.get_localisation_centres(clustered_locs)
-
-                self.localisation_dict["fiducials"][dataset][channel.lower()]["localisations"] = clustered_locs
-                self.localisation_dict["fiducials"][dataset][channel.lower()]["localisation_centres"] = cluster_loc_centers
-                self.localisation_dict["fiducials"][dataset][channel.lower()]["render_locs"] = render_locs
-
-            else:
-                cluster_loc_centers = self.get_localisation_centres(clustered_locs)
-
-                self.localisation_dict["bounding_boxes"]["localisations"] = clustered_locs
-                self.localisation_dict["bounding_boxes"]["localisation_centres"] = cluster_loc_centers
-
+            result = (clustered_locs, clustered_loc_centers, render_locs)
 
         except:
             print(traceback.format_exc())
+            result = None
+
+        return result
+
+
+    def _cluster_localisations_result(self, result):
+
+        try:
+
+            if result is not None:
+
+                locs, loc_centers, render_locs = result
+
+                mode = self.cluster_mode.currentText()
+                dataset = self.cluster_dataset.currentText()
+                channel = self.cluster_channel.currentText()
+
+                if "fiducials" in mode.lower():
+
+                    self.localisation_dict["fiducials"][dataset][channel.lower()]["localisations"] = locs
+                    self.localisation_dict["fiducials"][dataset][channel.lower()]["localisation_centres"] = loc_centers
+                    self.localisation_dict["fiducials"][dataset][channel.lower()]["render_locs"] = render_locs
+
+                else:
+
+                    self.localisation_dict["bounding_boxes"]["localisations"] = locs
+                    self.localisation_dict["bounding_boxes"]["localisation_centres"] = loc_centers
+
+        except:
             pass
+
 
 
     def check_number(self, string):
@@ -155,6 +188,7 @@ class _cluster_utils:
                 self.update_ui(init = True)
 
                 worker = Worker(self._cluster_localisations, eps=eps, min_samples=min_samples)
+                worker.signals.result.connect(self._cluster_localisations_result)
                 worker.signals.finished.connect(self._cluster_localisations_finished)
                 worker.signals.error.connect(self.update_ui)
                 self.threadpool.start(worker)

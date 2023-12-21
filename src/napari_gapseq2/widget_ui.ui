@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>556</width>
+    <width>618</width>
     <height>769</height>
    </rect>
   </property>
@@ -2142,12 +2142,12 @@
           <widget class="QComboBox" name="cluster_mode">
            <item>
             <property name="text">
-             <string>Create Fiducials From Cluster Centers</string>
+             <string>Create Bounding Boxes From Cluster Centers</string>
             </property>
            </item>
            <item>
             <property name="text">
-             <string>Create Bounding Boxes From Cluster Centers</string>
+             <string>Create Fiducials From Cluster Centers</string>
             </property>
            </item>
           </widget>

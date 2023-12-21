@@ -378,8 +378,10 @@ class GapSeqWidget(QWidget,
 
                 if "localisation_centres" in self.localisation_dict["bounding_boxes"].keys():
 
-                    localisations = self.localisation_dict["bounding_boxes"]["localisations"]
-                    localisation_centres = self.get_localisation_centres(localisations, mode="bounding_boxes")
+                    loc_dict, n_locs, fitted = self.get_loc_dict(type = "bounding_boxes")
+
+                    localisations = loc_dict["localisations"]
+                    localisation_centres = self.get_localisation_centres(localisations,mode="bounding_boxes")
 
                     vis_mode = self.picasso_vis_mode.currentText()
                     vis_size = float(self.picasso_vis_size.currentText())
@@ -412,9 +414,7 @@ class GapSeqWidget(QWidget,
                         update_vis = True
 
                     else:
-
                         self.viewer.layers["bounding_boxes"].data = localisation_centres
-
 
                     self.bbox_layer.selected_data = list(range(len(self.bbox_layer.data)))
                     self.bbox_layer.opacity = vis_opacity
