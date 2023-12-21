@@ -157,11 +157,15 @@ class _picasso_detect_utils:
         try:
 
             image_channel = self.picasso_channel.currentText()
+            dataset_name = self.picasso_dataset.currentText()
 
-            self.update_active_image(channel=image_channel.lower(), dataset=self.active_dataset)
+            if dataset_name == "All Datasets":
+                dataset_name = self.active_dataset
 
             self.draw_fiducials(update_vis=True)
             self.draw_bounding_boxes()
+
+            self.update_active_image(channel=image_channel.lower(), dataset=dataset_name)
 
             self.update_ui()
 

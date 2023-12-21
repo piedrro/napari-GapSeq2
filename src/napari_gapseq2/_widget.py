@@ -350,9 +350,8 @@ class GapSeqWidget(QWidget,
 
         print("Dev function called")
 
-        self.stop_worker()
-
-
+        self.undrift_localisations()
+        self.draw_fiducials(update_vis=True)
 
     def select_image_layer(self):
 

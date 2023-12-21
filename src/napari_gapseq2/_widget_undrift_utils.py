@@ -15,8 +15,6 @@ from picasso.imageprocess import rcc
 
 def undrift_image(dat):
 
-    undrifted_data = [None, None]
-
     try:
 
         drift = dat["drift"]
@@ -56,13 +54,10 @@ class _undrift_utils:
             dataset_name = self.gapseq_dataset_selector.currentText()
 
             for channel_name, channel_data in self.dataset_dict[dataset_name].items():
-                fiducial_dict = self.localisation_dict["fiducials"][dataset_name][channel_name.lower()]
+                fiducial_dict = self.localisation_dict["fiducials"][dataset_name][channel_name.lower()].copy()
 
                 if "drift" in channel_data.keys() and "localisations" in fiducial_dict.keys():
                     locs = fiducial_dict["localisations"]
-
-                    n_detected_frames = len(np.unique([loc.frame for loc in locs]))
-                    n_image_frames = len(channel_data["data"])
 
                     drift = channel_data["drift"]
 
@@ -70,8 +65,8 @@ class _undrift_utils:
 
                     for loc in locs:
                         frame = loc.frame
-                        loc.x = loc.x - drift[loc.frame][1]
-                        loc.y = loc.y - drift[loc.frame][0]
+                        loc.x = loc.x - drift[loc.frame][0]
+                        loc.y = loc.y - drift[loc.frame][1]
 
                         if frame not in render_locs.keys():
                             render_locs[frame] = []
@@ -95,8 +90,8 @@ class _undrift_utils:
 
             self.image_layer.data = self.dataset_dict[self.active_dataset][self.active_channel]["data"]
 
-            # self.undrift_localisations()
-            # self.draw_fiducials(update_vis=True)
+            self.undrift_localisations()
+            self.draw_fiducials(update_vis=True)
 
             for layer in self.viewer.layers:
                 layer.refresh()
@@ -108,42 +103,85 @@ class _undrift_utils:
 
             self.update_ui()
 
-    def _compute_undrift(self, progress_callback, undrift_dict, segmentation=20):
+    def _compute_undrift(self, progress_callback, undrift_dict, segmentation=50):
 
-        total_datasets = len(undrift_dict)
-        progress_per_dataset = 50 / total_datasets
+        try:
 
-        for dataset_index, (dataset, dataset_dict) in enumerate(undrift_dict.items()):
+            compute_progress_dict = {"segmentation": {}, "undrift": {}, "total": 0}
 
-            n_locs = dataset_dict["n_locs"]
-            loc_dict = dataset_dict["loc_dict"]
-            undrift_locs = loc_dict["localisations"]
-            picasso_info = dataset_dict["picasso_info"]
+            for dataset in undrift_dict.keys():
+                compute_progress_dict["segmentation"][dataset] = 0
+                compute_progress_dict["undrift"][dataset] = 0
+                compute_progress_dict["total"] += 200
 
-            n_frames = picasso_info[0]["Frames"]
-            len_segments = n_frames // segmentation
-            n_pairs = int(len_segments * (len_segments - 1))
+            for dataset_index, (dataset, dataset_dict) in enumerate(undrift_dict.items()):
 
-            dataset_start = dataset_index * progress_per_dataset
-            seg_start = dataset_start
-            seg_end = dataset_start + progress_per_dataset / 2
-            undrift_start = seg_end
-            undrift_end = dataset_start + progress_per_dataset
+                try:
 
-            def segmentation_callback(progress, start=seg_start, end=seg_end):
-                progress = start + (progress / len_segments) * end
-                progress_callback.emit(progress)
+                    n_locs = dataset_dict["n_locs"]
 
-            def undrift_callback(progress, start=undrift_start, end=undrift_end):
-                progress = start + (progress / n_pairs) * end
-                progress_callback.emit(progress)
+                    if n_locs > 0:
 
-            drift, _ = picasso_undrift(undrift_locs,
-                picasso_info, segmentation=segmentation,
-                display=False, segmentation_callback=segmentation_callback,
-                rcc_callback=undrift_callback, )
+                        loc_dict = dataset_dict["loc_dict"]
+                        undrift_locs = loc_dict["localisations"].copy()
+                        picasso_info = dataset_dict["picasso_info"]
 
-            undrift_dict[dataset]["drift"] = drift
+                        n_frames = picasso_info[0]["Frames"]
+
+                        if n_frames > segmentation:
+
+                            len_segments = n_frames // segmentation
+                            n_pairs = int(len_segments * (len_segments - 1))
+
+                            def total_progress():
+                                try:
+                                    segmentation_progress = np.sum(list(compute_progress_dict["segmentation"].values()))
+                                    undrift_progress = np.sum(list(compute_progress_dict["undrift"].values()))
+                                    total = compute_progress_dict["total"]
+                                    progress = ((segmentation_progress + undrift_progress) / total) * 50
+                                    progress_callback.emit(progress)
+                                except:
+                                    print(traceback.format_exc())
+
+                            def segmentation_callback(progress, dataset=dataset):
+                                try:
+                                    compute_progress_dict["segmentation"][dataset] = (progress/len_segments)*100
+                                    total_progress()
+                                except:
+                                    pass
+
+                            def undrift_callback(progress, dataset=dataset):
+                                try:
+                                    compute_progress_dict["undrift"][dataset] = (progress/n_pairs)*100
+                                    total_progress()
+                                except:
+                                    pass
+
+                            drift, _ = picasso_undrift(undrift_locs,
+                                picasso_info, segmentation=segmentation,
+                                display=False, segmentation_callback=segmentation_callback,
+                                rcc_callback=undrift_callback, )
+
+                            undrift_dict[dataset]["drift"] = drift
+
+                        else:
+                            print(f"{dataset} is too short for undrift")
+                            compute_progress_dict["segmentation"][dataset] = 100
+                            compute_progress_dict["undrift"][dataset] = 100
+
+                    else:
+                        print(f"{dataset} has no localisations")
+                        compute_progress_dict["segmentation"][dataset] = 100
+                        compute_progress_dict["undrift"][dataset] = 100
+
+                except:
+                    print("Could not undrift dataset: {}".format(dataset))
+                    print(traceback.format_exc())
+
+        except:
+            print(traceback.format_exc())
+            undrift_dict = None
+            pass
 
         return undrift_dict
 
@@ -154,60 +192,68 @@ class _undrift_utils:
 
             undrift_dict = self._compute_undrift(progress_callback, undrift_dict, segmentation=segmentation)
 
-            dataset_list = list(undrift_dict.keys())
-            channel_list = [undrift_dict[dataset_list[0]]["channel"]]
+            if undrift_dict != None:
 
-            self.shared_images = self.create_shared_images()
+                dataset_list = list(undrift_dict.keys())
+                channel_list = [undrift_dict[dataset_list[0]]["channel"]]
 
-            compute_jobs = []
+                self.shared_images = self.create_shared_images()
 
-            for image_dict in self.shared_images:
+                compute_jobs = []
 
-                dataset = image_dict["dataset"]
-                n_frames = image_dict['shape'][0]
+                for image_dict in self.shared_images:
 
-                frame_index_list = list(range(n_frames))
-                image_drift = undrift_dict[dataset]["drift"]
+                    dataset = image_dict["dataset"]
+                    channel = image_dict["channel"]
+                    n_frames = image_dict['shape'][0]
 
-                for frame_index, frame_drift in zip(frame_index_list, image_drift):
+                    frame_index_list = list(range(n_frames))
 
-                    compute_jobs.append({"shared_memory_name": image_dict["shared_memory_name"],
-                                         "shape": image_dict["shape"],
-                                         "dtype": image_dict["dtype"],
-                                         "frame_index": frame_index,
-                                         "drift": frame_drift,
-                                         "stop_event": self.stop_event,
-                                         })
+                    if "drift" in undrift_dict[dataset].keys():
 
-            cpu_count = int(multiprocessing.cpu_count() * 0.9)
-            timeout_duration = 10  # Timeout in seconds
+                        image_drift = undrift_dict[dataset]["drift"]
 
-            with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
-                # Submit all jobs and store the future objects
-                futures = {executor.submit(undrift_image, job): job for job in compute_jobs}
+                        self.dataset_dict[dataset][channel.lower()]["drift"] = image_drift
 
-                iter = 0
-                for future in concurrent.futures.as_completed(futures):
+                        for frame_index, frame_drift in zip(frame_index_list, image_drift):
 
-                    if self.stop_event.is_set():
-                        future.cancel()
-                    else:
-                        job = futures[future]
-                        try:
-                            result = future.result(timeout=timeout_duration)  # Process result here
-                        except concurrent.futures.TimeoutError:
-                            # print(f"Task {job} timed out after {timeout_duration} seconds.")
-                            pass
-                        except Exception as e:
-                            # print(f"Error occurred in task {job}: {e}")  # Handle other exceptions
-                            pass
+                            compute_jobs.append({"shared_memory_name": image_dict["shared_memory_name"],
+                                                 "shape": image_dict["shape"],
+                                                 "dtype": image_dict["dtype"],
+                                                 "frame_index": frame_index,
+                                                 "drift": frame_drift,
+                                                 "stop_event": self.stop_event,
+                                                 })
 
-                        # Update progress
-                        iter += 1
-                        progress = 50 + int((iter / len(compute_jobs)) * 50)
-                        progress_callback.emit(progress)  # Emit the signal
+                cpu_count = int(multiprocessing.cpu_count() * 0.9)
+                timeout_duration = 10  # Timeout in seconds
 
-            self.restore_shared_images()
+                with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
+                    # Submit all jobs and store the future objects
+                    futures = {executor.submit(undrift_image, job): job for job in compute_jobs}
+
+                    iter = 0
+                    for future in concurrent.futures.as_completed(futures):
+
+                        if self.stop_event.is_set():
+                            future.cancel()
+                        else:
+                            job = futures[future]
+                            try:
+                                result = future.result(timeout=timeout_duration)  # Process result here
+                            except concurrent.futures.TimeoutError:
+                                # print(f"Task {job} timed out after {timeout_duration} seconds.")
+                                pass
+                            except Exception as e:
+                                # print(f"Error occurred in task {job}: {e}")  # Handle other exceptions
+                                pass
+
+                            # Update progress
+                            iter += 1
+                            progress = 50 + int((iter / len(compute_jobs)) * 50)
+                            progress_callback.emit(progress)  # Emit the signal
+
+                self.restore_shared_images()
 
         except:
             self.restore_shared_images()
