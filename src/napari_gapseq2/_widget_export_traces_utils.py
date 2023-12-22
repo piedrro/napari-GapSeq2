@@ -131,11 +131,30 @@ class _export_traces_utils:
                     if channel in self.traces_dict[dataset]:
                         n_traces += len(self.traces_dict[dataset][channel].copy())
 
+        gap_label_dict = {}
+        sequence_label_dict = {}
+        for dataset in dataset_list:
+            for channel_dict in self.dataset_dict[dataset].values():
+                if "gap_label" in channel_dict.keys():
+                    gap_label_dict[dataset] = channel_dict["gap_label"]
+                if "sequence_label" in channel_dict.keys():
+                    sequence_label_dict[dataset] = channel_dict["sequence_label"]
+
         iter = 0
         for dataset in dataset_list:
 
             if dataset not in json_dict["data"]:
                 json_dict["data"][dataset] = []
+
+            if dataset in gap_label_dict.keys():
+                gap_label = gap_label_dict[dataset]
+            else:
+                gap_label = None
+
+            if dataset in sequence_label_dict.keys():
+                sequence_label = sequence_label_dict[dataset]
+            else:
+                sequence_label = None
 
             if channel_name == "All Channels" or "efficiency" in channel_name.lower():
                 dataset_channels = self.traces_dict[dataset].keys()
@@ -180,6 +199,8 @@ class _export_traces_utils:
                         data = np.array(data).astype(float).tolist()
 
                         json_dict["data"][dataset][trace_index][channel_name] = data
+                        json_dict["data"][dataset][trace_index]["gap_label"] = gap_label
+                        json_dict["data"][dataset][trace_index]["sequence_label"] = sequence_label
 
                         iter += 1
 

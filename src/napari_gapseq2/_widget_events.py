@@ -129,6 +129,9 @@ class _events_utils:
 
                         channel_dict = self.dataset_dict[dataset_name][channel_name].copy()
 
+                        gap_label = channel_dict["gap_label"]
+                        sequence_label = channel_dict["sequence_label"]
+
                         path = channel_dict["path"]
                         file_name = os.path.basename(path)
 
@@ -141,13 +144,15 @@ class _events_utils:
                         overlay_string += f"File: {file_name}\n"
                         overlay_string += f"Dataset: {dataset_name}\n"
                         overlay_string += f"Channel: {channel_name}\n"
+                        overlay_string += f"Gap label: {gap_label}\n"
+                        overlay_string += f"Sequence label: {sequence_label}\n"
 
                         if overlay_string != "":
                             self.viewer.text_overlay.visible = True
                             self.viewer.text_overlay.position = "top_left"
                             self.viewer.text_overlay.text = overlay_string.lstrip("\n")
                             self.viewer.text_overlay.color = "red"
-                            self.viewer.text_overlay.font_size = 10
+                            self.viewer.text_overlay.font_size = 9
                         else:
                             self.viewer.text_overlay.visible = False
 
@@ -534,7 +539,29 @@ class _events_utils:
 
     def update_nucleotide(self):
 
-        print("Updating nucleotide")
+        try:
+
+            dataset_name = self.update_labels_dataset.currentText()
+            gap_label = self.gap_label.currentText()
+            sequence_label = self.sequence_label.currentText()
+
+            if dataset_name in self.dataset_dict.keys():
+                for channel_dict in self.dataset_dict[dataset_name].values():
+                    channel_dict["gap_label"] = gap_label
+                    channel_dict["sequence_label"] = sequence_label
+
+            if hasattr(self, "traces_dict"):
+                if dataset_name in self.traces_dict.keys():
+                    for channel_name, channel_dict in self.traces_dict[dataset_name].items():
+                        for trace_index, trace_dict in channel_dict.items():
+                            if "gap_label" in trace_dict.keys():
+                                trace_dict["gap_label"] = gap_label
+                                trace_dict["sequence_label"] = sequence_label
+
+            self.update_overlay_text()
+
+        except:
+            print(traceback.format_exc())
 
     def delete_dataset(self):
 

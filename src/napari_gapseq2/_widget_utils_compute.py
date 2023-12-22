@@ -42,6 +42,8 @@ class _utils_compute:
 
                     self.shared_images.append({"dataset": dataset_name,
                                                "channel": channel_name,
+                                               "gap_label": channel_dict["gap_label"],
+                                               "sequence_label": channel_dict["sequence_label"],
                                                "n_frames": n_frames,
                                                "shape": image.shape,
                                                "dtype": image.dtype,
@@ -80,6 +82,8 @@ class _utils_compute:
 
                 image_dict = {"dataset": dataset_name,
                               "channel": channel_name,
+                              "gap_label": channel_dict["gap_label"],
+                              "sequence_label": channel_dict["sequence_label"],
                               "n_frames": image.shape[0],
                               "shape": image.shape,
                               "dtype": image.dtype,

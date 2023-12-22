@@ -404,6 +404,8 @@ class _import_utils:
                     image_dict[channel_name]["alex_first_frame"] = alex_first_frame
                     image_dict[channel_name]["FRET"] = fret
                     image_dict[channel_name]["import_mode"] = import_mode
+                    image_dict[channel_name]["gap_label"] = None
+                    image_dict[channel_name]["sequence_label"] = None
 
                 if dataset_name not in self.dataset_dict.keys():
                     self.dataset_dict[dataset_name] = image_dict
@@ -487,10 +489,10 @@ class _import_utils:
             self.delete_dataset_name.addItems(dataset_names)
             self.delete_dataset_name.blockSignals(False)
 
-            self.update_nucleotide_dataset.blockSignals(True)
-            self.update_nucleotide_dataset.clear()
-            self.update_nucleotide_dataset.addItems(dataset_names)
-            self.update_nucleotide_dataset.blockSignals(False)
+            self.update_labels_dataset.blockSignals(True)
+            self.update_labels_dataset.clear()
+            self.update_labels_dataset.addItems(dataset_names)
+            self.update_labels_dataset.blockSignals(False)
 
             if len(dataset_names) > 1:
                 dataset_names.insert(0, "All Datasets")

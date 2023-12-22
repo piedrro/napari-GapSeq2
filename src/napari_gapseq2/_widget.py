@@ -134,9 +134,10 @@ class GapSeqWidget(QWidget,
         self.delete_dataset_name = self.findChild(QComboBox, 'delete_dataset_name')
         self.gapseq_delete_dataset = self.findChild(QPushButton, 'gapseq_delete_dataset')
 
-        self.update_nucleotide_dataset = self.findChild(QComboBox, 'update_nucleotide_dataset')
-        self.update_nucleotide_label = self.findChild(QComboBox, 'update_nucleotide_label')
-        self.gapseq_update_nucleotide = self.findChild(QPushButton, 'gapseq_update_nucleotide')
+        self.update_labels_dataset = self.findChild(QComboBox, 'update_labels_dataset')
+        self.sequence_label = self.findChild(QComboBox, 'sequence_label')
+        self.gap_label = self.findChild(QComboBox, 'gap_label')
+        self.gapseq_update_labels = self.findChild(QPushButton, 'gapseq_update_labels')
 
         self.gapseq_dataset_selector = self.findChild(QComboBox, 'gapseq_dataset_selector')
         self.gapseq_show_dd = self.findChild(QPushButton, 'gapseq_show_dd')
@@ -258,7 +259,7 @@ class GapSeqWidget(QWidget,
         self.gapseq_import_mode.currentIndexChanged.connect(self.update_import_options)
         self.gapseq_update_dataset_name.clicked.connect(self.update_dataset_name)
         self.gapseq_delete_dataset.clicked.connect(self.delete_dataset)
-        self.gapseq_update_nucleotide.clicked.connect(self.update_nucleotide)
+        self.gapseq_update_labels.clicked.connect(self.update_nucleotide)
 
 
         self.picasso_detect.clicked.connect(partial(self.gapseq_picasso, detect = True, fit=False))

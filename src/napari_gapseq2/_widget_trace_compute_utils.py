@@ -724,6 +724,15 @@ class _trace_compute_utils:
 
                     dataset, channel, spot_index = names
 
+                    channel_dict = self.dataset_dict[dataset][channel]
+
+                    if "gap_label" in channel_dict.keys():
+                        gap_label = self.dataset_dict[dataset][channel]["gap_label"]
+                        sequence_label = self.dataset_dict[dataset][channel]["sequence_label"]
+                    else:
+                        gap_label = None
+                        sequence_label = None
+
                     if dataset not in self.traces_dict.keys():
                         self.traces_dict[dataset] = {}
                     if channel not in self.traces_dict[dataset].keys():
@@ -734,6 +743,10 @@ class _trace_compute_utils:
                     for column in data.columns:
                         if column not in ["dataset", "channel", "spot_index", "frame_index"]:
                             self.traces_dict[dataset][channel][spot_index][column] = data[column].values
+
+                        # add gap label and sequence label
+                        self.traces_dict[dataset][channel][spot_index]["gap_label"] = gap_label
+                        self.traces_dict[dataset][channel][spot_index]["sequence_label"] = sequence_label
 
         except:
             print(traceback.format_exc())

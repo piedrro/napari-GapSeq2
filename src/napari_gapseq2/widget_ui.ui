@@ -1265,6 +1265,13 @@
             </widget>
            </item>
            <item>
+            <widget class="QLabel" name="label_70">
+             <property name="text">
+              <string>Traces are computed from Bounding Boxes</string>
+             </property>
+            </widget>
+           </item>
+           <item>
             <layout class="QGridLayout" name="gridLayout_3">
              <item row="0" column="1">
               <layout class="QFormLayout" name="formLayout_11">
@@ -2033,7 +2040,7 @@
               </font>
              </property>
              <property name="text">
-              <string>Update Nucleodtide Labels</string>
+              <string>Update Gap/Sequence Labels</string>
              </property>
             </widget>
            </item>
@@ -2047,17 +2054,22 @@
               </widget>
              </item>
              <item row="0" column="1">
-              <widget class="QComboBox" name="update_nucleotide_dataset"/>
+              <widget class="QComboBox" name="update_labels_dataset"/>
              </item>
              <item row="1" column="0">
               <widget class="QLabel" name="label_69">
                <property name="text">
-                <string>Nucleotide Label</string>
+                <string>Sequence Label</string>
                </property>
               </widget>
              </item>
              <item row="1" column="1">
-              <widget class="QComboBox" name="update_nucleotide_label">
+              <widget class="QComboBox" name="sequence_label">
+               <item>
+                <property name="text">
+                 <string>None</string>
+                </property>
+               </item>
                <item>
                 <property name="text">
                  <string>A</string>
@@ -2083,9 +2095,45 @@
                  <string>D</string>
                 </property>
                </item>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="QLabel" name="label_68">
+               <property name="text">
+                <string>Gap Label</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="1">
+              <widget class="QComboBox" name="gap_label">
                <item>
                 <property name="text">
                  <string>None</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>A</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>T</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>C</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>G</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>D</string>
                 </property>
                </item>
               </widget>
@@ -2093,7 +2141,7 @@
             </layout>
            </item>
            <item>
-            <widget class="QPushButton" name="gapseq_update_nucleotide">
+            <widget class="QPushButton" name="gapseq_update_labels">
              <property name="text">
               <string>Update Labels</string>
              </property>
