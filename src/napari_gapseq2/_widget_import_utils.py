@@ -64,11 +64,14 @@ def import_image_data(dat):
 
 class _import_utils:
 
-    def create_shared_image(self, image_shape, image_dtype):
+    def create_import_shared_image(self, image_shape, image_dtype):
 
         shared_mem = None
 
         try:
+
+            if self.verbose:
+                print("Creating shared image...")
 
             image_shape = tuple(np.array(image_shape).astype(int))
 
@@ -109,6 +112,9 @@ class _import_utils:
 
         try:
 
+            if self.verbose:
+                print("Populating import lists/metadata...")
+
             import_mode = self.gapseq_import_mode.currentText()
             import_limit_combo = self.gapseq_import_limt.currentText()
             channel_layout = self.gapseq_channel_layout.currentText()
@@ -147,7 +153,11 @@ class _import_utils:
 
                     channel_images = {}
                     for channel in channel_names:
-                        shared_image = self.create_shared_image(image_shape, dtype)
+
+                        if self.verbose:
+                            print(f"Creating image memory for {dataset_name} {channel}...")
+
+                        shared_image = self.create_import_shared_image(image_shape, dtype)
                         channel_images[channel] = shared_image
                         shared_images[dataset_name][channel] = shared_image
 
@@ -190,7 +200,11 @@ class _import_utils:
 
                     channel_images = {}
                     for channel in channel_names:
-                        shared_image = self.create_shared_image(image_shape, dtype)
+
+                        if self.verbose:
+                            print(f"Creating shared image for {dataset_name} {channel}...")
+
+                        shared_image = self.create_import_shared_image(image_shape, dtype)
                         channel_images[channel] = shared_image
                         shared_images[dataset_name][channel] = shared_image
 
@@ -254,7 +268,11 @@ class _import_utils:
 
                     channel_images = {}
                     for channel in channel_names:
-                        shared_image = self.create_shared_image(image_shape, dtype)
+
+                        if self.verbose:
+                            print(f"Creating shared memory for {dataset_name} {channel}...")
+
+                        shared_image = self.create_import_shared_image(image_shape, dtype)
                         channel_images[channel] = shared_image
                         shared_images[dataset_name][channel] = shared_image
 
@@ -291,7 +309,10 @@ class _import_utils:
 
         return image_list, shared_images, import_dict
 
-    def populate_comute_jobs(self, image_list):
+    def populate_import_compute_jobs(self, image_list):
+
+        if self.verbose:
+            print(f"Populating import compute jobs.")
 
         compute_jobs = []
 
@@ -315,6 +336,9 @@ class _import_utils:
         return compute_jobs
 
     def process_compute_jobs(self, compute_jobs, progress_callback=None):
+
+        if self.verbose:
+            print(f"Processing {len(compute_jobs)} compute jobs.")
 
         cpu_count = int(multiprocessing.cpu_count() * 0.75)
         timeout_duration = 10  # Timeout in seconds
@@ -343,9 +367,15 @@ class _import_utils:
                 progress = int((iter / len(compute_jobs)) * 100)
                 progress_callback.emit(progress)  # Emit the signal
 
-    def populate_dataset_dict(self, import_dict):
+        if self.verbose:
+            print("Finished processing compute jobs.")
+
+    def populate_import_dataset_dict(self, import_dict):
 
         try:
+
+            if self.verbose:
+                print("Populating dataset dict")
 
             for dataset_name, dataset_dict in import_dict.items():
 
@@ -416,9 +446,13 @@ class _import_utils:
         except:
             pass
 
-    def closed_shared_images(self):
+    def closed_import_shared_images(self):
 
         if hasattr(self, "shared_images"):
+
+            if self.verbose:
+                print("Closing import shared images.")
+
             for dataset_name, dataset_dict in self.shared_images.items():
                 for channel_name, shared_mem in dataset_dict.items():
                     shared_mem.close()
@@ -426,18 +460,17 @@ class _import_utils:
 
     def _gapseq_import_data(self, progress_callback=None, paths=[]):
 
-
         try:
 
             image_list, self.shared_images, import_dict = self.populate_import_lists(paths=paths)
 
-            compute_jobs = self.populate_comute_jobs(image_list)
+            compute_jobs = self.populate_import_compute_jobs(image_list)
 
             self.process_compute_jobs(compute_jobs, progress_callback=progress_callback)
 
-            self.populate_dataset_dict(import_dict)
+            self.populate_import_dataset_dict(import_dict)
 
-            self.closed_shared_images()
+            self.closed_import_shared_images()
 
         except:
             print(traceback.format_exc())
@@ -446,6 +479,9 @@ class _import_utils:
     def populate_dataset_combos(self):
 
         try:
+
+            if self.verbose:
+                print("Populating all dataset combos.")
 
             dataset_names = list(self.dataset_dict.keys())
 
@@ -531,6 +567,10 @@ class _import_utils:
             self.localisation_dict = {"bounding_boxes": {}, "fiducials": {}}
 
         if hasattr(self, "dataset_dict"):
+
+            if self.verbose:
+                print("Initialising localisation dict.")
+
             for dataset_name, dataset_dict in self.dataset_dict.items():
 
                 if dataset_name not in self.localisation_dict.keys():
@@ -545,6 +585,9 @@ class _import_utils:
                 self.localisation_dict["fiducials"][dataset_name] = fiducial_dict
 
     def _gapseq_import_data_finished(self):
+
+        if self.verbose:
+            print("Finished importing data, executing post import functions")
 
         self.initialise_localisation_dict()
         self.populate_dataset_combos()

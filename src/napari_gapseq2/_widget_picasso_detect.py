@@ -124,6 +124,9 @@ class _picasso_detect_utils:
 
     def populate_localisation_dict(self, loc_dict, render_loc_dict, detect_mode, image_channel, box_size, fitted=False):
 
+        if self.verbose:
+            print("Populating localisation dictionary...")
+
         detect_mode = detect_mode.lower()
 
         try:
@@ -172,6 +175,10 @@ class _picasso_detect_utils:
     def _picasso_wrapper_result(self, result):
 
         try:
+
+            if self.verbose:
+                print("Picasso wrapper result received")
+
             fitted, loc_dict, render_loc_dict, total_locs = result
 
             detect_mode = self.picasso_detect_mode.currentText()
@@ -203,10 +210,9 @@ class _picasso_detect_utils:
             if dataset_name == "All Datasets":
                 dataset_name = self.active_dataset
 
-            self.draw_fiducials(update_vis=True)
-            self.draw_bounding_boxes()
-
             self.update_active_image(channel=image_channel.lower(), dataset=dataset_name)
+
+            self.draw_bounding_boxes()
 
             self.update_ui()
 
@@ -258,6 +264,9 @@ class _picasso_detect_utils:
 
             compute_jobs = []
 
+            if self.verbose:
+                print("Creating Picasso compute jobs...")
+
             for image_dict in self.shared_images:
 
                 if frame_mode.lower() == "active":
@@ -293,6 +302,9 @@ class _picasso_detect_utils:
                     compute_jobs.append(compute_job)
 
             if len(compute_jobs) > 0:
+
+                if self.verbose:
+                    print(f"Starting Picasso {len(compute_jobs)} compute jobs...")
 
                 timeout_duration = 10  # Timeout in seconds
 
@@ -341,6 +353,10 @@ class _picasso_detect_utils:
                         except Exception as e:
                             print(f"Error occurred in task {job}: {e}")  # Handle other exceptions
                             pass
+
+                if self.verbose:
+                    print("Finished Picasso compute jobs...")
+                    print("Compiling Picasso results...")
 
                 total_locs = 0
                 for dataset, locs in loc_dict.items():
@@ -402,6 +418,9 @@ class _picasso_detect_utils:
 
 
     def generate_roi(self):
+
+        if self.verbose:
+            print("Generating ROI")
 
         border_width = self.picasso_roi_border_width.text()
         window_cropping = self.picasso_window_cropping.isChecked()
@@ -469,6 +488,9 @@ class _picasso_detect_utils:
         return roi
 
     def export_picasso_locs(self, locs):
+
+        if self.verbos:
+            print("Exporting Picasso locs")
 
         try:
 

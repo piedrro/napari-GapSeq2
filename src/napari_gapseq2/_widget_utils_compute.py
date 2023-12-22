@@ -11,6 +11,9 @@ class _utils_compute:
 
     def create_shared_images(self, dataset_list = None, channel_list = None):
 
+        if self.verbose:
+            print("Creating shared images")
+
         if dataset_list is None:
             dataset_list = list(self.dataset_dict.keys())
         else:
@@ -54,6 +57,9 @@ class _utils_compute:
 
     def restore_shared_images(self):
 
+        if self.verbose:
+            print("Restoring shared images")
+
         if hasattr(self, "shared_images"):
 
             for dat in self.shared_images:
@@ -72,6 +78,9 @@ class _utils_compute:
                     pass
 
     def create_shared_frames(self):
+
+        if self.verbose:
+            print("Creating shared frames")
 
         self.shared_frames = []
 
@@ -110,6 +119,9 @@ class _utils_compute:
         return self.shared_frames
 
     def restore_shared_frames(self):
+
+        if self.verbose:
+            print("Restoring shared frames")
 
         if hasattr(self, "shared_frames"):
 

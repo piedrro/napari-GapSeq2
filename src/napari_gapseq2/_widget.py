@@ -255,6 +255,10 @@ class GapSeqWidget(QWidget,
         self.colo_fiducials = self.findChild(QCheckBox, 'colo_fiducials')
         self.gapseq_colocalize = self.findChild(QPushButton, 'gapseq_colocalize')
 
+        self.dev_verbose = self.findChild(QCheckBox, 'dev_verbose')
+        self.dev_verbose.stateChanged.connect(self.toggle_verbose)
+        self.verbose = False
+
         self.gapseq_import.clicked.connect(self.gapseq_import_data)
         self.gapseq_import_mode.currentIndexChanged.connect(self.update_import_options)
         self.gapseq_update_dataset_name.clicked.connect(self.update_dataset_name)
@@ -289,7 +293,7 @@ class GapSeqWidget(QWidget,
         self.gapseq_export_traces.clicked.connect(self.export_traces)
         self.traces_export_dataset.currentIndexChanged.connect(self.populate_export_combos)
 
-        self.viewer.dims.events.current_step.connect(self.draw_fiducials)
+        self.viewer.dims.events.current_step.connect(partial(self.draw_fiducials, update_vis = False))
 
         self.compute_traces.clicked.connect(self.gapseq_compute_traces)
         self.traces_visualise_masks.clicked.connect(self.visualise_spot_masks)
@@ -359,9 +363,12 @@ class GapSeqWidget(QWidget,
         # todo picasso export localisations
         # todo delete dataset e.g. localisation dataset
 
+    def toggle_verbose(self):
 
-
-
+        if self.dev_verbose.isChecked():
+            self.verbose = True
+        else:
+            self.verbose = False
 
     def dev_function(self, event):
 
@@ -393,6 +400,9 @@ class GapSeqWidget(QWidget,
                 layer_names = [layer.name for layer in self.viewer.layers]
 
                 if "localisation_centres" in self.localisation_dict["bounding_boxes"].keys():
+
+                    if self.verbose:
+                        print("Drawing bounding_boxes")
 
                     loc_dict, n_locs, fitted = self.get_loc_dict(type = "bounding_boxes")
 
@@ -426,8 +436,6 @@ class GapSeqWidget(QWidget,
 
                         self.bbox_layer.mouse_drag_callbacks.append(self._mouse_event)
                         self.bbox_layer.events.visible.connect(self.draw_bounding_boxes)
-
-                        update_vis = True
 
                     else:
                         self.viewer.layers["bounding_boxes"].data = localisation_centres
@@ -491,6 +499,10 @@ class GapSeqWidget(QWidget,
                                 remove_fiducials = False
 
                                 if "fiducials" not in layer_names:
+
+                                    if self.verbose:
+                                        print("Drawing fiducials")
+
                                     self.fiducial_layer = self.viewer.add_points(
                                         render_locs[active_frame],
                                         ndim=2,
@@ -508,9 +520,17 @@ class GapSeqWidget(QWidget,
                                     update_vis = True
 
                                 else:
+
+                                    if self.verbose:
+                                        print("Updating fiducial data")
+
                                     self.fiducial_layer.data = render_locs[active_frame]
 
                                 if update_vis:
+
+                                    if self.verbose:
+                                        print("Updating fiducial visualisation settings")
+
                                     self.fiducial_layer.selected_data = list(range(len(self.fiducial_layer.data)))
                                     self.fiducial_layer.opacity = vis_opacity
                                     self.fiducial_layer.symbol = symbol

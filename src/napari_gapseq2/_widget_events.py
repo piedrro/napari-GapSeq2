@@ -12,6 +12,9 @@ class _events_utils:
 
         try:
 
+            if self.verbose:
+                print(f"Updating UI, init = {init}")
+
             controls = ["gapseq_import",
                         "picasso_detect", "picasso_fit", "picasso_detectfit",
                         "gapseq_compute_tform", "gapseq_apply_tform",
@@ -182,6 +185,9 @@ class _events_utils:
 
         try:
 
+            if self.verbose:
+                print(f"Updating active image to channel {channel} and dataset {dataset}")
+
             if dataset == None or dataset not in self.dataset_dict.keys():
                 dataset_name = self.gapseq_dataset_selector.currentText()
             else:
@@ -248,6 +254,9 @@ class _events_utils:
     def update_channel_selector(self, dataset_selector, channel_selector, event=None, channel_type = "all", efficiency=False, block_signals=False):
 
         try:
+
+            if self.verbose:
+                print(f"Updating channel selector for dataset {dataset_selector} and channel {channel_selector}")
 
             if hasattr(self, channel_selector) and hasattr(self, dataset_selector):
 
@@ -326,6 +335,9 @@ class _events_utils:
 
         try:
 
+            if self.verbose:
+                print("Populating channel selectors")
+
             self.update_channel_selector(dataset_selector="picasso_dataset", channel_selector="picasso_channel")
             self.update_channel_selector(dataset_selector="undrift_dataset_selector", channel_selector="undrift_channel_selector")
             self.update_channel_selector(dataset_selector="cluster_dataset", channel_selector="cluster_channel")
@@ -346,6 +358,9 @@ class _events_utils:
             datast_name = self.gapseq_dataset_selector.currentText()
 
             if datast_name in self.dataset_dict.keys():
+
+                if self.verbose:
+                    print(f"Updating channel select buttons for dataset {datast_name}")
 
                 fret_modes = [self.dataset_dict[datast_name][channel]["FRET"] for channel in self.dataset_dict[datast_name].keys()]
                 channel_refs = [self.dataset_dict[datast_name][channel]["channel_ref"] for channel in self.dataset_dict[datast_name].keys()]
@@ -455,6 +470,9 @@ class _events_utils:
 
     def update_import_options(self):
 
+        if self.verbose:
+            print("Updating import options")
+
         def update_channel_layout(self, show = True):
             if show:
                 self.gapseq_channel_layout.setEnabled(True)
@@ -514,6 +532,9 @@ class _events_utils:
 
     def _mouse_event(self, viewer, event):
 
+        if self.verbose:
+            print("Mouse event")
+
         try:
 
             event_pos = self.image_layer.world_to_data(event.position)
@@ -538,6 +559,9 @@ class _events_utils:
 
 
     def update_nucleotide(self):
+
+        if self.verbose:
+            print("Updating nucleotide")
 
         try:
 
@@ -570,6 +594,9 @@ class _events_utils:
             dataset_name = self.delete_dataset_name.currentText()
 
             if dataset_name in self.dataset_dict.keys():
+
+                if self.verbose:
+                    print("Deleting dataset {dataset_name}")
 
                 self.dataset_dict.pop(dataset_name)
                 self.localisation_dict["fiducials"].pop(dataset_name)
@@ -605,6 +632,10 @@ class _events_utils:
                 elif new_name in self.dataset_dict.keys():
                     raise ValueError("New dataset name must be unique")
                 else:
+
+                    if self.verbose:
+                        print("Updating dataset name from {old_name} to {new_name}")
+
                     dataset_data = self.dataset_dict.pop(old_name)
                     self.dataset_dict[new_name] = dataset_data
 
@@ -616,8 +647,6 @@ class _events_utils:
                             print("Updating traces dict")
                             traces_data = self.traces_dict.pop(old_name)
                             self.traces_dict[new_name] = traces_data
-
-
 
                 self.populate_dataset_combos()
                 self.update_channel_select_buttons()

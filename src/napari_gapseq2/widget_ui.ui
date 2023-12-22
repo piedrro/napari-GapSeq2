@@ -2421,6 +2421,20 @@
            </item>
           </layout>
          </widget>
+         <widget class="QWidget" name="tab_13">
+          <attribute name="title">
+           <string>Dev</string>
+          </attribute>
+          <layout class="QVBoxLayout" name="verticalLayout_16">
+           <item>
+            <widget class="QCheckBox" name="dev_verbose">
+             <property name="text">
+              <string>Verbose</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
         </widget>
        </item>
       </layout>
