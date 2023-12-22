@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>618</width>
+    <width>590</width>
     <height>769</height>
    </rect>
   </property>
@@ -396,16 +396,19 @@
         </layout>
        </item>
        <item>
-        <widget class="QCheckBox" name="picasso_window_cropping">
+        <widget class="QCheckBox" name="picasso_remove_overlapping">
          <property name="text">
-          <string>Remove Localisations Outside Active Window</string>
+          <string>Remove Overlapping Fiducials/Bounding Boxes (determined by Picaso Box Size)</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QCheckBox" name="picasso_remove_overlapping">
+        <widget class="QCheckBox" name="picasso_window_cropping">
          <property name="text">
-          <string>Remove Overlapping Fiducials/Bounding Boxes</string>
+          <string>Remove Localisations Outside Field Of View (FOV)</string>
          </property>
         </widget>
        </item>

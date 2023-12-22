@@ -17,6 +17,42 @@ import concurrent.futures
 import multiprocessing
 from itertools import chain
 
+
+
+
+def remove_overlapping_locs(locs, box_size):
+
+    try:
+
+        coordinates = np.vstack((locs.y, locs.x)).T
+
+        # Calculate all pairwise differences
+        diff = coordinates[:, np.newaxis, :] - coordinates[np.newaxis, :, :]
+
+        # Calculate squared distances
+        dist_squared = np.sum(diff ** 2, axis=-1)
+
+        # Check if the array is of integer type
+        if coordinates.dtype.kind in 'iu':
+            # Use the maximum integer value for the diagonal if the array is of integer type
+            max_int_value = np.iinfo(coordinates.dtype).max
+            np.fill_diagonal(dist_squared, max_int_value)
+        else:
+            # Use infinity for the diagonal if the array is of float type
+            np.fill_diagonal(dist_squared, np.inf)
+
+        # Identify overlapping coordinates (distance less than X)
+        overlapping = np.any(dist_squared < box_size ** 2, axis=1)
+
+        non_overlapping_locs = locs[~overlapping]
+        non_overlapping_locs = np.array(non_overlapping_locs).view(np.recarray)
+
+    except:
+        pass
+
+    return non_overlapping_locs
+
+
 def picasso_detect(dat):
 
     result = None
@@ -31,6 +67,7 @@ def picasso_detect(dat):
         channel = dat["channel"]
         detect = dat["detect"]
         fit = dat["fit"]
+        remove_overlapping = dat["remove_overlapping"]
         stop_event = dat["stop_event"]
 
         if not stop_event.is_set():
@@ -48,6 +85,10 @@ def picasso_detect(dat):
                 locs = dat["frame_locs"]
 
             expected_loc_length = 4
+
+            if remove_overlapping:
+                # overlapping removed prior to fitting to increase speed
+                locs = remove_overlapping_locs(locs, box_size)
 
             if fit:
                 expected_loc_length = 12
@@ -186,7 +227,7 @@ class _picasso_detect_utils:
                 locs = [loc for loc in locs if loc.frame == frame_index]
                 locs = np.array(locs).view(np.recarray)
 
-                return locs
+                return locs.copy()
 
         except:
             print(traceback.format_exc())
@@ -203,6 +244,7 @@ class _picasso_detect_utils:
             box_size = int(self.picasso_box_size.currentText())
             dataset_name = self.picasso_dataset.currentText()
             frame_mode = self.picasso_frame_mode.currentText()
+            remove_overlapping = self.picasso_remove_overlapping.isChecked()
             roi = self.generate_roi()
 
             if dataset_name == "All Datasets":
@@ -232,8 +274,8 @@ class _picasso_detect_utils:
                     if detect == False and frame_locs is None:
                         continue
                     else:
-                        compute_job = {"dataset":image_dict["dataset"],
-                                       "channel":image_dict["channel"],
+                        compute_job = {"dataset": image_dict["dataset"],
+                                       "channel": image_dict["channel"],
                                        "frame_index": frame_index,
                                        "shared_memory_name": image_dict['shared_memory_name'],
                                        "shape": image_dict['shape'],
@@ -244,6 +286,7 @@ class _picasso_detect_utils:
                                        "box_size": int(box_size),
                                        "roi": roi,
                                        "frame_locs": frame_locs,
+                                       "remove_overlapping": remove_overlapping,
                                        "stop_event": self.stop_event,
                                        }
 
