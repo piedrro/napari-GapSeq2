@@ -403,6 +403,13 @@
         </widget>
        </item>
        <item>
+        <widget class="QCheckBox" name="picasso_remove_overlapping">
+         <property name="text">
+          <string>Remove Overlapping Fiducials/Bounding Boxes</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <layout class="QGridLayout" name="gridLayout_6">
          <item row="0" column="1">
           <widget class="QPushButton" name="picasso_fit">
@@ -918,16 +925,6 @@
        </item>
        <item>
         <layout class="QFormLayout" name="formLayout_4">
-         <item row="1" column="0">
-          <widget class="QLabel" name="label_15">
-           <property name="text">
-            <string>Undrift Channel</string>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="1">
-          <widget class="QComboBox" name="undrift_channel_selector"/>
-         </item>
          <item row="0" column="0">
           <widget class="QLabel" name="label_46">
            <property name="text">
@@ -937,6 +934,16 @@
          </item>
          <item row="0" column="1">
           <widget class="QComboBox" name="undrift_dataset_selector"/>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="label_15">
+           <property name="text">
+            <string>Undrift Channel</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QComboBox" name="undrift_channel_selector"/>
          </item>
         </layout>
        </item>
@@ -1237,7 +1244,7 @@
        <item>
         <widget class="QTabWidget" name="traces_tab_widget">
          <property name="currentIndex">
-          <number>1</number>
+          <number>0</number>
          </property>
          <widget class="QWidget" name="compute_tab_2">
           <attribute name="title">
@@ -1671,7 +1678,7 @@
        <item>
         <widget class="QTabWidget" name="tabWidget_2">
          <property name="currentIndex">
-          <number>1</number>
+          <number>0</number>
          </property>
          <widget class="QWidget" name="tab_8">
           <attribute name="title">
@@ -1900,314 +1907,470 @@
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_7">
        <item>
-        <widget class="QLabel" name="label_4">
-         <property name="font">
-          <font>
-           <weight>75</weight>
-           <bold>true</bold>
-          </font>
+        <widget class="QTabWidget" name="tabWidget_3">
+         <property name="currentIndex">
+          <number>0</number>
          </property>
-         <property name="text">
-          <string>Update Dataset Name</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <layout class="QFormLayout" name="formLayout_9">
-         <item row="0" column="0">
-          <widget class="QLabel" name="label_13">
-           <property name="text">
-            <string>Old Dataset Name</string>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="1">
-          <widget class="QComboBox" name="gapseq_old_dataset_name"/>
-         </item>
-         <item row="1" column="0">
-          <widget class="QLabel" name="label_29">
-           <property name="text">
-            <string>New Dataset Name</string>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="1">
-          <widget class="QLineEdit" name="gapseq_new_dataset_name">
-           <property name="text">
-            <string>Dataset1</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <widget class="QPushButton" name="gapseq_update_dataset_name">
-         <property name="text">
-          <string>Update Dataset Name</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <spacer name="verticalSpacer">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>40</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item>
-        <widget class="QLabel" name="label_34">
-         <property name="font">
-          <font>
-           <weight>75</weight>
-           <bold>true</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>Co-Localize Fiducials</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <layout class="QFormLayout" name="formLayout_14">
-         <item row="0" column="0">
-          <widget class="QLabel" name="label_53">
-           <property name="text">
-            <string>Dataset</string>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="1">
-          <widget class="QComboBox" name="colo_dataset"/>
-         </item>
-         <item row="1" column="0">
-          <widget class="QLabel" name="label_51">
-           <property name="text">
-            <string>Channels</string>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="0">
-          <widget class="QLabel" name="label_54">
-           <property name="text">
-            <string>Max Distance (Pixels)</string>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="1">
-          <widget class="QComboBox" name="colo_max_dist">
+         <widget class="QWidget" name="tab_11">
+          <attribute name="title">
+           <string>Dataset Utils</string>
+          </attribute>
+          <layout class="QVBoxLayout" name="verticalLayout_14">
            <item>
-            <property name="text">
-             <string>0.1</string>
-            </property>
+            <widget class="QLabel" name="label_4">
+             <property name="font">
+              <font>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Update Dataset Name</string>
+             </property>
+            </widget>
            </item>
            <item>
-            <property name="text">
-             <string>0.2</string>
-            </property>
+            <layout class="QFormLayout" name="formLayout_9">
+             <item row="0" column="0">
+              <widget class="QLabel" name="label_13">
+               <property name="text">
+                <string>Old Dataset Name</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QComboBox" name="gapseq_old_dataset_name"/>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="label_29">
+               <property name="text">
+                <string>New Dataset Name</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QLineEdit" name="gapseq_new_dataset_name">
+               <property name="text">
+                <string>Dataset1</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
            </item>
            <item>
-            <property name="text">
-             <string>0.5</string>
-            </property>
+            <widget class="QPushButton" name="gapseq_update_dataset_name">
+             <property name="text">
+              <string>Update Dataset Name</string>
+             </property>
+            </widget>
            </item>
            <item>
-            <property name="text">
-             <string>1</string>
-            </property>
+            <spacer name="verticalSpacer_13">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
            </item>
            <item>
-            <property name="text">
-             <string>2</string>
-            </property>
+            <widget class="QLabel" name="label_64">
+             <property name="font">
+              <font>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Delete Dataset</string>
+             </property>
+            </widget>
            </item>
            <item>
-            <property name="text">
-             <string>3</string>
-            </property>
+            <layout class="QFormLayout" name="formLayout_16">
+             <item row="0" column="0">
+              <widget class="QLabel" name="label_65">
+               <property name="text">
+                <string>Dataset Name</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QComboBox" name="delete_dataset_name"/>
+             </item>
+            </layout>
            </item>
            <item>
-            <property name="text">
-             <string>4</string>
-            </property>
+            <widget class="QPushButton" name="gapseq_delete_dataset">
+             <property name="text">
+              <string>Delete Dataset</string>
+             </property>
+            </widget>
            </item>
            <item>
-            <property name="text">
-             <string>5</string>
-            </property>
+            <spacer name="verticalSpacer_15">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
            </item>
-          </widget>
-         </item>
-         <item row="1" column="1">
-          <layout class="QGridLayout" name="gridLayout_4">
-           <item row="0" column="0">
-            <widget class="QComboBox" name="colo_channel1"/>
+           <item>
+            <widget class="QLabel" name="label_66">
+             <property name="font">
+              <font>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Update Nucleodtide Labels</string>
+             </property>
+            </widget>
            </item>
-           <item row="0" column="1">
-            <widget class="QComboBox" name="colo_channel2"/>
+           <item>
+            <layout class="QFormLayout" name="formLayout_18">
+             <item row="0" column="0">
+              <widget class="QLabel" name="label_67">
+               <property name="text">
+                <string>Dataset</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QComboBox" name="update_nucleotide_dataset"/>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="label_69">
+               <property name="text">
+                <string>Nucleotide Label</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QComboBox" name="update_nucleotide_label">
+               <item>
+                <property name="text">
+                 <string>A</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>T</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>C</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>G</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>D</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>None</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QPushButton" name="gapseq_update_nucleotide">
+             <property name="text">
+              <string>Update Labels</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="verticalSpacer_16">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
            </item>
           </layout>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <layout class="QGridLayout" name="gridLayout_2">
-         <item row="0" column="1">
-          <widget class="QCheckBox" name="colo_bboxes">
-           <property name="text">
-            <string>Generate Bounding Boxes</string>
-           </property>
-           <property name="checked">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="2">
-          <widget class="QCheckBox" name="colo_fiducials">
-           <property name="text">
-            <string>Overwrite Fiducials</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <widget class="QPushButton" name="gapseq_colocalize">
-         <property name="text">
-          <string>Co-Localize Fiducials</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <spacer name="verticalSpacer_13">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>40</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item>
-        <widget class="QLabel" name="label_26">
-         <property name="font">
-          <font>
-           <weight>75</weight>
-           <bold>true</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>Cluster Localisations (DBSCAN)</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <layout class="QFormLayout" name="formLayout_6">
-         <item row="1" column="0">
-          <widget class="QLabel" name="label_17">
-           <property name="text">
-            <string>Dataset</string>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="1">
-          <widget class="QComboBox" name="cluster_dataset"/>
-         </item>
-         <item row="2" column="0">
-          <widget class="QLabel" name="label_18">
-           <property name="text">
-            <string>Channel</string>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="1">
-          <widget class="QComboBox" name="cluster_channel"/>
-         </item>
-         <item row="0" column="0">
-          <widget class="QLabel" name="label_19">
-           <property name="text">
-            <string>Mode</string>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="1">
-          <widget class="QComboBox" name="cluster_mode">
+         </widget>
+         <widget class="QWidget" name="tab_12">
+          <attribute name="title">
+           <string>Localisation Utils</string>
+          </attribute>
+          <layout class="QVBoxLayout" name="verticalLayout_15">
            <item>
-            <property name="text">
-             <string>Create Bounding Boxes From Cluster Centers</string>
-            </property>
+            <widget class="QLabel" name="label_34">
+             <property name="font">
+              <font>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Co-Localize Fiducials</string>
+             </property>
+            </widget>
            </item>
            <item>
-            <property name="text">
-             <string>Create Fiducials From Cluster Centers</string>
-            </property>
+            <layout class="QFormLayout" name="formLayout_14">
+             <item row="0" column="0">
+              <widget class="QLabel" name="label_53">
+               <property name="text">
+                <string>Dataset</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QComboBox" name="colo_dataset"/>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="label_51">
+               <property name="text">
+                <string>Channels</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="QLabel" name="label_54">
+               <property name="text">
+                <string>Max Distance (Pixels)</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="1">
+              <widget class="QComboBox" name="colo_max_dist">
+               <item>
+                <property name="text">
+                 <string>0.1</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>0.2</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>0.5</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>1</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>2</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>3</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>4</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>5</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <layout class="QGridLayout" name="gridLayout_4">
+               <item row="0" column="0">
+                <widget class="QComboBox" name="colo_channel1"/>
+               </item>
+               <item row="0" column="1">
+                <widget class="QComboBox" name="colo_channel2"/>
+               </item>
+              </layout>
+             </item>
+            </layout>
            </item>
-          </widget>
-         </item>
-         <item row="3" column="0">
-          <widget class="QLabel" name="label_60">
-           <property name="text">
-            <string>Distance (EPS)</string>
-           </property>
-          </widget>
-         </item>
-         <item row="3" column="1">
-          <widget class="QLineEdit" name="cluster_eps">
-           <property name="text">
-            <string>0.2</string>
-           </property>
-          </widget>
-         </item>
-         <item row="4" column="0">
-          <widget class="QLabel" name="label_61">
-           <property name="text">
-            <string>Min Frames </string>
-           </property>
-          </widget>
-         </item>
-         <item row="4" column="1">
-          <widget class="QLineEdit" name="dbscan_min_samples">
-           <property name="text">
-            <string>20</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="dbscan_remove_overlapping">
-         <property name="text">
-          <string>Remove Overlapping Localisations</string>
-         </property>
+           <item>
+            <layout class="QGridLayout" name="gridLayout_2">
+             <item row="0" column="2">
+              <widget class="QCheckBox" name="colo_fiducials">
+               <property name="text">
+                <string>Overwrite Fiducials</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QCheckBox" name="colo_bboxes">
+               <property name="text">
+                <string>Generate Bounding Boxes</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QPushButton" name="gapseq_colocalize">
+             <property name="text">
+              <string>Co-Localize Fiducials</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="verticalSpacer">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QLabel" name="label_26">
+             <property name="font">
+              <font>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Cluster Localisations (DBSCAN)</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QFormLayout" name="formLayout_6">
+             <item row="1" column="0">
+              <widget class="QLabel" name="label_17">
+               <property name="text">
+                <string>Dataset</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QComboBox" name="cluster_dataset"/>
+             </item>
+             <item row="2" column="0">
+              <widget class="QLabel" name="label_18">
+               <property name="text">
+                <string>Channel</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="1">
+              <widget class="QComboBox" name="cluster_channel"/>
+             </item>
+             <item row="0" column="0">
+              <widget class="QLabel" name="label_19">
+               <property name="text">
+                <string>Mode</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QComboBox" name="cluster_mode">
+               <item>
+                <property name="text">
+                 <string>Create Bounding Boxes From Cluster Centers</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>Create Fiducials From Cluster Centers</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+             <item row="3" column="0">
+              <widget class="QLabel" name="label_60">
+               <property name="text">
+                <string>Distance (EPS)</string>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="1">
+              <widget class="QLineEdit" name="cluster_eps">
+               <property name="text">
+                <string>0.2</string>
+               </property>
+              </widget>
+             </item>
+             <item row="4" column="0">
+              <widget class="QLabel" name="label_61">
+               <property name="text">
+                <string>Min Frames </string>
+               </property>
+              </widget>
+             </item>
+             <item row="4" column="1">
+              <widget class="QLineEdit" name="dbscan_min_samples">
+               <property name="text">
+                <string>20</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="dbscan_remove_overlapping">
+             <property name="text">
+              <string>Remove Overlapping Localisations</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="cluster_localisations">
+             <property name="text">
+              <string>Cluster Localisations</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="verticalSpacer_7">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </widget>
         </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="cluster_localisations">
-         <property name="text">
-          <string>Cluster Localisations</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <spacer name="verticalSpacer_7">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>40</height>
-          </size>
-         </property>
-        </spacer>
        </item>
       </layout>
      </widget>

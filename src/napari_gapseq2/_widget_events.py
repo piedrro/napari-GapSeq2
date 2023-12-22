@@ -226,6 +226,13 @@ class _events_utils:
 
                     self.viewer.layers[layer_name].contrast_limits = contrast_range
 
+            else:
+                if hasattr(self, "image_layer"):
+                    self.viewer.layers.remove(self.image_layer)
+
+                self.active_dataset = None
+                self.active_channel = None
+
             self.draw_fiducials(update_vis=True)
             self.update_overlay_text()
 
@@ -523,6 +530,38 @@ class _events_utils:
 
         except:
             print(traceback.format_exc())
+
+
+    def update_nucleotide(self):
+
+        print("Updating nucleotide")
+
+    def delete_dataset(self):
+
+        try:
+
+            dataset_name = self.delete_dataset_name.currentText()
+
+            if dataset_name in self.dataset_dict.keys():
+
+                self.dataset_dict.pop(dataset_name)
+                self.localisation_dict["fiducials"].pop(dataset_name)
+
+                if hasattr(self, "traces_dict"):
+                    if dataset_name in self.traces_dict.keys():
+                        self.traces_dict.pop(dataset_name)
+
+                self.populate_dataset_combos()
+                self.update_channel_select_buttons()
+                self.update_active_image()
+
+                self.populate_plot_combos()
+                self.populate_export_combos()
+                self.initialize_plot()
+
+        except:
+            print(traceback.format_exc())
+            pass
 
 
     def update_dataset_name(self):

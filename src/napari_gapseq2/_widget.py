@@ -131,6 +131,13 @@ class GapSeqWidget(QWidget,
         self.gapseq_new_dataset_name = self.findChild(QLineEdit, 'gapseq_new_dataset_name')
         self.gapseq_update_dataset_name = self.findChild(QPushButton, 'gapseq_update_dataset_name')
 
+        self.delete_dataset_name = self.findChild(QComboBox, 'delete_dataset_name')
+        self.gapseq_delete_dataset = self.findChild(QPushButton, 'gapseq_delete_dataset')
+
+        self.update_nucleotide_dataset = self.findChild(QComboBox, 'update_nucleotide_dataset')
+        self.update_nucleotide_label = self.findChild(QComboBox, 'update_nucleotide_label')
+        self.gapseq_update_nucleotide = self.findChild(QPushButton, 'gapseq_update_nucleotide')
+
         self.gapseq_dataset_selector = self.findChild(QComboBox, 'gapseq_dataset_selector')
         self.gapseq_show_dd = self.findChild(QPushButton, 'gapseq_show_dd')
         self.gapseq_show_da = self.findChild(QPushButton, 'gapseq_show_da')
@@ -151,6 +158,7 @@ class GapSeqWidget(QWidget,
         self.picasso_detectfit = self.findChild(QPushButton, 'picasso_detectfit')
         self.picasso_detect_mode = self.findChild(QComboBox, 'picasso_detect_mode')
         self.picasso_window_cropping = self.findChild(QCheckBox, 'picasso_window_cropping')
+        self.picasso_remove_overlapping = self.findChild(QCheckBox, 'picasso_remove_overlapping')
         self.picasso_progressbar = self.findChild(QProgressBar, 'picasso_progressbar')
 
         self.picasso_vis_mode = self.findChild(QComboBox, 'picasso_vis_mode')
@@ -249,6 +257,9 @@ class GapSeqWidget(QWidget,
         self.gapseq_import.clicked.connect(self.gapseq_import_data)
         self.gapseq_import_mode.currentIndexChanged.connect(self.update_import_options)
         self.gapseq_update_dataset_name.clicked.connect(self.update_dataset_name)
+        self.gapseq_delete_dataset.clicked.connect(self.delete_dataset)
+        self.gapseq_update_nucleotide.clicked.connect(self.update_nucleotide)
+
 
         self.picasso_detect.clicked.connect(partial(self.gapseq_picasso, detect = True, fit=False))
         self.picasso_fit.clicked.connect(partial(self.gapseq_picasso, detect = False, fit=True))
@@ -342,6 +353,11 @@ class GapSeqWidget(QWidget,
         self.viewer.bind_key('PageDown', self.named_partial(self.increment_active_dataset, key='Down'), overwrite=True)
 
         self.viewer.bind_key('Q', self.stop_worker, overwrite=True)
+
+        # todo dataset selection for multiple datasets?
+        # todo picasso export localisations
+        # todo delete dataset e.g. localisation dataset
+
 
 
 

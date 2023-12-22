@@ -482,6 +482,16 @@ class _import_utils:
             self.gapseq_append_dataset.addItems(dataset_names)
             self.gapseq_append_dataset.blockSignals(False)
 
+            self.delete_dataset_name.blockSignals(True)
+            self.delete_dataset_name.clear()
+            self.delete_dataset_name.addItems(dataset_names)
+            self.delete_dataset_name.blockSignals(False)
+
+            self.update_nucleotide_dataset.blockSignals(True)
+            self.update_nucleotide_dataset.clear()
+            self.update_nucleotide_dataset.addItems(dataset_names)
+            self.update_nucleotide_dataset.blockSignals(False)
+
             if len(dataset_names) > 1:
                 dataset_names.insert(0, "All Datasets")
 

@@ -326,79 +326,82 @@ class _export_traces_utils:
 
             export_dataset = self.traces_export_dataset.currentText()
 
-            if export_dataset == "All Datasets":
+            if export_dataset != "":
 
-                for dataset_name, dataset_dict in self.dataset_dict.items():
-                    for channel_name in dataset_dict.keys():
+                if export_dataset == "All Datasets":
 
-                        if channel_name.lower() in ["donor", "acceptor"]:
-                            channel_name = channel_name.capitalize()
-                        else:
-                            channel_name = channel_name.upper()
+                    for dataset_name, dataset_dict in self.dataset_dict.items():
+                        for channel_name in dataset_dict.keys():
 
-                        export_channel_list.append(channel_name)
-                        export_channel_list = list(set(export_channel_list))
+                            if channel_name.lower() in ["donor", "acceptor"]:
+                                channel_name = channel_name.capitalize()
+                            else:
+                                channel_name = channel_name.upper()
 
-            else:
+                            export_channel_list.append(channel_name)
+                            export_channel_list = list(set(export_channel_list))
 
-                for channel_name in self.dataset_dict[export_dataset].keys():
+                else:
 
-                    if channel_name.lower() in ["donor", "acceptor"]:
-                        channel_name = channel_name.capitalize()
-                    else:
-                        channel_name = channel_name.upper()
+                    if export_dataset in self.dataset_dict.keys():
+                        for channel_name in self.dataset_dict[export_dataset].keys():
 
-                    export_channel_list.append(channel_name)
+                            if channel_name.lower() in ["donor", "acceptor"]:
+                                channel_name = channel_name.capitalize()
+                            else:
+                                channel_name = channel_name.upper()
 
-            if set(["Donor", "Acceptor"]).issubset(set(export_channel_list)):
-                export_channel_list.insert(0, "FRET")
-            if set(["DD","DA","AA","AD"]).issubset(set(export_channel_list)):
-                export_channel_list.insert(0, "ALEX")
+                            export_channel_list.append(channel_name)
 
-            export_channel_list.insert(0, "All Channels")
+                if set(["Donor", "Acceptor"]).issubset(set(export_channel_list)):
+                    export_channel_list.insert(0, "FRET")
+                if set(["DD","DA","AA","AD"]).issubset(set(export_channel_list)):
+                    export_channel_list.insert(0, "ALEX")
 
-            self.traces_export_channel.blockSignals(True)
-            self.traces_export_channel.clear()
-            self.traces_export_channel.addItems(export_channel_list)
-            self.traces_export_channel.blockSignals(True)
+                export_channel_list.insert(0, "All Channels")
 
-            if hasattr(self, "traces_dict"):
+                self.traces_export_channel.blockSignals(True)
+                self.traces_export_channel.clear()
+                self.traces_export_channel.addItems(export_channel_list)
+                self.traces_export_channel.blockSignals(True)
 
-                dataset_name = self.traces_export_dataset.currentText()
-                channel_name = self.traces_export_channel.currentText()
+                if hasattr(self, "traces_dict"):
 
-                if dataset_name in self.traces_dict.keys():
-
-                    if dataset_name == "All Datasets":
-                        dataset_names = list(self.traces_dict.keys())
-                        dataset_name = dataset_names[0]
-
-                    if channel_name.lower() == "fret":
-                        channel_name = "donor"
-                    if channel_name.lower() == "alex":
-                        channel_name = "dd"
-                    if channel_name.lower() == "all channels":
-                        channel_names = list(self.traces_dict[dataset_name].keys())
-                        channel_names = [chan for chan in channel_names if "efficiency" not in chan.lower()]
-                        channel_names = [chan for chan in channel_names if chan.lower() not in ["fret", "alex"]]
-                        channel_name = channel_names[0]
+                    dataset_name = self.traces_export_dataset.currentText()
+                    channel_name = self.traces_export_channel.currentText()
 
                     if dataset_name in self.traces_dict.keys():
-                        if channel_name.lower() in self.traces_dict[dataset_name].keys():
 
-                            traces_channel_dict = self.traces_dict[dataset_name][channel_name.lower()]
-                            metric_names = traces_channel_dict[0].keys()
+                        if dataset_name == "All Datasets":
+                            dataset_names = list(self.traces_dict.keys())
+                            dataset_name = dataset_names[0]
 
-                            self.traces_export_metric.blockSignals(True)
+                        if channel_name.lower() == "fret":
+                            channel_name = "donor"
+                        if channel_name.lower() == "alex":
+                            channel_name = "dd"
+                        if channel_name.lower() == "all channels":
+                            channel_names = list(self.traces_dict[dataset_name].keys())
+                            channel_names = [chan for chan in channel_names if "efficiency" not in chan.lower()]
+                            channel_names = [chan for chan in channel_names if chan.lower() not in ["fret", "alex"]]
+                            channel_name = channel_names[0]
 
-                            self.traces_export_metric.clear()
+                        if dataset_name in self.traces_dict.keys():
+                            if channel_name.lower() in self.traces_dict[dataset_name].keys():
+
+                                traces_channel_dict = self.traces_dict[dataset_name][channel_name.lower()]
+                                metric_names = traces_channel_dict[0].keys()
+
+                                self.traces_export_metric.blockSignals(True)
+
+                                self.traces_export_metric.clear()
 
 
-                            for metric in metric_names:
-                                if metric in self.metric_dict.keys():
-                                    self.traces_export_metric.addItem(self.metric_dict[metric])
+                                for metric in metric_names:
+                                    if metric in self.metric_dict.keys():
+                                        self.traces_export_metric.addItem(self.metric_dict[metric])
 
-                            self.traces_export_metric.blockSignals(False)
+                                self.traces_export_metric.blockSignals(False)
 
         except:
             print(traceback.format_exc())
