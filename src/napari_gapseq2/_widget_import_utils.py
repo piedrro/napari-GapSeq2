@@ -558,6 +558,11 @@ class _import_utils:
             self.export_dataset.addItems(dataset_names)
             self.export_dataset.blockSignals(False)
 
+            self.locs_export_dataset.blockSignals(True)
+            self.locs_export_dataset.clear()
+            self.locs_export_dataset.addItems(dataset_names)
+            self.locs_export_dataset.blockSignals(False)
+
         except:
             print(traceback.format_exc())
 
@@ -598,6 +603,7 @@ class _import_utils:
         self.update_export_options()
         self.populate_export_combos()
         self.update_filtering_channels()
+        self.update_loc_export_options()
 
         self.update_align_reference_channel()
 

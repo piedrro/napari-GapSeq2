@@ -225,6 +225,11 @@ class GapSeqWidget(QWidget,
         self.gapseq_export_traces = self.findChild(QPushButton, 'gapseq_export_traces')
         self.export_progressbar = self.findChild(QProgressBar, 'export_progressbar')
 
+        self.locs_export_mode = self.findChild(QComboBox, 'locs_export_mode')
+        self.locs_export_dataset = self.findChild(QComboBox, 'locs_export_dataset')
+        self.locs_export_channel = self.findChild(QComboBox, 'locs_export_channel')
+        self.gapseq_export_locs = self.findChild(QPushButton, 'gapseq_export_locs')
+
         self.traces_spot_size = self.findChild(QComboBox, "traces_spot_size")
         self.traces_spot_shape = self.findChild(QComboBox, "traces_spot_shape")
         self.traces_background_buffer = self.findChild(QComboBox, "traces_background_buffer")
@@ -272,6 +277,7 @@ class GapSeqWidget(QWidget,
         self.cluster_localisations.clicked.connect(self.gapseq_cluster_localisations)
         self.dbscan_remove_overlapping = self.findChild(QCheckBox, "dbscan_remove_overlapping")
 
+
         self.gapseq_dataset_selector.currentIndexChanged.connect(self.update_channel_select_buttons)
         self.gapseq_dataset_selector.currentIndexChanged.connect(partial(self.update_active_image,
             dataset = self.gapseq_dataset_selector.currentText()))
@@ -289,6 +295,10 @@ class GapSeqWidget(QWidget,
 
         self.gapseq_export_data.clicked.connect(self.export_data)
         self.export_dataset.currentIndexChanged.connect(self.update_export_options)
+
+        self.gapseq_export_locs.clicked.connect(self.initialise_export_locs)
+        self.locs_export_mode.currentIndexChanged.connect(self.update_loc_export_options)
+        self.locs_export_dataset.currentIndexChanged.connect(self.update_loc_export_options)
 
         self.gapseq_export_traces.clicked.connect(self.export_traces)
         self.traces_export_dataset.currentIndexChanged.connect(self.populate_export_combos)
@@ -525,6 +535,7 @@ class GapSeqWidget(QWidget,
                                         print("Updating fiducial data")
 
                                     self.fiducial_layer.data = render_locs[active_frame]
+                                    self.fiducial_layer.selected_data = []
 
                                 if update_vis:
 

@@ -1,7 +1,17 @@
 import numpy as np
 import cv2
 import traceback
-
+from napari_gapseq2._widget_utils_compute import Worker
+from functools import partial
+from concurrent.futures import ThreadPoolExecutor
+import concurrent
+import os
+from picasso.io import save_locs
+import h5py
+import yaml
+import tempfile
+import shutil
+from pathlib import Path
 
 
 class picasso_loc_utils():
@@ -153,7 +163,208 @@ class picasso_loc_utils():
 
 
 
+def export_picasso_localisation(loc_data):
+
+    try:
+        locs = loc_data["locs"]
+        h5py_path = Path(loc_data["hdf5_path"])
+        yaml_path = Path(loc_data["info_path"])
+        info = loc_data["picasso_info"]
+
+        if "%" in str(h5py_path):
+
+            desktop = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop')
+
+            h5py_filename = os.path.basename(h5py_path)
+            yaml_filename = os.path.basename(yaml_path)
+
+            h5py_path = os.path.join(desktop, h5py_filename)
+            yaml_path = os.path.join(desktop, yaml_filename)
+
+            print("Saving to desktop")
+        else:
+            print("Saving to original location")
+
+        # Save to temporary HDF5 file
+        with h5py.File(h5py_path, "w") as hdf_file:
+            hdf_file.create_dataset("locs", data=locs)
+
+        # Save to temporary YAML file
+        with open(yaml_path, "w") as file:
+            yaml.dump_all(info, file, default_flow_style=False)
+
+    except Exception as e:
+        print(traceback.format_exc())
+
 class _loc_utils():
+
+    def update_loc_export_options(self):
+
+        try:
+
+            dataset_name  = self.locs_export_dataset.currentText()
+
+            if dataset_name in self.dataset_dict.keys() or dataset_name == "All Datasets":
+
+                if dataset_name == "All Datasets":
+                    channel_names = ["All Channels"]
+                else:
+                    channel_names = list(self.dataset_dict[dataset_name].keys())
+                    channel_names = [name for name in channel_names if "efficiency" not in name.lower()]
+
+                    for channel_index, channel_name in enumerate(channel_names):
+                        if channel_name in ["donor", "acceptor"]:
+                            channel_names[channel_index] = channel_name.capitalize()
+                        else:
+                            channel_names[channel_index] = channel_name.upper()
+
+                    channel_names.insert(0, "All Channels")
+
+                self.locs_export_channel.blockSignals(True)
+                self.locs_export_channel.clear()
+                self.locs_export_channel.addItems(channel_names)
+                self.locs_export_channel.blockSignals(False)
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
+    def export_locs(self, progress_callback = None, export_dataset = "", export_channel = ""):
+
+        try:
+
+            export_loc_mode = self.locs_export_mode.currentText()
+            export_loc_jobs = []
+
+            if export_dataset == "All Datasets":
+                dataset_list = list(self.dataset_dict.keys())
+            else:
+                dataset_list = [export_dataset]
+
+            if export_loc_mode == "Fiducials":
+                loc_type_list = ["Fiducials"]
+            elif export_loc_mode == "Bounding Boxes":
+                loc_type_list = ["Bounding Boxes"]
+            else:
+                loc_type_list = ["Fiducials", "Bounding Boxes"]
+
+            for dataset_name in dataset_list:
+
+                if export_channel == "All Channels":
+                    channel_list = list(self.dataset_dict[dataset_name].keys())
+                else:
+                    channel_list = [export_channel]
+
+                channel_list = [channel.lower() for channel in channel_list if "efficiency" not in channel.lower()]
+
+                for channel_name in channel_list:
+
+                    for loc_type in loc_type_list:
+
+                        if loc_type == "Fiducials":
+                            loc_dict, n_locs, fitted = self.get_loc_dict(dataset_name, channel_name, type="fiducials")
+                        elif loc_type == "Bounding Boxes":
+                            loc_dict, n_locs, fitted = self.get_loc_dict(dataset_name, channel_name, type="bounding_boxes")
+
+                        if n_locs > 0 and fitted == True:
+
+                            locs = loc_dict["localisations"]
+                            box_size = loc_dict["box_size"]
+
+                            if "min_net_gradient" in loc_dict.keys():
+                                min_net_gradient = loc_dict["min_net_gradient"]
+                            else:
+                                min_net_gradient = int(self.picasso_min_net_gradient.text())
+
+                            if channel_name in self.dataset_dict[dataset_name].keys():
+
+                                import_path = self.dataset_dict[dataset_name][channel_name]["path"]
+                                image_shape = self.dataset_dict[dataset_name][channel_name]["data"].shape
+
+                                base, ext = os.path.splitext(import_path)
+
+                                if loc_type == "Bounding Boxes":
+                                    hdf5_path = base + f"_picasso_bboxes.hdf5"
+                                    info_path = base + f"_picasso_bboxes.yaml"
+                                else:
+                                    hdf5_path = base + f"_picasso_fiducials.hdf5"
+                                    info_path = base + f"_picasso_fiducials.yaml"
+
+                                picasso_info = [{"Byte Order": "<", "Data Type": "uint16", "File": import_path,
+                                                 "Frames": image_shape[0], "Height": image_shape[1],
+                                                 "Micro-Manager Acquisiton Comments": "", "Width":image_shape[2],},
+                                                {"Box Size": box_size, "Fit method": "LQ, Gaussian", "Generated by": "Picasso Localize",
+                                                 "Min. Net Gradient": min_net_gradient, "Pixelsize": 130, "ROI": None, }]
+
+                                export_loc_job = { "dataset_name": dataset_name,
+                                                   "channel_name": channel_name,
+                                                   "loc_type": loc_type,
+                                                   "locs": locs,
+                                                   "fitted": fitted,
+                                                   "hdf5_path": hdf5_path,
+                                                   "info_path": info_path,
+                                                   "picasso_info": picasso_info,
+                                                  }
+                            export_loc_jobs.append(export_loc_job)
+
+            if len(export_loc_jobs) > 0:
+
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    futures = [executor.submit(export_picasso_localisation, job) for job in export_loc_jobs]
+
+                    for future in concurrent.futures.as_completed(futures):
+                        try:
+                            future.result()
+                        except:
+                            print(traceback.format_exc())
+                            pass
+
+                        progress = int(100 * (len(export_loc_jobs) - len(futures)) / len(export_loc_jobs))
+
+                        if progress_callback is not None:
+                            progress_callback.emit(progress)
+
+
+
+
+        except:
+            self.update_ui()
+            print(traceback.format_exc())
+            pass
+
+
+    def export_locs_finished(self):
+
+        try:
+
+            print("Exporting locs finished")
+            self.update_ui()
+
+        except:
+            self.update_ui()
+            print(traceback.format_exc())
+            pass
+
+    def initialise_export_locs(self, event=None, export_dataset = "", export_channel = ""):
+
+        try:
+
+            if export_dataset == "" or export_dataset not in self.dataset_dict.keys():
+                export_dataset = self.locs_export_dataset.currentText()
+            if export_channel == "":
+                export_channel = self.locs_export_channel.currentText()
+
+            self.update_ui(init = True)
+
+            self.worker = Worker(self.export_locs, export_dataset = export_dataset, export_channel = export_channel)
+            self.worker.signals.progress.connect(partial(self.gapseq_progress,progress_bar=self.export_progressbar))
+            self.worker.signals.finished.connect(self.export_locs_finished)
+            self.threadpool.start(self.worker)
+
+        except:
+            self.update_ui()
+            pass
 
     def get_loc_dict(self, dataset_name="", channel_name="", type = "fiducials"):
 
