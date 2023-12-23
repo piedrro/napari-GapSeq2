@@ -98,6 +98,11 @@ def picasso_detect(dat):
                     spot_data = get_spots(image, locs, box_size, camera_info)
                     theta, CRLBs, likelihoods, iterations = gaussmle(spot_data, eps=0.001, max_it=100, method="sigma")
                     locs = localize.locs_from_fits(locs.copy(), theta, CRLBs, likelihoods, iterations, box_size)
+
+                    if remove_overlapping:
+                        # sometimes locs can overlap after fitting
+                        locs = remove_overlapping_locs(locs, box_size)
+
                 except:
                     pass
 

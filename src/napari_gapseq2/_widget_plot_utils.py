@@ -135,6 +135,7 @@ class _plot_utils:
 
                             self.updating_plot_combos = True
                             self.update_qcombo_items(self.plot_metric, plot_metric_items)
+                            self.update_qcombo_items(self.traces_export_metric, plot_metric_items)
                             self.updating_plot_combos = False
 
         except:

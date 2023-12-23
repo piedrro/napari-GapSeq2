@@ -75,12 +75,63 @@ class _export_traces_utils:
     def export_traces_excel(self, progress_callback=None, export_path=""):
 
         try:
-
             print("Exporting traces to Excel...")
         except:
             print(traceback.format_exc())
 
             pass
+
+    def json_dict_report(self, json_dataset):
+
+        try:
+
+            if json_dataset != {}:
+
+                json_report = {}
+                dataset_traces = {}
+
+                data_dict = json_dataset["data"]
+
+                for dataset in data_dict.keys():
+
+                    data = data_dict[dataset]
+
+                    if dataset not in json_report.keys():
+                        json_report[dataset] = {}
+
+                    dataset_traces[dataset] = len(data)
+
+                    for json_dict in data:
+
+                        json_dict_keys = json_dict.keys()
+
+                        for key in json_dict_keys:
+
+                            if key not in json_report[dataset].keys():
+                                json_report[dataset][key] = 0
+
+                            json_report[dataset][key] += 1
+
+                n_datasets = len(json_report.keys())
+                unique_channels = list(set([key for dataset in json_report.keys() for key in json_report[dataset].keys()]))
+                unique_n_traces = np.unique([value for dataset in json_report.keys() for value in json_report[dataset].values()])
+                total_traces = sum([value for dataset in json_report.keys() for value in json_report[dataset].values()])
+
+                # size of json_dataset
+                json_dataset_size = len(json.dumps(json_dataset, indent=4, cls=npEncoder))
+                json_dataset_size_mb = json_dataset_size / 1000000
+
+                print(f"JSON Dataset report:")
+                print(f" N datasets: {n_datasets}")
+                print(f" Dataset traces: {list(dataset_traces.values())}")
+                print(f" Unique channels: {unique_channels}")
+                print(f" N traces: {unique_n_traces}")
+                print(f" Total traces: {total_traces}")
+                print(f" Size: {json_dataset_size_mb} MB")
+
+        except:
+            print(traceback.format_exc())
+
 
     def populate_json_dict(self, progress_callback=None):
 
@@ -91,7 +142,7 @@ class _export_traces_utils:
 
         metric_key = self.get_dict_key(self.metric_dict, metric_name)
 
-        if background_mode not in ["None", None,""]:
+        if background_mode not in ["None", None,""] and type(metric_key) == str:
             if "local" in background_mode.lower():
                 background_metric_key = metric_key + "_local_bg"
             else:
@@ -407,43 +458,42 @@ class _export_traces_utils:
                 self.traces_export_channel.addItems(export_channel_list)
                 self.traces_export_channel.blockSignals(True)
 
-                if hasattr(self, "traces_dict"):
-
-                    dataset_name = self.traces_export_dataset.currentText()
-                    channel_name = self.traces_export_channel.currentText()
-
-                    if dataset_name in self.traces_dict.keys():
-
-                        if dataset_name == "All Datasets":
-                            dataset_names = list(self.traces_dict.keys())
-                            dataset_name = dataset_names[0]
-
-                        if channel_name.lower() == "fret":
-                            channel_name = "donor"
-                        if channel_name.lower() == "alex":
-                            channel_name = "dd"
-                        if channel_name.lower() == "all channels":
-                            channel_names = list(self.traces_dict[dataset_name].keys())
-                            channel_names = [chan for chan in channel_names if "efficiency" not in chan.lower()]
-                            channel_names = [chan for chan in channel_names if chan.lower() not in ["fret", "alex"]]
-                            channel_name = channel_names[0]
-
-                        if dataset_name in self.traces_dict.keys():
-                            if channel_name.lower() in self.traces_dict[dataset_name].keys():
-
-                                traces_channel_dict = self.traces_dict[dataset_name][channel_name.lower()]
-                                metric_names = traces_channel_dict[0].keys()
-
-                                self.traces_export_metric.blockSignals(True)
-
-                                self.traces_export_metric.clear()
-
-
-                                for metric in metric_names:
-                                    if metric in self.metric_dict.keys():
-                                        self.traces_export_metric.addItem(self.metric_dict[metric])
-
-                                self.traces_export_metric.blockSignals(False)
+                # if hasattr(self, "traces_dict"):
+                #
+                #     dataset_name = self.traces_export_dataset.currentText()
+                #     channel_name = self.traces_export_channel.currentText()
+                #
+                #     if dataset_name in self.traces_dict.keys():
+                #
+                #         if dataset_name == "All Datasets":
+                #             dataset_names = list(self.traces_dict.keys())
+                #             dataset_name = dataset_names[0]
+                #
+                #         if channel_name.lower() == "fret":
+                #             channel_name = "donor"
+                #         if channel_name.lower() == "alex":
+                #             channel_name = "dd"
+                #         if channel_name.lower() == "all channels":
+                #             channel_names = list(self.traces_dict[dataset_name].keys())
+                #             channel_names = [chan for chan in channel_names if "efficiency" not in chan.lower()]
+                #             channel_names = [chan for chan in channel_names if chan.lower() not in ["fret", "alex"]]
+                #             channel_name = channel_names[0]
+                #
+                #         if dataset_name in self.traces_dict.keys():
+                #             if channel_name.lower() in self.traces_dict[dataset_name].keys():
+                #
+                #                 traces_channel_dict = self.traces_dict[dataset_name][channel_name.lower()]
+                #                 metric_names = traces_channel_dict[0].keys()
+                #
+                #                 # self.traces_export_metric.blockSignals(True)
+                #                 #
+                #                 # self.traces_export_metric.clear()
+                #                 #
+                #                 # for metric in metric_names:
+                #                 #     if metric in self.metric_dict.keys():
+                #                 #         self.traces_export_metric.addItem(self.metric_dict[metric])
+                #                 #
+                #                 # self.traces_export_metric.blockSignals(False)
 
         except:
             print(traceback.format_exc())
