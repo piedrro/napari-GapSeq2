@@ -12,7 +12,10 @@ import yaml
 import tempfile
 import shutil
 from pathlib import Path
-
+import threading
+import queue
+import traceback
+import numpy as np
 
 class picasso_loc_utils():
 
@@ -161,37 +164,58 @@ class picasso_loc_utils():
         return self.locs
 
 
+def format_picasso_path(path):
 
+    if "%" in str(path):
+        path = path.replace("%", "%%")
+
+    path = os.path.normpath(path)
+
+    if os.name == "nt":
+        path = '\\\\?\\UNC\\' + path[2:]
+
+    return Path(path)
 
 def export_picasso_localisation(loc_data):
 
     try:
         locs = loc_data["locs"]
-        h5py_path = Path(loc_data["hdf5_path"])
-        yaml_path = Path(loc_data["info_path"])
+        h5py_path = loc_data["hdf5_path"]
+        yaml_path = loc_data["info_path"]
         info = loc_data["picasso_info"]
 
-        if "%" in str(h5py_path):
+        h5py_path = format_picasso_path(h5py_path)
+        yaml_path = format_picasso_path(yaml_path)
 
-            desktop = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop')
+        # Create temporary files
+        temp_h5py_path = tempfile.NamedTemporaryFile(delete=False).name
+        temp_yaml_path = tempfile.NamedTemporaryFile(delete=False).name
 
-            h5py_filename = os.path.basename(h5py_path)
-            yaml_filename = os.path.basename(yaml_path)
-
-            h5py_path = os.path.join(desktop, h5py_filename)
-            yaml_path = os.path.join(desktop, yaml_filename)
-
-            print("Saving to desktop")
-        else:
-            print("Saving to original location")
+        h5py_path.parent.mkdir(parents=True, exist_ok=True)
+        yaml_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Save to temporary HDF5 file
-        with h5py.File(h5py_path, "w") as hdf_file:
+        with h5py.File(temp_h5py_path, "w") as hdf_file:
             hdf_file.create_dataset("locs", data=locs)
 
         # Save to temporary YAML file
-        with open(yaml_path, "w") as file:
+        with open(temp_yaml_path, "w") as file:
             yaml.dump_all(info, file, default_flow_style=False)
+
+        try:
+            shutil.move(temp_h5py_path, h5py_path)
+            shutil.move(temp_yaml_path, yaml_path)
+        except:
+
+            print("Could not move files to import directory. Saving to desktop instead.")
+
+            desktop_dir = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop')
+
+            desktop_h5py_path = os.path.join(desktop_dir, h5py_path.name)
+            desktop_yaml_path = os.path.join(desktop_dir, yaml_path.name)
+
+            shutil.move(temp_h5py_path, desktop_h5py_path)
+            shutil.move(temp_yaml_path, desktop_yaml_path)
 
     except Exception as e:
         print(traceback.format_exc())
