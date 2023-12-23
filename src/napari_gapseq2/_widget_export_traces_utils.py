@@ -91,7 +91,7 @@ class _export_traces_utils:
 
         metric_key = self.get_dict_key(self.metric_dict, metric_name)
 
-        if background_mode != "None":
+        if background_mode not in ["None", None,""]:
             if "local" in background_mode.lower():
                 background_metric_key = metric_key + "_local_bg"
             else:
@@ -133,12 +133,30 @@ class _export_traces_utils:
 
         gap_label_dict = {}
         sequence_label_dict = {}
+
+        loc_dict, n_locs, fitted = self.get_loc_dict(type="bounding_boxes")
+        locs = loc_dict["localisations"]
+        spot_locs_dict = {}
+
         for dataset in dataset_list:
-            for channel_dict in self.dataset_dict[dataset].values():
+            for channel_name, channel_dict in self.dataset_dict[dataset].items():
                 if "gap_label" in channel_dict.keys():
                     gap_label_dict[dataset] = channel_dict["gap_label"]
                 if "sequence_label" in channel_dict.keys():
                     sequence_label_dict[dataset] = channel_dict["sequence_label"]
+
+                if dataset not in spot_locs_dict.keys():
+                    spot_locs_dict[dataset] = {}
+
+                traces_dict = self.traces_dict[dataset][channel_name]
+
+                for trace_index, trace_dict in traces_dict.items():
+
+                    if trace_index not in spot_locs_dict[dataset].keys():
+                        spot_locs_dict[dataset][trace_index] = {}
+
+                    spot_loc = locs[trace_index].copy().tolist()
+                    spot_locs_dict[dataset][trace_index] = spot_loc
 
         iter = 0
         for dataset in dataset_list:
@@ -171,12 +189,15 @@ class _export_traces_utils:
 
                     channel_dict = self.traces_dict[dataset][channel].copy()
 
-                    n_traces = len(channel_dict.keys())
-
                     if json_dict["data"][dataset] == []:
                         json_dict["data"][dataset] = [{} for _ in range(n_traces)]
 
                     for trace_index, trace_dict in channel_dict.items():
+
+                        if trace_index in spot_locs_dict[dataset].keys():
+                            spot_loc = spot_locs_dict[dataset][trace_index]
+                        else:
+                            spot_loc = None
 
                         if channel.lower() in ["dd", "da", "ad", "aa"]:
                             channel_name = channel.upper()
@@ -201,6 +222,7 @@ class _export_traces_utils:
                         json_dict["data"][dataset][trace_index][channel_name] = data
                         json_dict["data"][dataset][trace_index]["gap_label"] = gap_label
                         json_dict["data"][dataset][trace_index]["sequence_label"] = sequence_label
+                        json_dict["data"][dataset][trace_index]["picasso_loc"] = spot_loc
 
                         iter += 1
 
@@ -277,8 +299,7 @@ class _export_traces_utils:
 
     def export_traces_finished(self, export_path):
 
-        if self.traces_export_status == True:
-            print("Traces exported to: {}".format(export_path))
+        print("Traces exported to: {}".format(export_path))
 
         self.update_ui()
 
