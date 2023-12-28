@@ -181,6 +181,33 @@ class _events_utils:
     def select_channel_acceptor(self, event=None):
         self.update_active_image(channel="acceptor")
 
+
+    def image_layer_auto_contrast(self, image):
+
+        contrast_limits = None
+
+        try:
+            full_range = [np.min(image), np.max(image)]
+
+            if max(full_range) > min(full_range):
+                contrast_limits = np.percentile(image[:10].copy(), [0.1, 99.99])
+
+                gamma = 1.0
+                if contrast_limits[1] > contrast_limits[0]:
+                    gamma = np.log(0.5) / np.log((contrast_limits[1] - contrast_limits[0]) / (full_range[1] - full_range[0]))
+
+                if hasattr(self, "image_layer"):
+                    self.image_layer.gamma = gamma
+                    self.image_layer.contrast_limits = contrast_limits
+
+
+        except:
+            print(traceback.format_exc())
+
+        return contrast_limits
+
+
+
     def update_active_image(self, channel=None, dataset=None, event=None):
 
         try:
@@ -210,8 +237,6 @@ class _events_utils:
 
                     image = self.dataset_dict[dataset_name][channel]["data"]
 
-                    contrast_range = [np.min(image), np.max(image)]
-
                     if channel in ["da", "dd", "aa", "ad"]:
                         channel_name = channel.upper()
                     else:
@@ -235,7 +260,7 @@ class _events_utils:
                         self.image_layer.name = layer_name
                         self.image_layer.refresh()
 
-                    self.viewer.layers[layer_name].contrast_limits = contrast_range
+                    self.image_layer_auto_contrast(image)
 
             else:
                 if hasattr(self, "image_layer"):
