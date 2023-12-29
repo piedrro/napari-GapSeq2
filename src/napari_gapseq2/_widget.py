@@ -148,6 +148,11 @@ class GapSeqWidget(QWidget,
         self.import_alex_data = self.findChild(QPushButton, 'import_alex_data')
         self.channel_selector = self.findChild(QComboBox, 'channel_selector')
 
+        self.import_picasso_type = self.findChild(QComboBox, "import_picasso_type")
+        self.import_picasso_dataset = self.findChild(QComboBox, 'import_picasso_dataset')
+        self.import_picasso_channel = self.findChild(QComboBox, 'import_picasso_channel')
+        self.import_picasso = self.findChild(QPushButton, 'import_picasso')
+
         self.picasso_dataset = self.findChild(QComboBox, 'picasso_dataset')
         self.picasso_channel = self.findChild(QComboBox, 'picasso_channel')
         self.picasso_min_net_gradient = self.findChild(QLineEdit, 'picasso_min_net_gradient')
@@ -270,6 +275,7 @@ class GapSeqWidget(QWidget,
         self.gapseq_delete_dataset.clicked.connect(self.delete_dataset)
         self.gapseq_update_labels.clicked.connect(self.update_nucleotide)
 
+        self.import_picasso.clicked.connect(self.import_picaaso_localisations)
 
         self.picasso_detect.clicked.connect(partial(self.gapseq_picasso, detect = True, fit=False))
         self.picasso_fit.clicked.connect(partial(self.gapseq_picasso, detect = False, fit=True))
@@ -383,9 +389,7 @@ class GapSeqWidget(QWidget,
     def dev_function(self, event):
 
         print("Dev function called")
-
-        self.undrift_localisations()
-        self.draw_fiducials(update_vis=True)
+        self.update_picasso_import_channel()
 
     def select_image_layer(self):
 

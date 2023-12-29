@@ -37,188 +37,267 @@
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <item>
-        <widget class="QLabel" name="label_2">
-         <property name="font">
-          <font>
-           <weight>75</weight>
-           <bold>true</bold>
-          </font>
+        <widget class="QTabWidget" name="tabWidget_4">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
          </property>
-         <property name="text">
-          <string>Import Images</string>
+         <property name="currentIndex">
+          <number>0</number>
          </property>
-        </widget>
-       </item>
-       <item>
-        <layout class="QFormLayout" name="formLayout">
-         <item row="0" column="0">
-          <widget class="QLabel" name="label">
-           <property name="text">
-            <string>Import Mode</string>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="1">
-          <widget class="QComboBox" name="gapseq_import_mode">
+         <widget class="QWidget" name="tab_15">
+          <attribute name="title">
+           <string>Import Images</string>
+          </attribute>
+          <layout class="QVBoxLayout" name="verticalLayout_18">
            <item>
-            <property name="text">
-             <string>FRET</string>
-            </property>
+            <layout class="QFormLayout" name="formLayout">
+             <item row="0" column="0">
+              <widget class="QLabel" name="label">
+               <property name="text">
+                <string>Import Mode</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QComboBox" name="gapseq_import_mode">
+               <item>
+                <property name="text">
+                 <string>FRET</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>Donor</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>Acceptor</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>ALEX</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>DA</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>DD</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>AA</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>AD</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="gapseq_channel_layout_label">
+               <property name="text">
+                <string>Channel Layout</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QComboBox" name="gapseq_channel_layout">
+               <item>
+                <property name="text">
+                 <string>Donor-Acceptor</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>Acceptor-Donor</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="QLabel" name="gapseq_alex_first_frame_label">
+               <property name="text">
+                <string>ALEX First Frame Excitation</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="1">
+              <widget class="QComboBox" name="gapseq_alex_first_frame">
+               <item>
+                <property name="text">
+                 <string>Donor</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>Acceptor</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+             <item row="3" column="0">
+              <widget class="QLabel" name="label_32">
+               <property name="text">
+                <string>Import Limit</string>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="1">
+              <widget class="QComboBox" name="gapseq_import_limt">
+               <item>
+                <property name="text">
+                 <string>None</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>10</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>50</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>100</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>200</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>300</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>400</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>500</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+             <item row="4" column="1">
+              <widget class="QComboBox" name="gapseq_append_dataset"/>
+             </item>
+             <item row="4" column="0">
+              <widget class="QLabel" name="gapseq_append_dataset_label">
+               <property name="text">
+                <string>Append Channels to Dataset:</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
            </item>
            <item>
-            <property name="text">
-             <string>Donor</string>
-            </property>
+            <widget class="QCheckBox" name="gapseq_append">
+             <property name="text">
+              <string>Append Channel(s) To Exisiting Dataset</string>
+             </property>
+            </widget>
            </item>
            <item>
-            <property name="text">
-             <string>Acceptor</string>
-            </property>
+            <widget class="QPushButton" name="gapseq_import">
+             <property name="text">
+              <string>Import</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="tab_16">
+          <attribute name="title">
+           <string>Import Localisations</string>
+          </attribute>
+          <layout class="QVBoxLayout" name="verticalLayout_19">
+           <item>
+            <layout class="QFormLayout" name="formLayout_21">
+             <item row="1" column="0">
+              <widget class="QLabel" name="label_2">
+               <property name="text">
+                <string>Dataset</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="QLabel" name="label_75">
+               <property name="text">
+                <string>Channel</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QComboBox" name="import_picasso_dataset"/>
+             </item>
+             <item row="2" column="1">
+              <widget class="QComboBox" name="import_picasso_channel"/>
+             </item>
+             <item row="0" column="0">
+              <widget class="QLabel" name="label_76">
+               <property name="text">
+                <string>Localisation Type</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QComboBox" name="import_picasso_type">
+               <item>
+                <property name="text">
+                 <string>Fiducials</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>Bounding Boxes</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+            </layout>
            </item>
            <item>
-            <property name="text">
-             <string>ALEX</string>
-            </property>
+            <widget class="QPushButton" name="import_picasso">
+             <property name="text">
+              <string>Import Picasso Localisations</string>
+             </property>
+            </widget>
            </item>
            <item>
-            <property name="text">
-             <string>DA</string>
-            </property>
+            <spacer name="verticalSpacer_18">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
            </item>
-           <item>
-            <property name="text">
-             <string>DD</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>AA</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>AD</string>
-            </property>
-           </item>
-          </widget>
-         </item>
-         <item row="1" column="0">
-          <widget class="QLabel" name="gapseq_channel_layout_label">
-           <property name="text">
-            <string>Channel Layout</string>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="1">
-          <widget class="QComboBox" name="gapseq_channel_layout">
-           <item>
-            <property name="text">
-             <string>Donor-Acceptor</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>Acceptor-Donor</string>
-            </property>
-           </item>
-          </widget>
-         </item>
-         <item row="2" column="0">
-          <widget class="QLabel" name="gapseq_alex_first_frame_label">
-           <property name="text">
-            <string>ALEX First Frame Excitation</string>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="1">
-          <widget class="QComboBox" name="gapseq_alex_first_frame">
-           <item>
-            <property name="text">
-             <string>Donor</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>Acceptor</string>
-            </property>
-           </item>
-          </widget>
-         </item>
-         <item row="3" column="0">
-          <widget class="QLabel" name="label_32">
-           <property name="text">
-            <string>Import Limit</string>
-           </property>
-          </widget>
-         </item>
-         <item row="3" column="1">
-          <widget class="QComboBox" name="gapseq_import_limt">
-           <item>
-            <property name="text">
-             <string>None</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>10</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>50</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>100</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>200</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>300</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>400</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>500</string>
-            </property>
-           </item>
-          </widget>
-         </item>
-         <item row="4" column="1">
-          <widget class="QComboBox" name="gapseq_append_dataset"/>
-         </item>
-         <item row="4" column="0">
-          <widget class="QLabel" name="gapseq_append_dataset_label">
-           <property name="text">
-            <string>Append Channels to Dataset:</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="gapseq_append">
-         <property name="text">
-          <string>Append Channel(s) To Exisiting Dataset</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="gapseq_import">
-         <property name="text">
-          <string>Import</string>
-         </property>
+          </layout>
+         </widget>
         </widget>
        </item>
        <item>

@@ -127,6 +127,8 @@ def picasso_detect(dat):
 
 class _picasso_detect_utils:
 
+
+
     def populate_localisation_dict(self, loc_dict, render_loc_dict, detect_mode, image_channel, box_size, fitted=False):
 
         if self.verbose:

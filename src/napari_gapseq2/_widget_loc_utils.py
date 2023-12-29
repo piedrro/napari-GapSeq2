@@ -16,6 +16,7 @@ import threading
 import queue
 import traceback
 import numpy as np
+from qtpy.QtWidgets import QFileDialog
 
 class picasso_loc_utils():
 
@@ -172,7 +173,8 @@ def format_picasso_path(path):
     path = os.path.normpath(path)
 
     if os.name == "nt":
-        path = '\\\\?\\UNC\\' + path[2:]
+        if path.startswith("\\\\"):
+            path = '\\\\?\\UNC\\' + path[2:]
 
     return Path(path)
 
@@ -221,6 +223,133 @@ def export_picasso_localisation(loc_data):
         print(traceback.format_exc())
 
 class _loc_utils():
+
+
+    def _import_picasso_localisations_finished(self):
+
+        try:
+            self.update_ui()
+
+            self.draw_fiducials(update_vis=True)
+            self.draw_bounding_boxes(update_vis=True)
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
+    def _import_picasso_localisations(self, progress_callback = None, path=""):
+
+        try:
+
+            dataset = self.import_picasso_dataset.currentText()
+            channel = self.import_picasso_channel.currentText()
+            type = self.import_picasso_type.currentText()
+
+            if type == "Fiducials":
+                if dataset not in self.localisation_dict["fiducials"].keys():
+                    self.localisation_dict["fiducials"][dataset] = {}
+                if channel.lower() not in self.localisation_dict["fiducials"][dataset].keys():
+                    self.localisation_dict["fiducials"][dataset][channel.lower()] = {}
+
+            yaml_path = path.replace(".hdf5", ".yaml")
+
+            dtype = [('frame', '<u4'), ('x', '<f4'), ('y', '<f4'),
+                     ('photons', '<f4'), ('sx', '<f4'), ('sy', '<f4'),
+                     ('bg', '<f4'), ('lpx', '<f4'), ('lpy', '<f4'),
+                     ('ellipticity', '<f4'),('net_gradient', '<f4')]
+
+            if self.verbose:
+                print("Loading localisations from hdf5")
+
+            with h5py.File(path, "r") as f:
+                locs = np.array(f["locs"], dtype=dtype).view(np.recarray)
+
+            box_size = self.picasso_box_size.currentText()
+
+
+            if self.verbose:
+                print("Loading localisations from yaml")
+
+            if os.path.exists(yaml_path):
+                with open(yaml_path, "r") as info_file:
+                    info = list(yaml.load_all(info_file, Loader=yaml.UnsafeLoader))
+
+                if "Box Size" in info[1].keys():
+                    box_size = info[1]["Box Size"]
+
+            if type == "Fiducials":
+
+                if self.verbose:
+                    print("Creating render locs")
+
+                render_locs = {}
+                for frame in np.unique(locs.frame):
+                    frame_locs = locs[locs.frame == frame].copy()
+                    render_locs[frame] = np.vstack((frame_locs.y, frame_locs.x)).T.tolist()
+
+                loc_centres = self.get_localisation_centres(locs)
+
+                if self.verbose:
+                    print("Updating localisation dict")
+
+                self.localisation_dict["fiducials"][dataset][channel.lower()]["localisations"] = locs.copy()
+                self.localisation_dict["fiducials"][dataset][channel.lower()]["localisation_centres"] = loc_centres.copy()
+                self.localisation_dict["fiducials"][dataset][channel.lower()]["render_locs"] = render_locs
+                self.localisation_dict["fiducials"][dataset][channel.lower()]["fitted"] = True
+                self.localisation_dict["fiducials"][dataset][channel.lower()]["box_size"] = box_size
+
+            else:
+                unique_frames = np.unique(locs.frame)
+                locs = locs[locs.frame == unique_frames[0]]
+
+                loc_centres = self.get_localisation_centres(locs)
+
+                if self.verbose:
+                    print("Updating localisation dict")
+
+                self.localisation_dict["bounding_boxes"]["localisations"] = locs.copy()
+                self.localisation_dict["bounding_boxes"]["localisation_centres"] = loc_centres.copy()
+                self.localisation_dict["bounding_boxes"]["render_locs"] = {}
+                self.localisation_dict["bounding_boxes"]["fitted"] = True
+                self.localisation_dict["bounding_boxes"]["box_size"] = box_size
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+
+    def import_picaaso_localisations(self):
+
+        try:
+
+            dataset = self.import_picasso_dataset.currentText()
+            channel = self.import_picasso_channel.currentText()
+            type = self.import_picasso_type.currentText()
+
+            if dataset in self.dataset_dict.keys():
+                if channel.lower() in self.dataset_dict[dataset].keys():
+
+                    dataset_path = self.dataset_dict[dataset][channel.lower()]["path"]
+
+                    dataset_dir = os.path.dirname(dataset_path)
+
+                    if os.path.exists(dataset_dir) == False:
+                        dataset_dir = os.path.expanduser("~/Desktop")
+
+                    path, _ = QFileDialog.getOpenFileName(self, "Open Files", dataset_dir, "Files (*.hdf5)")
+
+                    if path != "" and os.path.exists(path):
+
+                        self.update_ui(init=True)
+
+                        self.worker = Worker(self._import_picasso_localisations, path=path)
+                        self.worker.signals.finished.connect(self._import_picasso_localisations_finished)
+                        self.threadpool.start(self.worker)
+        except:
+            self.update_ui()
+            print(traceback.format_exc())
+            pass
 
     def update_loc_export_options(self):
 
@@ -308,12 +437,17 @@ class _loc_utils():
 
                                 base, ext = os.path.splitext(import_path)
 
+                                if channel_name in ["donor", "acceptor"]:
+                                    export_channel_name = channel_name.capitalize()
+                                else:
+                                    export_channel_name = channel_name.upper()
+
                                 if loc_type == "Bounding Boxes":
                                     hdf5_path = base + f"_picasso_bboxes.hdf5"
                                     info_path = base + f"_picasso_bboxes.yaml"
                                 else:
-                                    hdf5_path = base + f"_picasso_fiducials.hdf5"
-                                    info_path = base + f"_picasso_fiducials.yaml"
+                                    hdf5_path = base + f"_picasso_{export_channel_name}_fiducials.hdf5"
+                                    info_path = base + f"_picasso_{export_channel_name}_fiducials.yaml"
 
                                 picasso_info = [{"Byte Order": "<", "Data Type": "uint16", "File": import_path,
                                                  "Frames": image_shape[0], "Height": image_shape[1],
