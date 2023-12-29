@@ -131,11 +131,33 @@ class _plot_utils:
 
                         if n_traces > 0:
 
-                            plot_metric_items = [self.metric_dict[metric] for metric in self.metric_dict.keys()]
+                            metric_names = channel_dict[0].keys()
+
+                            plot_metric_items = []
+                            background_metric_items = []
+
+                            for metric in metric_names:
+                                if "_local_bg" in metric:
+                                    background_metric_items.append("Local Background")
+                                if "_masked_local_bg" in metric:
+                                    background_metric_items.append("Masked Local Background")
+                                if "_global_bg" in metric:
+                                    background_metric_items.append("Global Background")
+                                if "_masked_global_bg" in metric:
+                                    background_metric_items.append("Masked Global Background")
+                                if metric in self.metric_dict.keys():
+                                    plot_metric_items.append(self.metric_dict[metric])
+
+                            plot_metric_items = list(set(plot_metric_items))
+                            background_metric_items = list(set(background_metric_items))
+
+                            background_metric_items.insert(0, "None")
 
                             self.updating_plot_combos = True
                             self.update_qcombo_items(self.plot_metric, plot_metric_items)
+                            self.update_qcombo_items(self.plot_background_mode, background_metric_items)
                             self.update_qcombo_items(self.traces_export_metric, plot_metric_items)
+                            self.update_qcombo_items(self.traces_export_background, background_metric_items)
                             self.updating_plot_combos = False
 
         except:
@@ -289,15 +311,14 @@ class _plot_utils:
             metric_name = self.plot_metric.currentText()
             background_mode = self.plot_background_mode.currentText()
 
-            self.plot_show_dict = {}
+            if hasattr(self, "plot_show_dict") == False:
+                self.plot_show_dict = {}
 
             metric_key = self.get_dict_key(self.metric_dict, metric_name)
 
             if background_mode != "None":
-                if "local" in background_mode.lower():
-                    background_metric_key = metric_key + "_local_bg"
-                else:
-                    background_metric_key = metric_key + "_global_bg"
+                key_modifier = self.get_dict_key(self.background_dict, background_mode)
+                background_metric_key = metric_key + key_modifier
             else:
                 background_metric_key = None
 
@@ -408,7 +429,10 @@ class _plot_utils:
                                 plot_dict[dataset_name][trace_index]["acceptor_bleach_index"] = acceptor_bleach_index
 
                             if label not in self.plot_show_dict.keys():
-                                self.plot_show_dict[label] = True
+                                label = label.replace("Show: ", "")
+                                label = re.sub(r'\[.*?\]', '', label)
+                                if label not in self.plot_show_dict.keys():
+                                    self.plot_show_dict[label] = True
 
                             iter += 1
 
@@ -494,8 +518,12 @@ class _plot_utils:
                     check_box_name = f"plot_show_{channel}"
                     check_box_label = f"{label}"
 
+                    check_box_label = check_box_label.replace("Show: ","")
+                    check_box_label = re.sub(r'\[.*?\]', '', check_box_label)
+
                     if hasattr(self, check_box_name):
                         check_box = getattr(self, check_box_name)
+                        check_box.setText(check_box_label)
                         check_box.show()
 
                     else:
@@ -527,7 +555,10 @@ class _plot_utils:
                     label = widget.text()
                     state = widget.isChecked()
 
-                    self.plot_show_dict[label.replace("Show: ","")] = state
+                    label = label.replace("Show: ","")
+                    label = re.sub(r'\[.*?\]', '', label)
+
+                    self.plot_show_dict[label] = state
 
             self.update_plot_layout()
             self.plot_traces()
@@ -558,9 +589,12 @@ class _plot_utils:
 
             for plot_index, (dataset_name, dataset_dict) in enumerate(self.plot_dict.items()):
 
-                plot_labels = dataset_dict[0]["labels"]
-
-                plot_labels = [label for label in plot_labels if self.plot_show_dict[label] == True]
+                plot_labels = []
+                for label in dataset_dict[0]["labels"]:
+                    plot_show_label = re.sub(r'\[.*?\]', '', label)
+                    if plot_show_label in self.plot_show_dict:
+                        if self.plot_show_dict[plot_show_label] == True:
+                            plot_labels.append(label)
 
                 if len(plot_labels) > 0:
 
@@ -763,10 +797,10 @@ class _plot_utils:
                         if plot_ranges["xRange"][0] > 0:
                             plot_ranges["xRange"][0] = 0
 
-                    for line_index, (plot, line, plot_label) in enumerate(zip(sub_axes, plot_lines, plot_lines_labels)):
+                        for line_index, (plot, line, plot_label) in enumerate(zip(sub_axes, plot_lines, plot_lines_labels)):
 
-                        plot.setXRange(min=plot_ranges["xRange"][0],max=plot_ranges["xRange"][1])
-                        plot.enableAutoRange(axis="y")
+                            plot.setXRange(min=plot_ranges["xRange"][0],max=plot_ranges["xRange"][1])
+                            plot.enableAutoRange(axis="y")
 
         except:
             print(traceback.format_exc())

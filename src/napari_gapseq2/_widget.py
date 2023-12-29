@@ -240,6 +240,7 @@ class GapSeqWidget(QWidget,
         self.traces_background_buffer = self.findChild(QComboBox, "traces_background_buffer")
         self.traces_background_width = self.findChild(QComboBox, "traces_background_width")
         self.compute_with_picasso = self.findChild(QCheckBox, "compute_with_picasso")
+        self.compute_global_background = self.findChild(QCheckBox, "compute_global_background")
         self.traces_visualise_masks = self.findChild(QPushButton, 'traces_visualise_masks')
         self.traces_visualise_bg_masks = self.findChild(QPushButton, 'traces_visualise_bg_masks')
         self.traces_channel_selection_layout = self.findChild(QGridLayout, 'traces_channel_selection_layout')
@@ -368,6 +369,14 @@ class GapSeqWidget(QWidget,
         self.metric_dict = {"spot_mean": "Mean", "spot_median": "Median", "spot_sum": "Sum", "spot_max": "Maximum",
                             "spot_std": "std", "spot_photons": "Picasso Photons", }
 
+        self.background_dict = {"None":"None",
+                                "_local_bg": "Local Background",
+                                "_masked_local_bg": "Masked Local Background",
+                                "_global_bg": "Global Background",
+                                "_masked_global_bg": "Masked Global Background",
+                                "_local_bg": "Local Background",
+                                }
+
         self.viewer.bind_key('D', self.dev_function)
 
         self.viewer.bind_key('PageUp', self.named_partial(self.increment_active_dataset, key='Up'), overwrite=True)
@@ -389,7 +398,7 @@ class GapSeqWidget(QWidget,
     def dev_function(self, event):
 
         print("Dev function called")
-        self.update_picasso_import_channel()
+        self.update_plot_metrics_combos()
 
     def select_image_layer(self):
 

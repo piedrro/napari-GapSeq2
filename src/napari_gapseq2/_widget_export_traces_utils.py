@@ -143,10 +143,8 @@ class _export_traces_utils:
         metric_key = self.get_dict_key(self.metric_dict, metric_name)
 
         if background_mode not in ["None", None,""] and type(metric_key) == str:
-            if "local" in background_mode.lower():
-                background_metric_key = metric_key + "_local_bg"
-            else:
-                background_metric_key = metric_key + "_global_bg"
+            key_modifier = self.get_dict_key(self.background_dict, background_mode)
+            background_metric_key = metric_key + key_modifier
         else:
             background_metric_key = None
 
@@ -292,7 +290,12 @@ class _export_traces_utils:
             background_mode = self.traces_export_background.currentText()
 
             metric_key = self.get_dict_key(self.metric_dict, metric_name)
-            background_metric_key = metric_key + "_bg"
+
+            if background_mode not in ["None", None, ""] and type(metric_key) == str:
+                key_modifier = self.get_dict_key(self.background_dict, background_mode)
+                background_metric_key = metric_key + key_modifier
+            else:
+                background_metric_key = None
 
             if dataset_name == "All Datasets":
                 dataset_list = list(self.traces_dict.keys())

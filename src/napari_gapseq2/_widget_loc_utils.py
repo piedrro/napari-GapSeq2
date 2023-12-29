@@ -264,6 +264,8 @@ class _loc_utils():
 
             with h5py.File(path, "r") as f:
                 locs = np.array(f["locs"], dtype=dtype).view(np.recarray)
+                # print(locs.dtype.descr)
+                # print(len(locs[0]))
 
             box_size = self.picasso_box_size.currentText()
 
