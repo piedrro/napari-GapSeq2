@@ -104,6 +104,27 @@ class _import_utils:
 
         return n_frames, image_shape, dtype
 
+    def format_import_path(self, path):
+
+        try:
+
+            if "%" in str(path):
+                path = path.replace("%", "%%")
+
+            path = os.path.normpath(path)
+
+            if os.name == "nt":
+                if path.startswith("\\\\"):
+                    path = '\\\\?\\UNC\\' + path[2:]
+                if path.startswith("UNC"):
+                    path = '\\\\?\\' + path
+
+        except:
+            print(traceback.format_exc())
+            pass
+
+        return path
+
     def populate_import_lists(self, progress_callback=None, paths=[]):
 
         image_list = []
@@ -122,6 +143,7 @@ class _import_utils:
 
             for path_index, path in enumerate(paths):
 
+                path = self.format_import_path(path)
                 file_name = os.path.basename(path)
 
                 if self.gapseq_append.isChecked():

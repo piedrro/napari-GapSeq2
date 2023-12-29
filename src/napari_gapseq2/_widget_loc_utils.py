@@ -339,13 +339,17 @@ class _loc_utils():
 
                     path, _ = QFileDialog.getOpenFileName(self, "Open Files", dataset_dir, "Files (*.hdf5)")
 
-                    if path != "" and os.path.exists(path):
+                    if path != "":
 
-                        self.update_ui(init=True)
+                        path = self.format_import_path(path)
 
-                        self.worker = Worker(self._import_picasso_localisations, path=path)
-                        self.worker.signals.finished.connect(self._import_picasso_localisations_finished)
-                        self.threadpool.start(self.worker)
+                        if os.path.exists(path):
+
+                            self.update_ui(init=True)
+
+                            self.worker = Worker(self._import_picasso_localisations, path=path)
+                            self.worker.signals.finished.connect(self._import_picasso_localisations_finished)
+                            self.threadpool.start(self.worker)
         except:
             self.update_ui()
             print(traceback.format_exc())
