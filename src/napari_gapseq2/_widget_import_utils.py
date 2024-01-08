@@ -14,7 +14,7 @@ import copy
 import time
 import scipy.ndimage
 import multiprocessing
-from multiprocessing import Process, shared_memory, Pool
+from multiprocessing import Process, shared_memory, Pool, Manager
 import copy
 from functools import partial
 import cv2
@@ -24,37 +24,40 @@ import concurrent.futures
 import matplotlib.pyplot as plt
 import threading
 
-def import_image_data(dat):
+def import_image_data(dat, progress_dict={}, index=0):
 
     try:
 
         path = dat["path"]
-        frame_index = dat["frame_index"]
-        channels = dat["channels"]
-        channel_frame = dat["channel_frame"]
+        frame_list = dat["frame_list"]
+        channel_list = dat["channel_list"]
+        channel_frame_list = dat["channel_frame_list"]
         channel_images = dat["channel_images"]
-        image_shape = dat["image_shape"]
-        stop_event = dat["stop_event"]
 
-        if not stop_event.is_set():
+        n_frames = len(frame_list)
 
-            with Image.open(path) as img:
-                img.seek(frame_index)
-                img_frame = img.copy()
+        for (frame_index, channels, channel_frame) in zip(frame_list, channel_list, channel_frame_list):
 
-            img_frame = np.array(img_frame)
-            image_frame = img_frame.astype(dat["dtype"])
+            image_shape = dat["image_shape"]
+            stop_event = dat["stop_event"]
 
-            if len(channels) == 1:
-                img_frames = [img_frame]
-            else:
-                img_frames = np.array_split(img_frame, 2, axis=-1)
+            if not stop_event.is_set():
 
-            for channel, channel_img in zip(channels, img_frames):
+                img_frame = tifffile.imread(path, key=frame_index)
 
-                shared_mem = channel_images[channel]
-                np_array = np.ndarray(image_shape, dtype=dat["dtype"], buffer=shared_mem.buf)
-                np_array[channel_frame] = channel_img
+                if len(channels) == 1:
+                    img_frames = [img_frame]
+                else:
+                    img_frames = np.array_split(img_frame, 2, axis=-1)
+
+                for channel, channel_img in zip(channels, img_frames):
+
+                    shared_mem = channel_images[channel]
+                    np_array = np.ndarray(image_shape, dtype=dat["dtype"], buffer=shared_mem.buf)
+                    np_array[channel_frame] = channel_img
+
+            progress = int(((frame_index + 1) / n_frames)*100)
+            progress_dict[index] = progress
 
     except:
         print(traceback.format_exc())
@@ -348,16 +351,11 @@ class _import_utils:
             channel_list = image_dict["channel_list"]
             channel_frame_list = image_dict["channel_frame_list"]
 
-            for (frame_index, channels, channel_frame) in zip(frame_list,channel_list, channel_frame_list):
-
-                compute_job = {"frame_index": frame_index,
-                               "channels":channels,
-                               "channel_frame": channel_frame,
-                               "stop_event": self.stop_event,
-                               }
-
-                compute_job = {**compute_job, **image_dict}
-                compute_jobs.append(compute_job)
+            compute_jobs.append({"frame_list": frame_list,
+                                 "channel_list": channel_list,
+                                 "channel_frame_list": channel_frame_list,
+                                 "stop_event": self.stop_event,
+                                 **image_dict})
 
         return compute_jobs
 
@@ -369,29 +367,27 @@ class _import_utils:
         cpu_count = int(multiprocessing.cpu_count() * 0.75)
         timeout_duration = 10  # Timeout in seconds
 
-        with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
-            # Submit all jobs and store the future objects
-            futures = {executor.submit(import_image_data, job): job for job in compute_jobs}
+        with Manager() as manager:
+            progress_dict = manager.dict()
 
-            iter = 0
-            for future in concurrent.futures.as_completed(futures):
-                if self.stop_event.is_set():
-                    future.cancel()
-                else:
-                    job = futures[future]
-                    try:
-                        result = future.result(timeout=timeout_duration)  # Process result here
-                    except concurrent.futures.TimeoutError:
-                        # print(f"Task {job} timed out after {timeout_duration} seconds.")
-                        pass
-                    except Exception as e:
-                        # print(f"Error occurred in task {job}: {e}")  # Handle other exceptions
-                        pass
+            with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
 
-                # Update progress
-                iter += 1
-                progress = int((iter / len(compute_jobs)) * 100)
-                progress_callback.emit(progress)  # Emit the signal
+                # Submit all jobs and store the future objects
+                futures = [executor.submit(import_image_data, job, progress_dict, i) for i, job in enumerate(compute_jobs)]
+
+                while any(not future.done() for future in futures):
+                    # Calculate and emit progress
+                    total_progress = sum(progress_dict.values())
+                    overall_progress = int((total_progress / len(compute_jobs)))
+                    if progress_callback is not None:
+                        progress_callback.emit(overall_progress)
+                    time.sleep(0.1)  # Update frequency
+
+                # Wait for all futures to complete
+                concurrent.futures.wait(futures)
+
+                # Retrieve and process results
+                results = [future.result() for future in futures]
 
         if self.verbose:
             print("Finished processing compute jobs.")

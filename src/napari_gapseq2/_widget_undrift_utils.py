@@ -123,8 +123,6 @@ class _undrift_utils:
 
                         drift = channel_data["drift"]
 
-
-
                         render_locs = {}
 
                         for loc in locs:
