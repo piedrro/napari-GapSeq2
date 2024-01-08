@@ -108,16 +108,20 @@ class _import_utils:
 
         try:
 
-            if "%" in str(path):
-                path = path.replace("%", "%%")
-
             path = os.path.normpath(path)
 
             if os.name == "nt":
                 if path.startswith("\\\\"):
                     path = '\\\\?\\UNC\\' + path[2:]
+
+                    if "%" in str(path):
+                        path = path.replace("%", "%%")
+
                 if path.startswith("UNC"):
                     path = '\\\\?\\' + path
+
+                    if "%" in str(path):
+                        path = path.replace("%", "%%")
 
         except:
             print(traceback.format_exc())

@@ -757,7 +757,7 @@ class _loc_utils():
 
                     x, y = position
 
-                    loc_centers = np.array(loc_centers)
+                    loc_centers = np.array(loc_centers).copy()
 
                     if loc_centers.shape[-1] != 2:
                         loc_coords = loc_centers[:, 1:].copy()
@@ -771,12 +771,16 @@ class _loc_utils():
                     min_index = np.argmin(distances)
                     min_distance = distances[min_index]
 
+                    # print(f"min_distance: {min_distance}")
+
                     if min_distance < box_size:
 
                         locs = loc_utils.remove_loc(loc_index=min_index)
 
                         loc_centers = np.delete(loc_centers, min_index, axis=0)
                         loc_centers = loc_centers.tolist()
+
+                        # print(f"len locs: {len(locs)}, len loc_centers: {len(loc_centers)}")
 
                         loc_dict["localisations"] = locs
                         loc_dict["localisation_centres"] = loc_centers
@@ -787,7 +791,11 @@ class _loc_utils():
 
                         locs = loc_utils.add_loc(new_loc = [frame, x, y, net_gradient])
 
-                        loc_centers = np.append(loc_centers, np.array([[y,x]], dtype=int), axis=0)
+                        if loc_centers.shape[-1] == 3:
+                            loc_centers = np.append(loc_centers, np.array([[frame, y,x]], dtype=int), axis=0)
+                        if loc_centers.shape[-1] == 2:
+                            loc_centers = np.append(loc_centers, np.array([[y,x]], dtype=int), axis=0)
+
                         loc_centers = loc_centers.tolist()
 
                         loc_dict["localisations"] = locs

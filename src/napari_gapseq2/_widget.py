@@ -429,8 +429,10 @@ class GapSeqWidget(QWidget,
 
                     loc_dict, n_locs, fitted = self.get_loc_dict(type = "bounding_boxes")
 
-                    localisations = loc_dict["localisations"]
+                    localisations = loc_dict["localisations"].copy()
                     localisation_centres = self.get_localisation_centres(localisations,mode="bounding_boxes")
+
+                    # print(f"Drawing {len(localisation_centres)} bounding boxes")
 
                     vis_mode = self.picasso_vis_mode.currentText()
                     vis_size = float(self.picasso_vis_size.currentText())
